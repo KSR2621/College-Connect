@@ -3,6 +3,7 @@ import Header from '../components/Header';
 import CreatePost from '../components/CreatePost';
 import Feed from '../components/Feed';
 import ChatPanel from '../components/ChatPanel';
+import BottomNavBar from '../components/BottomNavBar';
 import type { Post, User, Conversation } from '../types';
 
 interface HomePageProps {
@@ -31,7 +32,7 @@ const HomePage: React.FC<HomePageProps> = ({
   return (
     <div className="min-h-screen bg-background-dark text-text-primary-dark">
       <Header user={user} onLogout={onLogout} onNavigate={onNavigate} />
-      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 pb-20 md:pb-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="md:col-span-2 space-y-6">
             <CreatePost user={user} onAddPost={onAddPost} />
@@ -44,15 +45,18 @@ const HomePage: React.FC<HomePageProps> = ({
           </div>
           <aside className="hidden md:block">
             <div className="sticky top-24 space-y-6">
-              <ChatPanel 
-                conversations={conversations}
-                currentUser={user}
-                onSendMessage={onSendMessage}
-              />
+              <div className="h-[calc(100vh-8rem)]">
+                <ChatPanel 
+                  conversations={conversations}
+                  currentUser={user}
+                  onSendMessage={onSendMessage}
+                />
+              </div>
             </div>
           </aside>
         </div>
       </main>
+      <BottomNavBar onNavigate={onNavigate} currentRoute="#/" />
     </div>
   );
 };

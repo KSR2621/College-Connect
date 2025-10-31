@@ -122,7 +122,8 @@ const App: React.FC = () => {
   }, [currentUser, route, navigate]);
 
   const handleLogin = useCallback((email: string, password: string): boolean => {
-    const user = Object.values(users).find(u => u.email === email && u.password === password);
+    // FIX: Explicitly type the parameter `u` as `User` to resolve type inference issues.
+    const user = Object.values(users).find((u: User) => u.email === email && u.password === password);
     if (user) {
       setCurrentUser(user);
       navigate('#/');
@@ -132,7 +133,8 @@ const App: React.FC = () => {
   }, [users, navigate]);
 
   const handleSignup = useCallback((newUser: Omit<User, 'id'>): boolean => {
-    const emailExists = Object.values(users).some(user => user.email === newUser.email);
+    // FIX: Explicitly type the parameter `user` as `User` to resolve type inference issues.
+    const emailExists = Object.values(users).some((user: User) => user.email === newUser.email);
     if (emailExists) {
       return false; 
     }

@@ -1,5 +1,6 @@
 import React from 'react';
 import Header from '../components/Header';
+import BottomNavBar from '../components/BottomNavBar';
 import type { User } from '../types';
 
 interface OpportunitiesPageProps {
@@ -12,7 +13,7 @@ const OpportunitiesPage: React.FC<OpportunitiesPageProps> = ({ user, onLogout, o
   return (
     <div className="min-h-screen bg-background-dark text-text-primary-dark">
       <Header user={user} onLogout={onLogout} onNavigate={onNavigate} />
-      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 pb-20 md:pb-8">
         <h1 className="text-3xl font-bold">Opportunities Hub</h1>
         <p className="mt-4 text-text-secondary-dark">Find internships, jobs, competitions, and projects.</p>
         <div className="mt-8 space-y-4">
@@ -26,6 +27,7 @@ const OpportunitiesPage: React.FC<OpportunitiesPageProps> = ({ user, onLogout, o
           </div>
         </div>
       </main>
+      <BottomNavBar onNavigate={onNavigate} currentRoute="#/opportunities" />
     </div>
   );
 };

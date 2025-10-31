@@ -1,5 +1,6 @@
 import React from 'react';
 import Header from '../components/Header';
+import BottomNavBar from '../components/BottomNavBar';
 import type { User } from '../types';
 
 interface GroupsPageProps {
@@ -12,7 +13,7 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ user, onLogout, onNavigate }) =
   return (
     <div className="min-h-screen bg-background-dark text-text-primary-dark">
       <Header user={user} onLogout={onLogout} onNavigate={onNavigate} />
-      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 pb-20 md:pb-8">
         <h1 className="text-3xl font-bold">Groups</h1>
         <p className="mt-4 text-text-secondary-dark">This is where clubs and communities will be displayed.</p>
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -30,6 +31,7 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ user, onLogout, onNavigate }) =
           </div>
         </div>
       </main>
+      <BottomNavBar onNavigate={onNavigate} currentRoute="#/groups" />
     </div>
   );
 };

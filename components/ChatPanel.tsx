@@ -33,7 +33,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversations, currentUser, onSen
     };
 
     return (
-        <div className="bg-surface-dark rounded-lg shadow-lg h-[calc(100vh-8rem)] flex flex-col">
+        <div className="bg-surface-dark rounded-lg shadow-lg h-full flex flex-col">
             {!activeConversation ? (
                 <>
                     <h3 className="font-bold text-lg p-4 border-b border-gray-700">Messages</h3>

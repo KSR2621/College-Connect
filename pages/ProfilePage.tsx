@@ -1,6 +1,7 @@
 import React from 'react';
 import Header from '../components/Header';
 import Avatar from '../components/Avatar';
+import BottomNavBar from '../components/BottomNavBar';
 import type { User } from '../types';
 
 interface ProfilePageProps {
@@ -13,7 +14,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onLogout, onNavigate })
   return (
     <div className="min-h-screen bg-background-dark text-text-primary-dark">
       <Header user={user} onLogout={onLogout} onNavigate={onNavigate} />
-      <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8 pb-20 md:pb-8">
         <div className="bg-surface-dark rounded-lg shadow-lg overflow-hidden">
           <div className="h-32 bg-brand-secondary"></div>
           <div className="p-6 sm:p-8">
@@ -60,6 +61,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onLogout, onNavigate })
             </div>
         </div>
       </main>
+      <BottomNavBar onNavigate={onNavigate} currentRoute="#/profile" />
     </div>
   );
 };
