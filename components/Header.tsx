@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { User } from '../types';
 import Avatar from './Avatar';
-import { BellIcon, HomeIcon, UsersIcon, BriefcaseIcon, ChatBubbleLeftRightIcon } from './Icons';
+import { HomeIcon, UsersIcon, BriefcaseIcon, ChatBubbleLeftRightIcon, SearchIcon, CalendarDaysIcon } from './Icons';
 
 interface HeaderProps {
   user: User;
@@ -23,22 +23,29 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onNavigate }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-
   return (
     <header className="bg-surface-dark shadow-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-bold text-brand-secondary">CampusConnect</h1>
+            <h1 className="text-xl font-bold text-brand-secondary cursor-pointer" onClick={() => onNavigate('#/')}>CampusConnect</h1>
           </div>
           <div className="hidden md:flex items-center space-x-6 text-text-secondary-dark">
             <a href="#/" onClick={(e) => { e.preventDefault(); onNavigate('#/'); }} className="flex flex-col items-center hover:text-white transition-colors cursor-pointer">
               <HomeIcon className="h-6 w-6" />
               <span className="text-xs">Home</span>
             </a>
+             <a href="#/search" onClick={(e) => { e.preventDefault(); onNavigate('#/search'); }} className="flex flex-col items-center hover:text-white transition-colors cursor-pointer">
+              <SearchIcon className="h-6 w-6" />
+              <span className="text-xs">Search</span>
+            </a>
             <a href="#/groups" onClick={(e) => { e.preventDefault(); onNavigate('#/groups'); }} className="flex flex-col items-center hover:text-white transition-colors cursor-pointer">
               <UsersIcon className="h-6 w-6" />
               <span className="text-xs">Groups</span>
+            </a>
+            <a href="#/events" onClick={(e) => { e.preventDefault(); onNavigate('#/events'); }} className="flex flex-col items-center hover:text-white transition-colors cursor-pointer">
+              <CalendarDaysIcon className="h-6 w-6" />
+              <span className="text-xs">Events</span>
             </a>
             <a href="#/opportunities" onClick={(e) => { e.preventDefault(); onNavigate('#/opportunities'); }} className="flex flex-col items-center hover:text-white transition-colors cursor-pointer">
               <BriefcaseIcon className="h-6 w-6" />
@@ -50,9 +57,15 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onNavigate }) => {
             </a>
           </div>
           <div className="flex items-center space-x-4">
-            <button className="p-2 rounded-full hover:bg-gray-700 transition-colors">
-              <BellIcon className="h-6 w-6 text-text-secondary-dark" />
-            </button>
+             <a 
+                href="#/chat" 
+                onClick={(e) => { e.preventDefault(); onNavigate('#/chat'); }} 
+                className="md:hidden flex flex-col items-center text-text-secondary-dark hover:text-white transition-colors"
+                aria-label="Chat"
+            >
+                <ChatBubbleLeftRightIcon className="h-7 w-7" />
+                <span className="text-xs -mt-1">Chat</span>
+            </a>
             <div className="relative" ref={dropdownRef}>
               <button onClick={() => setDropdownOpen(prev => !prev)} className="focus:outline-none">
                 <Avatar src={user.avatarUrl} alt={user.name} />
@@ -67,7 +80,7 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, onNavigate }) => {
                       href="#/profile"
                       onClick={(e) => {
                         e.preventDefault();
-                        onNavigate('#/profile');
+                        onNavigate(`#/profile/${user.id}`);
                         setDropdownOpen(false);
                       }}
                       className="block px-4 py-2 text-sm text-text-primary-dark hover:bg-gray-700 cursor-pointer"

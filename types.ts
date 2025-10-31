@@ -1,10 +1,9 @@
 export type UserTag = 'Student' | 'Faculty' | 'Alumni';
 
 export interface User {
-  id: string;
+  id: string; // Firebase Auth UID
   name: string;
   email: string;
-  password: string;
   avatarUrl: string;
   tag: UserTag;
   department: string;
@@ -13,19 +12,25 @@ export interface User {
 
 export interface Comment {
   id:string;
-  author: User;
+  authorId: string;
   text: string;
   timestamp: string;
 }
 
 export interface Post {
-  id: string;
-  author: User;
+  id: string; // Firestore Document ID
+  authorId: string;
   content: string;
   timestamp: string;
   likes: string[]; // Array of user IDs who liked the post
   comments: Comment[];
   imageUrl?: string;
+  videoUrl?: string;
+  // Event-specific fields
+  eventType?: 'event';
+  eventTitle?: string;
+  eventDate?: string;
+  eventLocation?: string;
 }
 
 export interface Message {
@@ -36,7 +41,17 @@ export interface Message {
 }
 
 export interface Conversation {
-  id: string;
-  participants: User[];
+  id: string; // Firestore Document ID
+  participantIds: string[];
   messages: Message[];
+}
+
+export interface Opportunity {
+    id: string; // Firestore Document ID
+    authorId: string;
+    title: string;
+    organization: string;
+    description: string;
+    applyLink?: string;
+    timestamp: string;
 }

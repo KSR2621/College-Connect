@@ -1,8 +1,16 @@
 import React, { useState } from 'react';
-import type { User, UserTag } from '../types';
+import type { UserTag } from '../types';
+
+export interface SignupFormFields {
+  name: string;
+  email: string;
+  password: string;
+  department: string;
+  tag: UserTag;
+}
 
 interface SignupPageProps {
-  onSignup: (newUser: Omit<User, 'id'>) => boolean;
+  onSignup: (formData: SignupFormFields) => Promise<void>;
   onNavigate: (path: string) => void;
 }
 
@@ -13,8 +21,9 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignup, onNavigate }) => {
   const [department, setDepartment] = useState('');
   const [tag, setTag] = useState<UserTag>('Student');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (!name || !email || !password || !department) {
@@ -23,21 +32,16 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignup, onNavigate }) => {
     }
     if (!email.endsWith('.edu')) {
         setError('Please use a valid .edu college email address.');
-        return
+        return;
     }
     
-    const success = onSignup({
-        name,
-        email,
-        password,
-        tag,
-        department,
-        avatarUrl: `https://picsum.photos/seed/${name.split(' ')[0]}/100/100`,
-        year: tag === 'Student' ? 1 : undefined,
-    });
-
-    if (!success) {
-      setError('An account with this email already exists.');
+    setLoading(true);
+    try {
+        await onSignup({ name, email, password, department, tag });
+    } catch (err: any) {
+        setError(err.message || 'Failed to sign up. This email may already be in use.');
+    } finally {
+        setLoading(false);
     }
   };
 
@@ -78,8 +82,8 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignup, onNavigate }) => {
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div>
-            <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-secondary hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-              Sign Up
+            <button type="submit" disabled={loading} className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-secondary hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:bg-gray-500">
+              {loading ? 'Creating Account...' : 'Sign Up'}
             </button>
           </div>
         </form>

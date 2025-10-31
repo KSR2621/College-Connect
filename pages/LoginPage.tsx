@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 interface LoginPageProps {
-  onLogin: (email: string, password: string) => boolean;
+  onLogin: (email: string, password: string) => Promise<void>;
   onNavigate: (path: string) => void;
 }
 
@@ -9,13 +9,18 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigate }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const success = onLogin(email, password);
-    if (!success) {
-      setError('Invalid email or password.');
+    setLoading(true);
+    try {
+      await onLogin(email, password);
+    } catch (err: any) {
+      setError(err.message || 'Failed to log in. Please check your credentials.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -61,9 +66,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigate }) => {
           <div>
             <button
               type="submit"
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-secondary hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              disabled={loading}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-secondary hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:bg-gray-500"
             >
-              Log In
+              {loading ? 'Logging In...' : 'Log In'}
             </button>
           </div>
         </form>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Header from '../components/Header';
 import ChatPanel from '../components/ChatPanel';
 import BottomNavBar from '../components/BottomNavBar';
@@ -9,10 +9,22 @@ interface ChatPageProps {
   onLogout: () => void;
   onNavigate: (path: string) => void;
   conversations: Conversation[];
+  users: { [key: string]: User };
   onSendMessage: (conversationId: string, text: string) => void;
+  onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
 }
 
-const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onNavigate, conversations, onSendMessage }) => {
+const ChatPage: React.FC<ChatPageProps> = ({ 
+  user, 
+  onLogout, 
+  onNavigate, 
+  conversations, 
+  users, 
+  onSendMessage,
+  onCreateOrOpenConversation,
+}) => {
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+
   return (
     <div className="h-screen bg-background-dark text-text-primary-dark flex flex-col">
       <Header user={user} onLogout={onLogout} onNavigate={onNavigate} />
@@ -21,7 +33,11 @@ const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onNavigate, convers
             <ChatPanel 
                 conversations={conversations}
                 currentUser={user}
+                users={users}
                 onSendMessage={onSendMessage}
+                onCreateOrOpenConversation={onCreateOrOpenConversation}
+                activeConversationId={activeConversationId}
+                setActiveConversationId={setActiveConversationId}
             />
         </div>
       </main>

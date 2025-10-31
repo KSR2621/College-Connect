@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { Post, User } from '../types';
 import Avatar from './Avatar';
@@ -6,10 +5,11 @@ import Avatar from './Avatar';
 interface CommentSectionProps {
   post: Post;
   currentUser: User;
+  users: { [key: string]: User };
   onAddComment: (postId: string, text: string) => void;
 }
 
-const CommentSection: React.FC<CommentSectionProps> = ({ post, currentUser, onAddComment }) => {
+const CommentSection: React.FC<CommentSectionProps> = ({ post, currentUser, users, onAddComment }) => {
   const [commentText, setCommentText] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -38,15 +38,19 @@ const CommentSection: React.FC<CommentSectionProps> = ({ post, currentUser, onAd
         </button>
       </form>
       <div className="space-y-4">
-        {post.comments.map(comment => (
-          <div key={comment.id} className="flex items-start space-x-3">
-            <Avatar src={comment.author.avatarUrl} alt={comment.author.name} size="sm" />
-            <div className="flex-1 bg-gray-700 rounded-lg p-3">
-              <p className="font-semibold text-sm text-text-primary-dark">{comment.author.name}</p>
-              <p className="text-sm text-text-primary-dark">{comment.text}</p>
+        {post.comments.map(comment => {
+          const author = users[comment.authorId];
+          if (!author) return null;
+          return (
+            <div key={comment.id} className="flex items-start space-x-3">
+              <Avatar src={author.avatarUrl} alt={author.name} size="sm" />
+              <div className="flex-1 bg-gray-700 rounded-lg p-3">
+                <p className="font-semibold text-sm text-text-primary-dark">{author.name}</p>
+                <p className="text-sm text-text-primary-dark">{comment.text}</p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
