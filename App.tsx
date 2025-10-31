@@ -1,8 +1,8 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth.js';
-import { doc, setDoc, getDoc, collection, onSnapshot, query, orderBy, where, addDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore.js';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage.js';
-import { auth, db, storage } from './firebase';
+// FIX: Removed v9 modular imports from 'firebase/*' as they were causing errors.
+// Using v8 compat syntax with instances imported from local firebase setup.
+import { auth, db, storage, FieldValue } from './firebase';
 
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
@@ -28,25 +28,24 @@ const App: React.FC = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   
-  // Swipe navigation state
   const touchStartRef = useRef<number | null>(null);
   const touchEndRef = useRef<number | null>(null);
   const swipeThreshold = 50;
 
-
-  // Navigation handler
   const navigate = useCallback((path: string) => {
     setRoute(path);
     window.location.hash = path;
   }, []);
 
-  // Auth state listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    // FIX: Changed from onAuthStateChanged(auth, ...) to auth.onAuthStateChanged(...) for v8 compat.
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
+        // FIX: Changed from doc(db, 'users', user.uid) to db.collection('users').doc(user.uid) for v8 compat.
+        const userDocRef = db.collection('users').doc(user.uid);
+        // FIX: Changed from getDoc(userDocRef) to userDocRef.get() for v8 compat.
+        const userDoc = await userDocRef.get();
+        if (userDoc.exists) {
           setCurrentUser({ id: user.uid, ...userDoc.data() } as User);
         }
       } else {
@@ -57,7 +56,6 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
   
-  // Firestore listeners
   useEffect(() => {
     if (!currentUser) {
       setUsers({});
@@ -67,8 +65,8 @@ const App: React.FC = () => {
       return;
     }
 
-    // Listen for all users
-    const usersUnsub = onSnapshot(collection(db, "users"), (snapshot) => {
+    // FIX: Changed from onSnapshot(collection(...)) to db.collection(...).onSnapshot() for v8 compat.
+    const usersUnsub = db.collection("users").onSnapshot((snapshot) => {
         const usersData: { [key: string]: User } = {};
         snapshot.forEach(doc => {
             usersData[doc.id] = { id: doc.id, ...doc.data() } as User;
@@ -76,9 +74,10 @@ const App: React.FC = () => {
         setUsers(usersData);
     });
 
-    // Listen for posts
-    const postsQuery = query(collection(db, "posts"), orderBy("timestamp", "desc"));
-    const postsUnsub = onSnapshot(postsQuery, (snapshot) => {
+    // FIX: Changed from query(collection(...), orderBy(...)) to db.collection(...).orderBy(...) for v8 compat.
+    const postsQuery = db.collection("posts").orderBy("timestamp", "desc");
+    // FIX: Changed from onSnapshot(query, ...) to query.onSnapshot(...) for v8 compat.
+    const postsUnsub = postsQuery.onSnapshot((snapshot) => {
         const postsData: Post[] = [];
         snapshot.forEach(doc => {
             postsData.push({ id: doc.id, ...doc.data() } as Post);
@@ -86,9 +85,10 @@ const App: React.FC = () => {
         setPosts(postsData);
     });
     
-    // Listen for conversations
-    const convosQuery = query(collection(db, "conversations"), where("participantIds", "array-contains", currentUser.id));
-    const convosUnsub = onSnapshot(convosQuery, (snapshot) => {
+    // FIX: Changed from query(collection(...), where(...)) to db.collection(...).where(...) for v8 compat.
+    const convosQuery = db.collection("conversations").where("participantIds", "array-contains", currentUser.id);
+    // FIX: Changed from onSnapshot(query, ...) to query.onSnapshot(...) for v8 compat.
+    const convosUnsub = convosQuery.onSnapshot((snapshot) => {
         const convosData: Conversation[] = [];
         snapshot.forEach(doc => {
             convosData.push({ id: doc.id, ...doc.data() } as Conversation);
@@ -96,16 +96,16 @@ const App: React.FC = () => {
         setConversations(convosData);
     });
     
-    // Listen for opportunities
-    const opportunitiesQuery = query(collection(db, "opportunities"), orderBy("timestamp", "desc"));
-    const opportunitiesUnsub = onSnapshot(opportunitiesQuery, (snapshot) => {
+    // FIX: Changed from query(collection(...), orderBy(...)) to db.collection(...).orderBy(...) for v8 compat.
+    const opportunitiesQuery = db.collection("opportunities").orderBy("timestamp", "desc");
+    // FIX: Changed from onSnapshot(query, ...) to query.onSnapshot(...) for v8 compat.
+    const opportunitiesUnsub = opportunitiesQuery.onSnapshot((snapshot) => {
       const opportunitiesData: Opportunity[] = [];
       snapshot.forEach(doc => {
         opportunitiesData.push({ id: doc.id, ...doc.data() } as Opportunity);
       });
       setOpportunities(opportunitiesData);
     });
-
 
     return () => {
         usersUnsub();
@@ -115,7 +115,6 @@ const App: React.FC = () => {
     };
   }, [currentUser]);
 
-  // Route handling
   useEffect(() => {
     const handleHashChange = () => {
       setRoute(window.location.hash || '#/welcome');
@@ -131,15 +130,15 @@ const App: React.FC = () => {
     }
   }, [currentUser, route, navigate, authReady]);
 
-
-  // Firebase-backed handlers
   const handleLogin = async (email: string, password: string): Promise<void> => {
-    await signInWithEmailAndPassword(auth, email, password);
+    // FIX: Changed from signInWithEmailAndPassword(auth, ...) to auth.signInWithEmailAndPassword(...) for v8 compat.
+    await auth.signInWithEmailAndPassword(email, password);
     navigate('#/');
   };
 
   const handleSignup = async (formData: SignupFormFields): Promise<void> => {
-    const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+    // FIX: Changed from createUserWithEmailAndPassword(auth, ...) to auth.createUserWithEmailAndPassword(...) for v8 compat.
+    const userCredential = await auth.createUserWithEmailAndPassword(formData.email, formData.password);
     const newUser: Omit<User, 'id'> = {
         name: formData.name,
         email: formData.email,
@@ -148,12 +147,17 @@ const App: React.FC = () => {
         avatarUrl: `https://picsum.photos/seed/${formData.name.split(' ')[0]}/100/100`,
         year: formData.tag === 'Student' ? 1 : undefined,
     };
-    await setDoc(doc(db, "users", userCredential.user.uid), newUser);
+    if (!userCredential.user) {
+        throw new Error("User creation failed, user object is null.");
+    }
+    // FIX: Changed from setDoc(doc(...)) to db.collection(...).doc(...).set() for v8 compat.
+    await db.collection("users").doc(userCredential.user.uid).set(newUser);
     navigate('#/');
   };
 
   const handleLogout = useCallback(async () => {
-    await signOut(auth);
+    // FIX: Changed from signOut(auth) to auth.signOut() for v8 compat.
+    await auth.signOut();
     navigate('#/welcome');
   }, [navigate]);
 
@@ -169,9 +173,12 @@ const App: React.FC = () => {
     let postData: Partial<Post> = {};
 
     if (mediaFile && mediaType) {
-      const mediaRef = ref(storage, `posts/${currentUser.id}/${Date.now()}_${mediaFile.name}`);
-      await uploadBytes(mediaRef, mediaFile);
-      const downloadURL = await getDownloadURL(mediaRef);
+      // FIX: Changed from ref(storage, ...) to storage.ref(...) for v8 compat.
+      const mediaRef = storage.ref(`posts/${currentUser.id}/${Date.now()}_${mediaFile.name}`);
+      // FIX: Changed from uploadBytes(...) to mediaRef.put(...) for v8 compat.
+      await mediaRef.put(mediaFile);
+      // FIX: Changed from getDownloadURL(...) to mediaRef.getDownloadURL() for v8 compat.
+      const downloadURL = await mediaRef.getDownloadURL();
       if (mediaType === 'image') {
         postData.imageUrl = downloadURL;
       } else if (mediaType === 'video') {
@@ -195,17 +202,20 @@ const App: React.FC = () => {
         newPost.eventLocation = eventDetails.location;
     }
 
-    await addDoc(collection(db, "posts"), newPost);
+    // FIX: Changed from addDoc(collection(...)) to db.collection(...).add() for v8 compat.
+    await db.collection("posts").add(newPost);
   }, [currentUser]);
 
   const handleToggleLike = useCallback(async (postId: string) => {
     if (!currentUser) return;
-    const postRef = doc(db, "posts", postId);
+    // FIX: Changed from doc(db, ...) to db.collection(...).doc(...) for v8 compat.
+    const postRef = db.collection("posts").doc(postId);
     const post = posts.find(p => p.id === postId);
     if (post) {
       const isLiked = post.likes.includes(currentUser.id);
-      await updateDoc(postRef, {
-        likes: isLiked ? arrayRemove(currentUser.id) : arrayUnion(currentUser.id)
+      // FIX: Changed from updateDoc(..., { likes: arrayUnion(...) }) to postRef.update({ likes: FieldValue.arrayUnion(...) }) for v8 compat.
+      await postRef.update({
+        likes: isLiked ? FieldValue.arrayRemove(currentUser.id) : FieldValue.arrayUnion(currentUser.id)
       });
     }
   }, [currentUser, posts]);
@@ -218,9 +228,11 @@ const App: React.FC = () => {
       text,
       timestamp: new Date().toISOString(),
     };
-    const postRef = doc(db, "posts", postId);
-    await updateDoc(postRef, {
-        comments: arrayUnion(newComment)
+    // FIX: Changed from doc(db, ...) to db.collection(...).doc(...) for v8 compat.
+    const postRef = db.collection("posts").doc(postId);
+    // FIX: Changed from updateDoc(..., { comments: arrayUnion(...) }) to postRef.update({ comments: FieldValue.arrayUnion(...) }) for v8 compat.
+    await postRef.update({
+        comments: FieldValue.arrayUnion(newComment)
     });
   }, [currentUser]);
 
@@ -232,9 +244,11 @@ const App: React.FC = () => {
       text,
       timestamp: new Date().toISOString(),
     };
-    const convoRef = doc(db, "conversations", conversationId);
-    await updateDoc(convoRef, {
-        messages: arrayUnion(newMessage)
+    // FIX: Changed from doc(db, ...) to db.collection(...).doc(...) for v8 compat.
+    const convoRef = db.collection("conversations").doc(conversationId);
+    // FIX: Changed from updateDoc(..., { messages: arrayUnion(...) }) to convoRef.update({ messages: FieldValue.arrayUnion(...) }) for v8 compat.
+    await convoRef.update({
+        messages: FieldValue.arrayUnion(newMessage)
     });
   }, [currentUser]);
   
@@ -246,13 +260,13 @@ const App: React.FC = () => {
       authorId: currentUser.id,
       timestamp: new Date().toISOString(),
     };
-    await addDoc(collection(db, "opportunities"), newOpportunity);
+    // FIX: Changed from addDoc(collection(...)) to db.collection(...).add() for v8 compat.
+    await db.collection("opportunities").add(newOpportunity);
   }, [currentUser]);
 
   const handleCreateOrOpenConversation = useCallback(async (otherUserId: string): Promise<string> => {
     if (!currentUser) throw new Error("User not authenticated");
 
-    // Check if a conversation already exists
     const existingConvo = conversations.find(c => 
         c.participantIds.length === 2 && 
         c.participantIds.includes(currentUser.id) && 
@@ -263,19 +277,18 @@ const App: React.FC = () => {
         return existingConvo.id;
     }
 
-    // If not, create a new one
     const newConvoData: Omit<Conversation, 'id'> = {
         participantIds: [currentUser.id, otherUserId],
         messages: [],
     };
-    const newConvoRef = await addDoc(collection(db, "conversations"), newConvoData);
+    // FIX: Changed from addDoc(collection(...)) to db.collection(...).add() for v8 compat.
+    const newConvoRef = await db.collection("conversations").add(newConvoData);
     return newConvoRef.id;
 
   }, [currentUser, conversations]);
   
-  // Swipe handlers
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchEndRef.current = null; // reset touch end on new start
+    touchEndRef.current = null;
     touchStartRef.current = e.targetTouches[0].clientX;
   };
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -286,7 +299,6 @@ const App: React.FC = () => {
     const distance = touchStartRef.current - touchEndRef.current;
     const isLeftSwipe = distance > swipeThreshold;
     
-    // Only swipe from home page
     const baseRoute = route.split('?')[0];
     if (isLeftSwipe && (baseRoute === '#/' || baseRoute === '')) {
       navigate('#/chat');
@@ -295,7 +307,6 @@ const App: React.FC = () => {
     touchStartRef.current = null;
     touchEndRef.current = null;
   };
-
 
   if (!authReady) {
     return <div className="min-h-screen bg-background-dark flex items-center justify-center text-white">Loading...</div>;
@@ -316,7 +327,7 @@ const App: React.FC = () => {
   const renderPage = () => {
     if (baseRoute.startsWith('#/profile')) {
        return <ProfilePage 
-        key={route} // Force re-render on hash change
+        key={route}
         currentUser={currentUser} 
         allUsers={users}
         onLogout={handleLogout} 

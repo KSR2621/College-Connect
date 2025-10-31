@@ -22,21 +22,24 @@
         }
       }
     </script>
+    
     <script type="importmap">
 {
   "imports": {
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "firebase/app.js": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
-    "firebase/auth.js": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
-    "firebase/firestore.js": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
-    "firebase/analytics.js": "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js",
-    "firebase/storage.js": "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.5.0/"
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
   }
 }
 </script>
+
+    <!-- SOLUTION: Load Firebase SDKs synchronously from the official CDN -->
+    <!-- This guarantees the 'firebase' global object and all its services are available before the app script runs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+
   </head>
   <body class="bg-background-dark">
     <div id="root"></div>

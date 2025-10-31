@@ -1,10 +1,7 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app.js";
-import { getAuth } from "firebase/auth.js";
-import { getFirestore } from "firebase/firestore.js";
-import { getStorage } from "firebase/storage.js";
-// Note: Analytics is initialized but not used in the app. It's safe to keep.
-import { getAnalytics } from "firebase/analytics.js";
+// This declaration informs TypeScript that a global variable named 'firebase'
+// will exist at runtime, provided by the <script> tags in index.html.
+// This prevents compile-time errors without using ES module imports that cause race conditions.
+declare const firebase: any;
 
 // CRITICAL SECURITY WARNING: Your API keys were publicly exposed.
 // 1. Go to your Firebase Console (console.firebase.google.com).
@@ -21,12 +18,14 @@ const firebaseConfig = {
   measurementId: "G-VWTVTQS5CS"
 };
 
-
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+// The global `firebase` object is guaranteed to exist here due to the script loading order.
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 
-// Initialize and export Firebase services for use in other parts of the app
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+// Initialize and export services for the rest of the app to use.
+export const auth = firebase.auth();
+export const db = firebase.firestore();
+export const storage = firebase.storage();
+export const FieldValue = firebase.firestore.FieldValue;
