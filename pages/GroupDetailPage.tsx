@@ -112,7 +112,8 @@ const GroupMembersList: React.FC<{
     users: { [key: string]: User };
     isCreator: boolean;
     onRemoveGroupMember: (groupId: string, memberId: string) => void;
-}> = ({ group, currentUser, users, isCreator, onRemoveGroupMember }) => {
+    onNavigate: (path: string) => void;
+}> = ({ group, currentUser, users, isCreator, onRemoveGroupMember, onNavigate }) => {
     
     const handleRemove = (memberId: string) => {
         if (window.confirm("Are you sure you want to remove this member from the group?")) {
@@ -130,7 +131,7 @@ const GroupMembersList: React.FC<{
 
                     return (
                         <div key={memberId} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">
-                            <div className="flex items-center space-x-3">
+                            <div className="flex items-center space-x-3 cursor-pointer" onClick={() => onNavigate(`#/profile/${member.id}`)}>
                                 <Avatar src={member.avatarUrl} name={member.name} size="md" />
                                 <div>
                                     <p className="font-semibold text-card-foreground flex items-center">
@@ -141,7 +142,7 @@ const GroupMembersList: React.FC<{
                                 </div>
                             </div>
                             {isCreator && member.id !== currentUser.id && (
-                                <button onClick={() => handleRemove(member.id)} className="bg-destructive/20 text-destructive font-semibold py-1 px-3 rounded-full text-xs hover:bg-destructive/30">
+                                <button onClick={(e) => { e.stopPropagation(); handleRemove(member.id); }} className="bg-destructive/20 text-destructive font-semibold py-1 px-3 rounded-full text-xs hover:bg-destructive/30">
                                     Remove
                                 </button>
                             )}
@@ -156,7 +157,8 @@ const GroupMembersList: React.FC<{
 const GroupFollowersList: React.FC<{
     group: Group;
     users: { [key: string]: User };
-}> = ({ group, users }) => {
+    onNavigate: (path: string) => void;
+}> = ({ group, users, onNavigate }) => {
     const followers = group.followers || [];
 
     if (followers.length === 0) {
@@ -175,7 +177,7 @@ const GroupFollowersList: React.FC<{
                     if (!follower) return null;
 
                     return (
-                        <div key={followerId} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">
+                        <div key={followerId} className="flex justify-between items-center p-2 rounded-md hover:bg-muted cursor-pointer" onClick={() => onNavigate(`#/profile/${follower.id}`)}>
                             <div className="flex items-center space-x-3">
                                 <Avatar src={follower.avatarUrl} name={follower.name} size="md" />
                                 <div>
@@ -236,12 +238,9 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                 }
                 return <GroupChatWindow group={group} currentUser={currentUser} users={users} onSendGroupMessage={onSendGroupMessage} />;
             case 'members':
-                 if (!isMember) {
-                    return <div className="text-center bg-card p-8 rounded-lg border border-border"><h3 className="text-lg font-semibold text-foreground">You must be a member of this group to see the member list.</h3></div>;
-                }
-                return <GroupMembersList group={group} currentUser={currentUser} users={users} isCreator={isCreator} onRemoveGroupMember={onRemoveGroupMember} />;
+                return <GroupMembersList group={group} currentUser={currentUser} users={users} isCreator={isCreator} onRemoveGroupMember={onRemoveGroupMember} onNavigate={onNavigate} />;
             case 'followers':
-                return <GroupFollowersList group={group} users={users} />;
+                return <GroupFollowersList group={group} users={users} onNavigate={onNavigate} />;
             case 'posts':
             default:
                 return (

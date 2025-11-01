@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { User, Group } from '../types';
 import Header from '../components/Header';
 import GroupCard from '../components/GroupCard';
 import CreateGroupModal from '../components/CreateGroupModal';
 import BottomNavBar from '../components/BottomNavBar';
 import { auth } from '../firebase';
-import { GhostIcon } from '../components/Icons';
+import { GhostIcon, ArrowRightIcon, PlusCircleIcon, UsersIcon } from '../components/Icons';
 
 interface GroupsPageProps {
   currentUser: User;
@@ -23,36 +23,87 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ currentUser, groups, onNavigate
     onNavigate('#/');
   };
 
+  const { myGroups, discoverGroups } = useMemo(() => {
+    const myGroupIds = new Set([...(currentUser.followingGroups || []), ...groups.filter(g => g.memberIds.includes(currentUser.id)).map(g => g.id)]);
+    const myGroups = groups.filter(g => myGroupIds.has(g.id));
+    const discoverGroups = groups.filter(g => !myGroupIds.has(g.id));
+    return { myGroups, discoverGroups };
+  }, [groups, currentUser]);
+
+
   return (
-    <div className="bg-background min-h-screen">
+    <div className="bg-muted/50 min-h-screen">
       <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
       
-      <main className="container mx-auto px-2 sm:px-4 lg:px-8 pt-8 pb-20 md:pb-4">
-        <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-foreground">Groups</h1>
-            <button onClick={() => setIsCreateModalOpen(true)} className="bg-primary text-primary-foreground font-semibold py-2 px-4 rounded-full text-sm hover:bg-primary/90">
-                Create Group
-            </button>
-        </div>
-        
-        {/* Confessions Card */}
-        <div 
-            className="bg-card p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-border mb-6 flex items-center space-x-4" 
-            onClick={() => onNavigate('#/confessions')}
-        >
-            <div className="flex-shrink-0 h-12 w-12 bg-secondary/10 text-secondary rounded-lg flex items-center justify-center">
-                <GhostIcon className="h-7 w-7"/>
-            </div>
-            <div>
-                <h3 className="text-lg font-bold text-card-foreground">Campus Confessions</h3>
-                <p className="text-sm text-text-muted">Share your thoughts anonymously with the campus community.</p>
+      <main className="container mx-auto px-4 pt-8 pb-20 md:pb-8">
+        {/* Hero Section */}
+        <div className="relative bg-card p-8 rounded-2xl shadow-lg border border-border overflow-hidden mb-12 text-center">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-secondary/10 opacity-50"></div>
+            <div className="relative z-10">
+                <div className="w-16 h-16 bg-primary text-primary-foreground rounded-2xl mx-auto flex items-center justify-center mb-4">
+                    <UsersIcon className="w-8 h-8"/>
+                </div>
+                <h1 className="text-4xl md:text-5xl font-extrabold text-foreground">Find Your Community</h1>
+                <p className="mt-3 text-lg text-text-muted max-w-2xl mx-auto">
+                    Explore student-led groups, clubs, and communities. Or start your own!
+                </p>
+                <button 
+                    onClick={() => setIsCreateModalOpen(true)} 
+                    className="mt-6 bg-primary text-primary-foreground font-bold py-3 px-6 rounded-full hover:bg-primary/90 transition-transform transform hover:scale-105 inline-flex items-center gap-2"
+                >
+                    <PlusCircleIcon className="w-5 h-5"/>
+                    Create a New Group
+                </button>
             </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {groups.map(group => (
-            <GroupCard key={group.id} group={group} onNavigate={onNavigate} />
-          ))}
+        {/* Confessions Card */}
+        <div 
+            className="group relative bg-gradient-to-r from-purple-600 to-indigo-700 p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer mb-12 flex items-center justify-between" 
+            onClick={() => onNavigate('#/confessions')}
+        >
+            <div className="relative z-10">
+                <div className="flex items-center gap-4">
+                     <div className="flex-shrink-0 h-14 w-14 bg-white/20 text-white rounded-xl flex items-center justify-center">
+                        <GhostIcon className="h-8 w-8"/>
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-bold text-white">Campus Confessions</h3>
+                        <p className="text-sm text-white/80">Share your thoughts anonymously.</p>
+                    </div>
+                </div>
+            </div>
+             <ArrowRightIcon className="w-6 h-6 text-white/70 group-hover:text-white group-hover:translate-x-1 transition-transform duration-300 relative z-10" />
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
+        </div>
+
+        {/* My Groups Section */}
+        {myGroups.length > 0 && (
+            <div className="mb-12">
+                <h2 className="text-2xl font-bold text-foreground mb-4">Your Groups</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {myGroups.map(group => (
+                        <GroupCard key={group.id} group={group} onNavigate={onNavigate} />
+                    ))}
+                </div>
+            </div>
+        )}
+
+        {/* Discover Groups Section */}
+         <div className="mb-12">
+            <h2 className="text-2xl font-bold text-foreground mb-4">Discover Groups</h2>
+            {discoverGroups.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {discoverGroups.map(group => (
+                        <GroupCard key={group.id} group={group} onNavigate={onNavigate} />
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center bg-card rounded-lg border border-border p-12 text-text-muted">
+                    <h3 className="text-lg font-semibold text-foreground">All groups have been discovered!</h3>
+                    <p className="mt-2">Why not create a new one and build a community?</p>
+                </div>
+            )}
         </div>
       </main>
       
