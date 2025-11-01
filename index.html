@@ -1,48 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CampusConnect</title>
+    
+    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              'brand-primary': '#1E40AF',
-              'brand-secondary': '#3B82F6',
-              'background-dark': '#111827',
-              'surface-dark': '#1F2937',
-              'text-primary-dark': '#F9FAFB',
-              'text-secondary-dark': '#9CA3AF',
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            border: '#e2e8f0', // slate-200
+            input: '#f1f5f9', // slate-100
+            ring: '#3B82F6',
+            background: '#FFFFFF',
+            foreground: '#1E293B',
+            primary: {
+              DEFAULT: '#3B82F6',
+              foreground: '#FFFFFF',
+            },
+            secondary: {
+              DEFAULT: '#EC4899',
+              foreground: '#FFFFFF',
+            },
+            destructive: {
+              DEFAULT: '#ef4444',
+              foreground: '#FFFFFF',
+            },
+            muted: {
+              DEFAULT: '#f1f5f9', // slate-100 for backgrounds
+              foreground: '#64748b', // slate-500 for text
+            },
+            accent: {
+              DEFAULT: '#FBBF24',
+              foreground: '#1E293B',
+            },
+            popover: {
+              DEFAULT: '#FFFFFF',
+              foreground: '#1E293B',
+            },
+            card: {
+              DEFAULT: '#FFFFFF',
+              foreground: '#1E293B',
+            },
+            text: {
+                DEFAULT: '#1E293B',
+                muted: '#64748b'
             }
-          }
+          },
         }
       }
-    </script>
-    
-    <script type="importmap">
-{
-  "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
-  }
-}
-</script>
+    }
+  </script>
 
-    <!-- SOLUTION: Load Firebase SDKs synchronously from the official CDN -->
-    <!-- This guarantees the 'firebase' global object and all its services are available before the app script runs -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react/": "https://aistudiocdn.com/react@^19.2.0/",
+        "react": "https://aistudiocdn.com/react@^19.2.0",
+        "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+      }
+    }
+    </script>
+
+    <!--
+      Load Firebase SDKs using script tags.
+      This makes the `firebase` object globally available.
+      These must be loaded BEFORE your main application script.
+    -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 
-  </head>
-  <body class="bg-background-dark">
+</head>
+<body class="bg-background text-foreground">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
-  </body>
+</body>
 </html>

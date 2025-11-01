@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import type { User } from '../types';
 import Avatar from './Avatar';
-import { PhotoIcon, VideoCameraIcon, CalendarDaysIcon } from './Icons';
+import { PostIcon, EventIcon, PhotoIcon, VideoIcon, GhostIcon } from './Icons';
 
 interface CreatePostProps {
   user: User;
@@ -9,53 +9,28 @@ interface CreatePostProps {
     content: string;
     mediaFile?: File | null;
     mediaType?: 'image' | 'video' | null;
-    eventDetails?: { title: string; date: string; location: string };
+    eventDetails?: { title: string; date: string; location: string; };
+    groupId?: string;
+    isConfession?: boolean;
   }) => void;
+  groupId?: string;
+  isConfessionMode?: boolean;
 }
 
-const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost }) => {
+const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isConfessionMode = false }) => {
   const [content, setContent] = useState('');
+  const [postType, setPostType] = useState<'post' | 'event'>('post');
+  
+  const [eventDetails, setEventDetails] = useState({ title: '', date: '', time: '', location: '' });
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
-  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
-  const [eventTitle, setEventTitle] = useState('');
-  const [eventDate, setEventDate] = useState('');
-  const [eventLocation, setEventLocation] = useState('');
-  
+
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
-  const resetState = () => {
-    setContent('');
-    setMediaFile(null);
-    setMediaPreview(null);
-    setMediaType(null);
-    setIsEventModalOpen(false);
-    setEventTitle('');
-    setEventDate('');
-    setEventLocation('');
-    if(imageInputRef.current) imageInputRef.current.value = "";
-    if(videoInputRef.current) videoInputRef.current.value = "";
-  };
-  
-  const handleRemoveMedia = () => {
-    setMediaFile(null);
-    setMediaPreview(null);
-    setMediaType(null);
-    if(imageInputRef.current) imageInputRef.current.value = "";
-    if(videoInputRef.current) videoInputRef.current.value = "";
-  };
-  
-  const handleRemoveEvent = () => {
-    setEventTitle('');
-    setEventDate('');
-    setEventLocation('');
-  };
-
-  const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
-    handleRemoveMedia(); // Clear previous media
-    const file = e.target.files?.[0];
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
+    const file = event.target.files?.[0];
     if (file) {
       setMediaFile(file);
       setMediaType(type);
@@ -63,130 +38,114 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost }) => {
     }
   };
 
+  const clearMedia = () => {
+    setMediaFile(null);
+    setMediaPreview(null);
+    setMediaType(null);
+    if(imageInputRef.current) imageInputRef.current.value = '';
+    if(videoInputRef.current) videoInputRef.current.value = '';
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (content.trim() || mediaFile || (eventTitle && eventDate && eventLocation)) {
-      onAddPost({
-        content,
-        mediaFile,
-        mediaType,
-        eventDetails: (eventTitle && eventDate && eventLocation) 
-            ? { title: eventTitle, date: eventDate, location: eventLocation }
-            : undefined
-      });
-      resetState();
+    if (!content.trim() && !mediaFile && postType === 'post') return;
+
+    let finalEventDetails;
+    if (postType === 'event' && !isConfessionMode) {
+        if (!eventDetails.title || !eventDetails.date || !eventDetails.time || !eventDetails.location) return;
+        const combinedDateTime = new Date(`${eventDetails.date}T${eventDetails.time}`).toISOString();
+        finalEventDetails = {
+            title: eventDetails.title,
+            date: combinedDateTime,
+            location: eventDetails.location
+        };
     }
+
+    onAddPost({
+      content,
+      mediaFile,
+      mediaType,
+      eventDetails: finalEventDetails,
+      groupId,
+      isConfession: isConfessionMode,
+    });
+
+    // Reset form
+    setContent('');
+    setEventDetails({ title: '', date: '', time: '', location: '' });
+    clearMedia();
   };
 
   return (
-    <div className="bg-surface-dark p-4 rounded-lg shadow-lg">
-       <input
-        type="file"
-        ref={imageInputRef}
-        onChange={(e) => handleMediaChange(e, 'image')}
-        className="hidden"
-        accept="image/*"
-      />
-      <input
-        type="file"
-        ref={videoInputRef}
-        onChange={(e) => handleMediaChange(e, 'video')}
-        className="hidden"
-        accept="video/*"
-      />
-      <div className="flex space-x-4">
-        <Avatar src={user.avatarUrl} alt={user.name} />
-        <textarea
-          className="w-full bg-gray-700 text-text-primary-dark rounded-lg p-2 border border-gray-600 focus:ring-2 focus:ring-brand-secondary focus:border-transparent resize-none"
-          rows={3}
-          placeholder={`What's on your mind, ${user.name.split(' ')[0]}?`}
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-        />
-      </div>
-
-      {eventTitle && (
-        <div className="mt-4 p-3 bg-gray-800 border border-gray-700 rounded-lg relative">
-          <button
-            onClick={handleRemoveEvent}
-            className="absolute top-2 right-2 bg-black bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-75"
-            aria-label="Remove event"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          <div className="flex items-center space-x-3">
-            <CalendarDaysIcon className="h-6 w-6 text-blue-500 flex-shrink-0" />
-            <div>
-              <h4 className="font-semibold text-text-primary-dark">Event: {eventTitle}</h4>
-              <p className="text-sm text-text-secondary-dark">{eventDate} at {eventLocation}</p>
+    <div className="bg-card p-4 rounded-lg shadow-sm mb-6 border border-border">
+      <div className="flex items-start space-x-4">
+        {isConfessionMode ? (
+            <div className="flex-shrink-0 h-10 w-10 bg-primary/10 text-primary rounded-full flex items-center justify-center">
+                <GhostIcon className="h-6 w-6"/>
             </div>
-          </div>
-        </div>
-      )}
+        ) : (
+             <Avatar src={user.avatarUrl} name={user.name} size="md" />
+        )}
+       
+        <div className="flex-1">
+          {!isConfessionMode && (
+            <div className="flex border-b border-border mb-2">
+                <button onClick={() => setPostType('post')} className={`flex items-center space-x-2 py-2 px-4 text-sm font-medium ${postType === 'post' ? 'border-b-2 border-primary text-primary' : 'text-text-muted'}`}>
+                    <PostIcon className="w-5 h-5"/> <span>Create Post</span>
+                </button>
+                <button onClick={() => setPostType('event')} className={`flex items-center space-x-2 py-2 px-4 text-sm font-medium ${postType === 'event' ? 'border-b-2 border-primary text-primary' : 'text-text-muted'}`}>
+                    <EventIcon className="w-5 h-5"/> <span>Create Event</span>
+                </button>
+            </div>
+          )}
+          
+          <form onSubmit={handleSubmit}>
+            {postType === 'event' && !isConfessionMode && (
+              <div className="space-y-2 mb-2">
+                  <input type="text" placeholder="Event Title*" className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground" value={eventDetails.title} onChange={e => setEventDetails({...eventDetails, title: e.target.value})} />
+                  <div className="flex gap-2">
+                    <input type="date" aria-label="Event Date" className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground" value={eventDetails.date} onChange={e => setEventDetails({...eventDetails, date: e.target.value})} />
+                    <input type="time" aria-label="Event Time" className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground" value={eventDetails.time} onChange={e => setEventDetails({...eventDetails, time: e.target.value})} />
+                  </div>
+                  <input type="text" placeholder="Location*" className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground" value={eventDetails.location} onChange={e => setEventDetails({...eventDetails, location: e.target.value})} />
+              </div>
+            )}
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder={isConfessionMode ? "Share your confession anonymously..." : (postType === 'event' ? "Describe your event..." : `What's on your mind, ${user.name.split(' ')[0]}?`)}
+              className="w-full bg-transparent focus:outline-none resize-none text-card-foreground text-lg placeholder-text-muted"
+              rows={3}
+            />
 
-      {mediaPreview && (
-        <div className="mt-4 relative">
-          {mediaType === 'image' && <img src={mediaPreview} alt="Selected preview" className="rounded-lg max-h-80 w-auto" />}
-          {mediaType === 'video' && <video src={mediaPreview} controls className="rounded-lg max-h-80 w-auto" />}
-          <button
-            onClick={handleRemoveMedia}
-            className="absolute top-2 right-2 bg-black bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-75"
-            aria-label="Remove media"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      )}
-      
-      {isEventModalOpen && (
-         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                setIsEventModalOpen(false);
-              }}
-              className="bg-surface-dark p-6 rounded-lg shadow-xl w-full max-w-md"
-            >
-                <h3 className="text-lg font-bold mb-4">Create an Event</h3>
-                <div className="space-y-4">
-                    <input type="text" placeholder="Event Title" value={eventTitle} onChange={e => setEventTitle(e.target.value)} required className="w-full bg-gray-700 text-text-primary-dark rounded-md p-2 border border-gray-600 focus:ring-2 focus:ring-brand-secondary"/>
-                    <input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} required className="w-full bg-gray-700 text-text-primary-dark rounded-md p-2 border border-gray-600 focus:ring-2 focus:ring-brand-secondary"/>
-                    <input type="text" placeholder="Location" value={eventLocation} onChange={e => setEventLocation(e.target.value)} required className="w-full bg-gray-700 text-text-primary-dark rounded-md p-2 border border-gray-600 focus:ring-2 focus:ring-brand-secondary"/>
-                </div>
-                <div className="flex justify-end space-x-2 mt-6">
-                    <button type="button" onClick={() => setIsEventModalOpen(false)} className="px-4 py-2 rounded-md text-text-secondary-dark hover:bg-gray-600">Cancel</button>
-                    <button type="submit" className="px-4 py-2 rounded-md bg-brand-secondary text-white hover:bg-blue-500">Done</button>
-                </div>
-            </form>
-        </div>
-      )}
+            {mediaPreview && (
+              <div className="mt-4 relative">
+                {mediaType === 'image' ? (
+                  <img src={mediaPreview} alt="Preview" className="rounded-lg max-h-80 w-auto" />
+                ) : (
+                  <video src={mediaPreview} controls className="rounded-lg max-h-80 w-auto" />
+                )}
+                <button onClick={clearMedia} className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 leading-none w-6 h-6 flex items-center justify-center">&times;</button>
+              </div>
+            )}
 
-      <div className="mt-4 flex justify-between items-center">
-        <div className="flex space-x-4 text-text-secondary-dark">
-          <button onClick={() => imageInputRef.current?.click()} className="flex items-center space-x-1 hover:text-brand-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={!!mediaFile || !!eventTitle}>
-            <PhotoIcon className="h-5 w-5 text-green-500"/>
-            <span>Photo</span>
-          </button>
-          <button onClick={() => videoInputRef.current?.click()} className="flex items-center space-x-1 hover:text-brand-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={!!mediaFile || !!eventTitle}>
-            <VideoCameraIcon className="h-5 w-5 text-red-500"/>
-            <span>Video</span>
-          </button>
-          <button onClick={() => setIsEventModalOpen(true)} className="flex items-center space-x-1 hover:text-brand-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={!!mediaFile}>
-            <CalendarDaysIcon className="h-5 w-5 text-blue-500"/>
-            <span>Event</span>
-          </button>
+            <div className="flex justify-between items-center mt-4 pt-4 border-t border-border">
+              <div className="flex space-x-2">
+                <input type="file" accept="image/*" ref={imageInputRef} onChange={(e) => handleFileChange(e, 'image')} className="hidden" />
+                <input type="file" accept="video/*" ref={videoInputRef} onChange={(e) => handleFileChange(e, 'video')} className="hidden" />
+                <button type="button" onClick={() => imageInputRef.current?.click()} className="flex items-center text-text-muted hover:text-primary p-2 rounded-full hover:bg-primary/10 transition-colors">
+                  <PhotoIcon className="w-6 h-6" />
+                </button>
+                 <button type="button" onClick={() => videoInputRef.current?.click()} className="flex items-center text-text-muted hover:text-primary p-2 rounded-full hover:bg-primary/10 transition-colors">
+                  <VideoIcon className="w-6 h-6" />
+                </button>
+              </div>
+              <button type="submit" className="bg-primary text-primary-foreground font-bold py-2 px-6 rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                Post
+              </button>
+            </div>
+          </form>
         </div>
-        <button
-          onClick={handleSubmit}
-          disabled={!content.trim() && !mediaFile && !eventTitle.trim()}
-          className="bg-brand-secondary text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-500 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed"
-        >
-          Post
-        </button>
       </div>
     </div>
   );

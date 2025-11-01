@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
-import type { Conversation, User } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import type { Conversation, User, Message } from '../types';
 import Avatar from './Avatar';
-import { ArrowLeftIcon, PaperAirplaneIcon, SearchIcon } from './Icons';
+import NewConversationModal from './NewConversationModal';
+import { SendIcon, SearchIcon, ArrowLeftIcon } from './Icons';
 
 interface ChatPanelProps {
     conversations: Conversation[];
@@ -13,142 +14,144 @@ interface ChatPanelProps {
     setActiveConversationId: (id: string | null) => void;
 }
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ 
-    conversations, 
-    currentUser, 
-    users, 
-    onSendMessage,
-    onCreateOrOpenConversation,
-    activeConversationId,
-    setActiveConversationId
-}) => {
-    const [messageText, setMessageText] = useState('');
-    const [searchQuery, setSearchQuery] = useState('');
+const ConversationList: React.FC<Pick<ChatPanelProps, 'conversations' | 'currentUser' | 'users' | 'setActiveConversationId' | 'activeConversationId'> & { onNewConversationClick: () => void }> = 
+({ conversations, currentUser, users, setActiveConversationId, activeConversationId, onNewConversationClick }) => {
+    return (
+        <div className="h-full flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b border-border">
+                <h2 className="text-xl font-bold text-card-foreground">Messages</h2>
+                <button onClick={onNewConversationClick} className="bg-primary text-primary-foreground font-semibold py-1 px-3 rounded-full text-sm hover:bg-primary/90">
+                    New
+                </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+                {conversations.sort((a, b) => (b.messages[b.messages.length - 1]?.timestamp || 0) - (a.messages[a.messages.length - 1]?.timestamp || 0))
+                .map(convo => {
+                    const otherParticipantId = convo.participantIds.find(id => id !== currentUser.id);
+                    if (!otherParticipantId) return null;
+                    
+                    const otherUser = users[otherParticipantId];
+                    if (!otherUser) return null;
+
+                    const lastMessage = convo.messages[convo.messages.length - 1];
+                    const lastMessageTime = lastMessage ? new Date(lastMessage.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+
+                    return (
+                        <div
+                            key={convo.id}
+                            className={`flex items-center p-3 cursor-pointer hover:bg-muted ${activeConversationId === convo.id ? 'bg-primary/10' : ''}`}
+                            onClick={() => setActiveConversationId(convo.id)}
+                        >
+                            <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="md" />
+                            <div className="ml-3 flex-1 overflow-hidden">
+                                <p className="font-semibold text-card-foreground">{otherUser.name}</p>
+                                <p className="text-sm text-text-muted truncate">{lastMessage?.text || 'No messages yet'}</p>
+                            </div>
+                            <span className="text-xs text-text-muted ml-2">{lastMessageTime}</span>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conversations' | 'currentUser' | 'users' | 'onSendMessage' | 'setActiveConversationId'>> =
+({ activeConversationId, conversations, currentUser, users, onSendMessage, setActiveConversationId }) => {
+    const [message, setMessage] = useState('');
+    const conversation = conversations.find(c => c.id === activeConversationId);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const activeConversation = conversations.find(c => c.id === activeConversationId);
-    
-    const allOtherUsers = Object.values(users).filter(u => u.id !== currentUser.id);
-    const searchResults = searchQuery 
-        ? allOtherUsers.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()))
-        : [];
-
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [activeConversation?.messages]);
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [conversation?.messages]);
 
-    const handleSendMessage = (e: React.FormEvent) => {
+    if (!conversation) {
+        return <div className="h-full hidden md:flex items-center justify-center text-text-muted"><p>Select a conversation to start chatting.</p></div>;
+    }
+
+    const otherParticipantId = conversation.participantIds.find(id => id !== currentUser.id)!;
+    const otherUser = users[otherParticipantId];
+    
+    if(!otherUser) {
+        return <div className="h-full flex items-center justify-center text-text-muted"><p>Loading chat...</p></div>;
+    }
+
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (messageText.trim() && activeConversationId) {
-            onSendMessage(activeConversationId, messageText);
-            setMessageText('');
+        if (message.trim()) {
+            onSendMessage(conversation.id, message.trim());
+            setMessage('');
         }
     };
-    
-    const handleUserSelect = async (userId: string) => {
-        const conversationId = await onCreateOrOpenConversation(userId);
-        setActiveConversationId(conversationId);
-        setSearchQuery('');
-    };
-    
-    const getOtherParticipant = (convo: Conversation): User | undefined => {
-        const otherId = convo.participantIds.find(id => id !== currentUser.id);
-        return otherId ? users[otherId] : undefined;
-    };
-
-    const activeConvoOtherParticipant = activeConversation ? getOtherParticipant(activeConversation) : undefined;
 
     return (
-        <div className="bg-surface-dark rounded-lg shadow-lg h-full flex flex-col">
-            {!activeConversation ? (
-                <>
-                    <div className="p-4 border-b border-gray-700">
-                        <h3 className="font-bold text-lg">Messages</h3>
-                        <div className="relative mt-2">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <SearchIcon className="h-5 w-5 text-gray-400" />
-                            </div>
-                            <input
-                                type="text"
-                                placeholder="Search for users to chat with..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-gray-700 text-text-primary-dark rounded-lg py-2 pl-10 pr-4 border border-gray-600 focus:ring-2 focus:ring-brand-secondary focus:border-transparent"
-                            />
+        <div className="h-full flex flex-col">
+            <div className="flex items-center p-3 border-b border-border">
+                <button onClick={() => setActiveConversationId(null)} className="md:hidden mr-2 p-1 text-text-muted">
+                    <ArrowLeftIcon className="w-6 h-6"/>
+                </button>
+                <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="md" />
+                <h3 className="ml-3 font-bold text-card-foreground">{otherUser.name}</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {conversation.messages.map((msg) => (
+                    <div key={msg.id} className={`flex items-end gap-2 ${msg.senderId === currentUser.id ? 'justify-end' : ''}`}>
+                         {msg.senderId !== currentUser.id && <Avatar src={users[msg.senderId]?.avatarUrl} name={users[msg.senderId]?.name} size="sm" />}
+                        <div className={`max-w-xs md:max-w-md p-3 rounded-lg ${msg.senderId === currentUser.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-card-foreground'}`}>
+                            <p>{msg.text}</p>
                         </div>
                     </div>
-                    {searchQuery ? (
-                        <ul className="space-y-1 p-2 overflow-y-auto">
-                            {searchResults.length > 0 ? searchResults.map(user => (
-                                <li key={user.id} onClick={() => handleUserSelect(user.id)}
-                                    className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-700 cursor-pointer">
-                                    <Avatar src={user.avatarUrl} alt={user.name} size="md" />
-                                    <p className="font-semibold truncate">{user.name}</p>
-                                </li>
-                            )) : (
-                                <li className="p-4 text-center text-text-secondary-dark">No users found.</li>
-                            )}
-                        </ul>
-                    ) : (
-                         <ul className="space-y-1 p-2 overflow-y-auto">
-                            {conversations.map(convo => {
-                                const otherParticipant = getOtherParticipant(convo);
-                                if (!otherParticipant) return null;
-                                const lastMessage = convo.messages[convo.messages.length - 1];
-                                return (
-                                    <li key={convo.id} onClick={() => setActiveConversationId(convo.id)}
-                                        className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-700 cursor-pointer">
-                                        <Avatar src={otherParticipant.avatarUrl} alt={otherParticipant.name} size="md" />
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-semibold truncate">{otherParticipant.name}</p>
-                                            <p className="text-sm text-text-secondary-dark truncate">{lastMessage?.text || 'No messages yet'}</p>
-                                        </div>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    )}
-                </>
-            ) : (
-                <>
-                    <div className="flex items-center p-3 border-b border-gray-700">
-                        <button onClick={() => setActiveConversationId(null)} className="mr-3 p-1 rounded-full hover:bg-gray-700">
-                            <ArrowLeftIcon className="h-5 w-5" />
-                        </button>
-                        {activeConvoOtherParticipant && (
-                           <>
-                             <Avatar src={activeConvoOtherParticipant.avatarUrl} alt={activeConvoOtherParticipant.name} size="sm" />
-                             <h4 className="font-bold ml-2">{activeConvoOtherParticipant.name}</h4>
-                           </>
-                        )}
-                    </div>
-                    <div className="flex-1 p-4 overflow-y-auto space-y-4">
-                        {activeConversation.messages.map(msg => (
-                           <div key={msg.id} className={`flex items-end gap-2 ${msg.senderId === currentUser.id ? 'justify-end' : 'justify-start'}`}>
-                                {msg.senderId !== currentUser.id && activeConvoOtherParticipant && (
-                                    <Avatar src={activeConvoOtherParticipant.avatarUrl} alt={activeConvoOtherParticipant.name} size="sm" />
-                                )}
-                                <div className={`max-w-xs md:max-w-md lg:max-w-xs xl:max-w-sm rounded-2xl px-4 py-2 ${msg.senderId === currentUser.id ? 'bg-brand-secondary text-white rounded-br-none' : 'bg-gray-700 text-text-primary-dark rounded-bl-none'}`}>
-                                    <p className="text-sm">{msg.text}</p>
-                                </div>
-                            </div>
-                        ))}
-                         <div ref={messagesEndRef} />
-                    </div>
-                    <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-700 flex items-center space-x-2">
-                        <input
-                            type="text"
-                            value={messageText}
-                            onChange={(e) => setMessageText(e.target.value)}
-                            placeholder="Type a message..."
-                            className="w-full bg-gray-700 text-text-primary-dark rounded-full py-2 px-4 border border-gray-600 focus:ring-2 focus:ring-brand-secondary focus:border-transparent"
-                         />
-                        <button type="submit" className="bg-brand-secondary p-2 rounded-full text-white hover:bg-blue-500 disabled:bg-gray-500" disabled={!messageText.trim()}>
-                            <PaperAirplaneIcon className="h-5 w-5"/>
-                        </button>
-                    </form>
-                </>
-            )}
+                ))}
+                <div ref={messagesEndRef} />
+            </div>
+            <div className="p-4 border-t border-border">
+                <form onSubmit={handleSubmit} className="flex items-center">
+                    <input
+                        type="text"
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="Type a message..."
+                        className="flex-1 bg-input border border-border rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+                    />
+                    <button type="submit" className="ml-2 p-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
+                        <SendIcon className="w-6 h-6" />
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+
+const ChatPanel: React.FC<ChatPanelProps> = (props) => {
+    const { activeConversationId, setActiveConversationId, users, currentUser, onCreateOrOpenConversation } = props;
+    const [isNewConvoModalOpen, setIsNewConvoModalOpen] = useState(false);
+
+    // In a mobile view, we show either the list or the chat window, not both.
+    const isMobile = window.innerWidth < 768;
+    
+    const handleSelectUser = async (userId: string) => {
+        const convoId = await onCreateOrOpenConversation(userId);
+        setActiveConversationId(convoId);
+        setIsNewConvoModalOpen(false);
+    };
+
+    return (
+        <div className="bg-card rounded-lg shadow-lg h-full max-h-[80vh] flex flex-col md:grid md:grid-cols-12 overflow-hidden border border-border">
+           <div className={`col-span-12 md:col-span-4 border-r border-border ${isMobile && activeConversationId ? 'hidden' : 'flex'} flex-col`}>
+                <ConversationList {...props} onNewConversationClick={() => setIsNewConvoModalOpen(true)} />
+            </div>
+             <div className={`col-span-12 md:col-span-8 ${isMobile && !activeConversationId ? 'hidden' : 'flex'} flex-col`}>
+                <ChatWindow {...props} />
+            </div>
+            <NewConversationModal 
+                isOpen={isNewConvoModalOpen}
+                onClose={() => setIsNewConvoModalOpen(false)}
+                users={Object.values(users)}
+                currentUser={currentUser}
+                onSelectUser={handleSelectUser}
+            />
         </div>
     );
 };

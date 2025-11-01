@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { User, Post } from '../types';
 import Header from '../components/Header';
@@ -6,14 +5,14 @@ import CreatePost from '../components/CreatePost';
 import Feed from '../components/Feed';
 import BottomNavBar from '../components/BottomNavBar';
 import { auth } from '../firebase';
+import { GhostIcon } from '../components/Icons';
 
-
-interface HomePageProps {
+interface ConfessionsPageProps {
   currentUser: User;
   users: { [key: string]: User };
   posts: Post[];
   onNavigate: (path: string) => void;
-  onAddPost: (postDetails: { content: string; mediaFile?: File | null; mediaType?: "image" | "video" | null; eventDetails?: { title: string; date: string; location: string; }; }) => void;
+  onAddPost: (postDetails: { content: string; mediaFile?: File | null; mediaType?: "image" | "video" | null; isConfession?: boolean; }) => void;
   onToggleLike: (postId: string) => void;
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;
@@ -22,7 +21,7 @@ interface HomePageProps {
   currentPath: string;
 }
 
-const HomePage: React.FC<HomePageProps> = (props) => {
+const ConfessionsPage: React.FC<ConfessionsPageProps> = (props) => {
     const { currentUser, users, posts, onNavigate, onAddPost, onToggleLike, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, currentPath } = props;
 
     const handleLogout = async () => {
@@ -30,24 +29,21 @@ const HomePage: React.FC<HomePageProps> = (props) => {
         onNavigate('#/');
     };
 
-    // Filter posts for the main feed (not from groups or confessions)
-    const feedPosts = posts.filter(post => !post.groupId && !post.isConfession);
-
     return (
         <div className="bg-background min-h-screen">
             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
 
-            <main className="container mx-auto px-2 sm:px-4 lg:px-8 grid grid-cols-12 gap-8 pt-8 pb-20 md:pb-4">
-                {/* Left Sidebar (optional) */}
-                <aside className="hidden lg:block col-span-3">
-                    {/* Placeholder for widgets like profile summary, quick links */}
-                </aside>
-                
-                {/* Main Content */}
-                <div className="col-span-12 lg:col-span-6">
-                    <CreatePost user={currentUser} onAddPost={onAddPost} />
+            <main className="container mx-auto px-2 sm:px-4 lg:px-8 pt-8 pb-20 md:pb-4">
+                <div className="max-w-3xl mx-auto">
+                    <div className="text-center mb-8">
+                        <GhostIcon className="w-16 h-16 mx-auto text-secondary"/>
+                        <h1 className="text-4xl font-bold text-foreground mt-4">Campus Confessions</h1>
+                        <p className="text-lg text-text-muted mt-2">Share your thoughts anonymously. Be respectful.</p>
+                    </div>
+
+                    <CreatePost user={currentUser} onAddPost={onAddPost} isConfessionMode={true} />
                     <Feed 
-                        posts={feedPosts}
+                        posts={posts}
                         users={users}
                         currentUser={currentUser}
                         onToggleLike={onToggleLike}
@@ -57,11 +53,6 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                         onSharePostAsMessage={onSharePostAsMessage}
                     />
                 </div>
-
-                {/* Right Sidebar (optional) */}
-                <aside className="hidden lg:block col-span-3">
-                    {/* Placeholder for widgets like upcoming events, trending groups */}
-                </aside>
             </main>
 
             <BottomNavBar onNavigate={onNavigate} currentPage={currentPath}/>
@@ -69,4 +60,4 @@ const HomePage: React.FC<HomePageProps> = (props) => {
     );
 };
 
-export default HomePage;
+export default ConfessionsPage;

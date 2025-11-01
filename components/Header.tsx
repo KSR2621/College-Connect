@@ -1,109 +1,81 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { User } from '../types';
 import Avatar from './Avatar';
-import { HomeIcon, UsersIcon, BriefcaseIcon, ChatBubbleLeftRightIcon, SearchIcon, CalendarDaysIcon } from './Icons';
+import { HomeIcon, UsersIcon, CalendarIcon, BriefcaseIcon, SearchIcon, MessageIcon, LogoutIcon } from './Icons';
 
 interface HeaderProps {
-  user: User;
-  onLogout: () => void;
-  onNavigate: (path: string) => void;
+    currentUser: User;
+    onLogout: () => void;
+    onNavigate: (path: string) => void;
+    currentPath: string;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, onLogout, onNavigate }) => {
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+const navItems = [
+    { path: '#/home', icon: HomeIcon, label: 'Home' },
+    { path: '#/search', icon: SearchIcon, label: 'Search' },
+    { path: '#/groups', icon: UsersIcon, label: 'Groups' },
+    { path: '#/events', icon: CalendarIcon, label: 'Events' },
+    { path: '#/opportunities', icon: BriefcaseIcon, label: 'Opportunities' },
+    { path: '#/chat', icon: MessageIcon, label: 'Chat' },
+];
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
-  return (
-    <header className="bg-surface-dark shadow-md sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-bold text-brand-secondary cursor-pointer" onClick={() => onNavigate('#/')}>CampusConnect</h1>
-          </div>
-          <div className="hidden md:flex items-center space-x-6 text-text-secondary-dark">
-            <a href="#/" onClick={(e) => { e.preventDefault(); onNavigate('#/'); }} className="flex flex-col items-center hover:text-white transition-colors cursor-pointer">
-              <HomeIcon className="h-6 w-6" />
-              <span className="text-xs">Home</span>
-            </a>
-             <a href="#/search" onClick={(e) => { e.preventDefault(); onNavigate('#/search'); }} className="flex flex-col items-center hover:text-white transition-colors cursor-pointer">
-              <SearchIcon className="h-6 w-6" />
-              <span className="text-xs">Search</span>
-            </a>
-            <a href="#/groups" onClick={(e) => { e.preventDefault(); onNavigate('#/groups'); }} className="flex flex-col items-center hover:text-white transition-colors cursor-pointer">
-              <UsersIcon className="h-6 w-6" />
-              <span className="text-xs">Groups</span>
-            </a>
-            <a href="#/events" onClick={(e) => { e.preventDefault(); onNavigate('#/events'); }} className="flex flex-col items-center hover:text-white transition-colors cursor-pointer">
-              <CalendarDaysIcon className="h-6 w-6" />
-              <span className="text-xs">Events</span>
-            </a>
-            <a href="#/opportunities" onClick={(e) => { e.preventDefault(); onNavigate('#/opportunities'); }} className="flex flex-col items-center hover:text-white transition-colors cursor-pointer">
-              <BriefcaseIcon className="h-6 w-6" />
-              <span className="text-xs">Opportunities</span>
-            </a>
-             <a href="#/chat" onClick={(e) => { e.preventDefault(); onNavigate('#/chat'); }} className="flex flex-col items-center hover:text-white transition-colors cursor-pointer">
-              <ChatBubbleLeftRightIcon className="h-6 w-6" />
-              <span className="text-xs">Chat</span>
-            </a>
-          </div>
-          <div className="flex items-center space-x-4">
-             <a 
-                href="#/chat" 
-                onClick={(e) => { e.preventDefault(); onNavigate('#/chat'); }} 
-                className="md:hidden flex flex-col items-center text-text-secondary-dark hover:text-white transition-colors"
-                aria-label="Chat"
-            >
-                <ChatBubbleLeftRightIcon className="h-7 w-7" />
-                <span className="text-xs -mt-1">Chat</span>
-            </a>
-            <div className="relative" ref={dropdownRef}>
-              <button onClick={() => setDropdownOpen(prev => !prev)} className="focus:outline-none">
-                <Avatar src={user.avatarUrl} alt={user.name} />
-              </button>
-              {dropdownOpen && (
-                 <div className="absolute right-0 mt-2 w-48 bg-surface-dark border border-gray-700 rounded-md shadow-lg py-1 z-20">
-                    <div className="px-4 py-2 border-b border-gray-700">
-                      <p className="text-sm font-semibold text-text-primary-dark">{user.name}</p>
-                      <p className="text-xs text-text-secondary-dark">{user.email}</p>
+const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, currentPath }) => {
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+    return (
+        <header className="bg-card border-b border-border sticky top-0 z-40">
+            <div className="container mx-auto px-4">
+                <div className="flex justify-between items-center h-16">
+                    {/* Left Side: Logo */}
+                    <div className="flex items-center space-x-4">
+                        <span className="font-bold text-xl text-primary cursor-pointer" onClick={() => onNavigate('#/home')}>CampusConnect</span>
                     </div>
-                    <a
-                      href="#/profile"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        onNavigate(`#/profile/${user.id}`);
-                        setDropdownOpen(false);
-                      }}
-                      className="block px-4 py-2 text-sm text-text-primary-dark hover:bg-gray-700 cursor-pointer"
-                    >
-                      Profile
-                    </a>
-                    <button
-                      onClick={() => {
-                        onLogout();
-                        setDropdownOpen(false);
-                      }}
-                      className="w-full text-left block px-4 py-2 text-sm text-text-primary-dark hover:bg-gray-700"
-                    >
-                      Logout
-                    </button>
-                  </div>
-              )}
+
+                    {/* Center: Navigation (hidden on mobile) */}
+                    <nav className="hidden md:flex items-center space-x-2">
+                       {navItems.map(({ path, icon: Icon, label }) => {
+                           const isActive = currentPath.startsWith(path);
+                           return (
+                                <button
+                                    key={path}
+                                    onClick={() => onNavigate(path)}
+                                    className={`flex flex-col items-center justify-center h-16 w-20 transition-colors duration-200 ${
+                                        isActive ? 'text-primary border-b-2 border-primary' : 'text-text-muted hover:text-primary'
+                                    }`}
+                                    aria-label={label}
+                                >
+                                    <Icon className="w-6 h-6 mb-1" />
+                                    <span className="text-xs font-medium">{label}</span>
+                                </button>
+                           )
+                       })}
+                    </nav>
+
+                    {/* Right Side: Profile Dropdown */}
+                    <div className="relative">
+                        <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="flex items-center space-x-2">
+                           <Avatar src={currentUser.avatarUrl} name={currentUser.name} size="md" />
+                           <span className="hidden lg:block font-medium text-foreground">{currentUser.name}</span>
+                        </button>
+                        {isMenuOpen && (
+                            <div className="absolute right-0 mt-2 w-48 bg-card rounded-md shadow-lg py-1 border border-border">
+                                <a onClick={() => { onNavigate(`#/profile/${currentUser.id}`); setIsMenuOpen(false); }} className="flex items-center px-4 py-2 text-sm text-foreground hover:bg-muted cursor-pointer">
+                                    <Avatar src={currentUser.avatarUrl} name={currentUser.name} size="sm" className="mr-2"/>
+                                    Profile
+                                </a>
+                                <div className="border-t border-border my-1"></div>
+                                <a onClick={() => { onLogout(); setIsMenuOpen(false); }} className="flex items-center w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted cursor-pointer">
+                                  <LogoutIcon className="w-5 h-5 mr-2" />
+                                  Logout
+                                </a>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </header>
-  );
+        </header>
+    );
 };
 
 export default Header;

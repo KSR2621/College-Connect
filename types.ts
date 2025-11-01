@@ -1,57 +1,79 @@
 export type UserTag = 'Student' | 'Faculty' | 'Alumni';
 
 export interface User {
-  id: string; // Firebase Auth UID
+  id: string;
   name: string;
   email: string;
-  avatarUrl: string;
-  tag: UserTag;
   department: string;
-  year?: number; // Optional, may not apply to Faculty/Alumni
+  tag: UserTag;
+  avatarUrl?: string;
+  bio?: string;
+  interests?: string[];
+  achievements?: Achievement[];
+  yearOfStudy?: number;
+}
+
+export interface Achievement {
+    title: string;
+    description: string;
 }
 
 export interface Comment {
-  id:string;
-  authorId: string;
-  text: string;
-  timestamp: string;
+    id: string;
+    authorId: string;
+    text: string;
+    timestamp: number;
 }
 
 export interface Post {
-  id: string; // Firestore Document ID
-  authorId: string;
-  content: string;
-  timestamp: string;
-  likes: string[]; // Array of user IDs who liked the post
-  comments: Comment[];
-  imageUrl?: string;
-  videoUrl?: string;
-  // Event-specific fields
-  eventType?: 'event';
-  eventTitle?: string;
-  eventDate?: string;
-  eventLocation?: string;
+    id: string;
+    authorId: string;
+    content: string;
+    mediaUrl?: string;
+    mediaType?: 'image' | 'video';
+    imagePath?: string; // For reliable deletion from storage
+    videoPath?: string; // For reliable deletion from storage
+    timestamp: number;
+    likes: string[]; // Array of user IDs
+    comments: Comment[];
+    groupId?: string;
+    isEvent?: boolean;
+    eventDetails?: {
+        title: string;
+        date: string;
+        location: string;
+    };
+    isConfession?: boolean;
 }
 
-export interface Message {
-  id: string;
-  senderId: string;
-  text: string;
-  timestamp: string;
-}
-
-export interface Conversation {
-  id: string; // Firestore Document ID
-  participantIds: string[];
-  messages: Message[];
+export interface Group {
+    id: string;
+    name: string;
+    description: string;
+    memberIds: string[];
+    creatorId: string;
+    pendingMemberIds?: string[];
 }
 
 export interface Opportunity {
-    id: string; // Firestore Document ID
+    id: string;
     authorId: string;
     title: string;
     organization: string;
     description: string;
     applyLink?: string;
-    timestamp: string;
+    timestamp: number;
+}
+
+export interface Message {
+    id: string;
+    senderId: string;
+    text: string;
+    timestamp: number;
+}
+
+export interface Conversation {
+    id: string;
+    participantIds: string[];
+    messages: Message[];
 }

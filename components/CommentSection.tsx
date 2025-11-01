@@ -1,52 +1,58 @@
+
 import React, { useState } from 'react';
-import type { Post, User } from '../types';
+import type { Comment, User } from '../types';
 import Avatar from './Avatar';
+import { SendIcon } from './Icons';
 
 interface CommentSectionProps {
-  post: Post;
-  currentUser: User;
+  comments: Comment[];
   users: { [key: string]: User };
-  onAddComment: (postId: string, text: string) => void;
+  currentUser: User;
+  onAddComment: (text: string) => void;
 }
 
-const CommentSection: React.FC<CommentSectionProps> = ({ post, currentUser, users, onAddComment }) => {
-  const [commentText, setCommentText] = useState('');
+const CommentSection: React.FC<CommentSectionProps> = ({ comments, users, currentUser, onAddComment }) => {
+  const [newComment, setNewComment] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (commentText.trim()) {
-      onAddComment(post.id, commentText);
-      setCommentText('');
+    if (newComment.trim()) {
+      onAddComment(newComment.trim());
+      setNewComment('');
     }
   };
 
   return (
-    <div className="bg-gray-800 p-4 border-t border-gray-700">
-      <form onSubmit={handleSubmit} className="flex items-start space-x-3 mb-4">
-        <Avatar src={currentUser.avatarUrl} alt={currentUser.name} size="sm" />
-        <div className="flex-1">
-          <input
-            type="text"
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            placeholder="Write a comment..."
-            className="w-full bg-gray-700 text-text-primary-dark rounded-full py-2 px-4 border border-gray-600 focus:ring-2 focus:ring-brand-secondary focus:border-transparent"
-          />
-        </div>
-        <button type="submit" className="bg-brand-secondary text-white font-semibold py-2 px-4 rounded-full hover:bg-blue-500 transition-colors disabled:bg-gray-500" disabled={!commentText.trim()}>
-          Send
+    <div className="pt-4">
+      {/* Comment Input */}
+      <form onSubmit={handleSubmit} className="flex items-center space-x-2 mb-4">
+        <Avatar src={currentUser.avatarUrl} name={currentUser.name} size="md" />
+        <input
+          type="text"
+          value={newComment}
+          onChange={(e) => setNewComment(e.target.value)}
+          placeholder="Write a comment..."
+          className="flex-1 bg-input border border-border rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary text-foreground text-sm"
+        />
+        <button type="submit" className="p-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50" disabled={!newComment.trim()}>
+          <SendIcon className="w-5 h-5" />
         </button>
       </form>
+
+      {/* Comment List */}
       <div className="space-y-4">
-        {post.comments.map(comment => {
+        {comments.sort((a,b) => a.timestamp - b.timestamp).map((comment) => {
           const author = users[comment.authorId];
           if (!author) return null;
           return (
             <div key={comment.id} className="flex items-start space-x-3">
-              <Avatar src={author.avatarUrl} alt={author.name} size="sm" />
-              <div className="flex-1 bg-gray-700 rounded-lg p-3">
-                <p className="font-semibold text-sm text-text-primary-dark">{author.name}</p>
-                <p className="text-sm text-text-primary-dark">{comment.text}</p>
+              <Avatar src={author.avatarUrl} name={author.name} size="sm" />
+              <div className="flex-1">
+                <div className="bg-muted p-3 rounded-lg">
+                  <p className="font-semibold text-card-foreground text-sm">{author.name}</p>
+                  <p className="text-card-foreground text-sm">{comment.text}</p>
+                </div>
+                <p className="text-xs text-text-muted mt-1">{new Date(comment.timestamp).toLocaleString()}</p>
               </div>
             </div>
           );

@@ -1,137 +1,235 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
+import type { User, Post, Achievement, UserTag } from '../types';
 import Header from '../components/Header';
 import Avatar from '../components/Avatar';
+import Feed from '../components/Feed';
+import AchievementCard from '../components/AchievementCard';
+import CreatePost from '../components/CreatePost';
+import AddAchievementModal from '../components/AddAchievementModal';
+import EditProfileModal from '../components/EditProfileModal';
 import BottomNavBar from '../components/BottomNavBar';
-import PostCard from '../components/PostCard';
-import type { User, Post } from '../types';
+import { auth } from '../firebase';
+import { AwardIcon, SendIcon } from '../components/Icons';
 
 interface ProfilePageProps {
+  profileUserId: string;
   currentUser: User;
-  allUsers: { [key: string]: User };
-  onLogout: () => void;
-  onNavigate: (path: string) => void;
+  users: { [key: string]: User };
   posts: Post[];
+  onNavigate: (path: string) => void;
+  currentPath: string;
   onToggleLike: (postId: string) => void;
-  onAddComment: (postId:string, text: string) => void;
+  onAddComment: (postId: string, text: string) => void;
+  onDeletePost: (postId: string) => void;
+  onAddPost: (postDetails: { content: string; mediaFile?: File | null; mediaType?: 'image' | 'video' | null; }) => void;
+  onAddAchievement: (achievement: Achievement) => void;
+  onAddInterest: (interest: string) => void;
+  onUpdateProfile: (updateData: { name: string; bio: string; department: string; tag: UserTag; yearOfStudy?: number; }, avatarFile?: File | null) => void;
+  onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
+  onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
 }
 
-const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser, allUsers, onLogout, onNavigate, posts, onToggleLike, onAddComment }) => {
-  const [isCreateMenuOpen, setCreateMenuOpen] = useState(false);
-  const createMenuRef = useRef<HTMLDivElement>(null);
+const getYearOfStudyText = (year?: number) => {
+    if (!year) return '';
+    switch (year) {
+        case 1: return '1st Year';
+        case 2: return '2nd Year';
+        case 3: return '3rd Year';
+        case 4: return '4th Year';
+        case 5: return 'Graduate';
+        default: return `${year}th Year`;
+    }
+}
 
-  // Determine which user's profile to display
-  const profileUserId = window.location.hash.split('/')[2] || currentUser.id;
-  const user = allUsers[profileUserId];
-  const isOwnProfile = user?.id === currentUser.id;
+const ProfilePage: React.FC<ProfilePageProps> = (props) => {
+  const { profileUserId, currentUser, users, posts, onNavigate, currentPath, onToggleLike, onAddComment, onDeletePost, onAddPost, onAddAchievement, onAddInterest, onUpdateProfile, onCreateOrOpenConversation, onSharePostAsMessage } = props;
+  const [activeTab, setActiveTab] = useState<'posts' | 'achievements' | 'interests'>('posts');
+  const [isAchievementModalOpen, setIsAchievementModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [newInterest, setNewInterest] = useState('');
 
-  const myPosts = posts.filter(post => post.authorId === user?.id);
+  const user = users[profileUserId];
+  const isCurrentUserProfile = currentUser.id === profileUserId;
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (createMenuRef.current && !createMenuRef.current.contains(event.target as Node)) {
-        setCreateMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const handleLogout = async () => {
+    await auth.signOut();
+    onNavigate('#/');
+  };
+
+  const handleAddInterestSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if(newInterest.trim()) {
+        onAddInterest(newInterest.trim());
+        setNewInterest('');
+    }
+  }
 
   if (!user) {
     return (
-        <div className="min-h-screen bg-background-dark text-text-primary-dark">
-            <Header user={currentUser} onLogout={onLogout} onNavigate={onNavigate} />
-            <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-                <div className="text-center text-text-secondary-dark">User not found.</div>
-            </main>
-        </div>
+      <div className="bg-background min-h-screen">
+        <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
+        <main className="container mx-auto px-4 pt-8">
+            <p className="text-center text-foreground">User not found.</p>
+        </main>
+      </div>
     );
   }
+  
+  const userPosts = posts.filter(p => p.authorId === user.id && !p.groupId && !p.isConfession);
 
-  return (
-    <div className="min-h-screen bg-background-dark text-text-primary-dark">
-      <Header user={currentUser} onLogout={onLogout} onNavigate={onNavigate} />
-      <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8 pb-20 md:pb-8">
-        <div className="bg-surface-dark rounded-lg shadow-lg overflow-hidden">
-          <div className="h-32 bg-brand-secondary"></div>
-          <div className="p-6 sm:p-8">
-            <div className="flex justify-between items-end -mt-20">
-              <div className="flex items-end">
-                  <Avatar src={user.avatarUrl} alt={user.name} size="lg" />
-                  <div className="ml-4">
-                    <h1 className="text-2xl font-bold">{user.name}</h1>
-                    <span
-                      className={`px-3 py-1 text-sm font-semibold rounded-full mt-1 inline-block ${
-                        user.tag === 'Faculty' ? 'bg-red-500 text-white' : 
-                        user.tag === 'Alumni' ? 'bg-green-500 text-white' : 
-                        'bg-blue-500 text-white'
-                      }`}
-                    >
-                      {user.tag}
-                    </span>
-                  </div>
-              </div>
-              {isOwnProfile && (
-                <div className="relative" ref={createMenuRef}>
-                  <button 
-                    onClick={() => setCreateMenuOpen(prev => !prev)}
-                    className="bg-brand-secondary text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-500 transition-colors"
-                  >
-                    Create
-                  </button>
-                  {isCreateMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-md shadow-lg py-1 z-20">
-                      <a onClick={() => { onNavigate('#/'); setCreateMenuOpen(false); }} className="block px-4 py-2 text-sm text-text-primary-dark hover:bg-gray-700 cursor-pointer">New Post</a>
-                      <a onClick={() => { onNavigate('#/'); setCreateMenuOpen(false); }} className="block px-4 py-2 text-sm text-text-primary-dark hover:bg-gray-700 cursor-pointer">New Event</a>
-                      <a onClick={() => { onNavigate('#/opportunities?action=create'); setCreateMenuOpen(false); }} className="block px-4 py-2 text-sm text-text-primary-dark hover:bg-gray-700 cursor-pointer">New Opportunity</a>
-                    </div>
-                  )}
-                </div>
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'achievements':
+        return (
+          <div className="bg-card rounded-lg shadow-sm p-4 border border-border">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold text-foreground flex items-center"><AwardIcon className="w-5 h-5 mr-2"/> Achievements</h2>
+                {isCurrentUserProfile && (
+                    <button onClick={() => setIsAchievementModalOpen(true)} className="bg-primary text-primary-foreground font-semibold py-1 px-3 rounded-full text-sm hover:bg-primary/90">Add New</button>
+                )}
+            </div>
+            <div className="space-y-4">
+              {user.achievements && user.achievements.length > 0 ? (
+                user.achievements.map((ach, index) => <AchievementCard key={index} achievement={ach} />)
+              ) : (
+                <p className="text-center text-text-muted py-8">No achievements listed yet.</p>
               )}
             </div>
-            <div className="mt-6 border-t border-gray-700 pt-6">
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6">
-                <div className="sm:col-span-1">
-                  <dt className="text-sm font-medium text-text-secondary-dark">Email</dt>
-                  <dd className="mt-1 text-sm text-text-primary-dark">{user.email}</dd>
-                </div>
-                <div className="sm:col-span-1">
-                  <dt className="text-sm font-medium text-text-secondary-dark">Department</dt>
-                  <dd className="mt-1 text-sm text-text-primary-dark">{user.department}</dd>
-                </div>
-                {user.year && (
-                  <div className="sm:col-span-1">
-                    <dt className="text-sm font-medium text-text-secondary-dark">Year</dt>
-                    <dd className="mt-1 text-sm text-text-primary-dark">{user.year}</dd>
-                  </div>
-                )}
-              </dl>
+          </div>
+        );
+      case 'interests':
+        return (
+          <div className="bg-card rounded-lg shadow-sm p-4 border border-border">
+            <h2 className="text-lg font-bold text-foreground mb-4">Interests</h2>
+             {isCurrentUserProfile && (
+                <form onSubmit={handleAddInterestSubmit} className="flex items-center space-x-2 mb-4">
+                    <input type="text" value={newInterest} onChange={(e) => setNewInterest(e.target.value)} placeholder="Add an interest (e.g., Hiking)" className="flex-1 bg-input border border-border rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary text-foreground text-sm" />
+                    <button type="submit" className="p-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50" disabled={!newInterest.trim()}>
+                        <SendIcon className="w-5 h-5" />
+                    </button>
+                </form>
+             )}
+            <div className="flex flex-wrap gap-3">
+              {user.interests && user.interests.length > 0 ? (
+                user.interests.map((interest, index) => (
+                  <span key={index} className="bg-secondary/10 text-secondary text-sm font-medium px-4 py-2 rounded-full">{interest}</span>
+                ))
+              ) : (
+                <p className="text-center text-text-muted py-8 w-full">No interests listed yet.</p>
+              )}
             </div>
           </div>
-        </div>
-
-        <div className="mt-8">
-            <h2 className="text-xl font-bold mb-4">{isOwnProfile ? "My Posts" : `${user.name.split(' ')[0]}'s Posts`}</h2>
-            {myPosts.length > 0 ? (
-              <div className="space-y-6">
-                {myPosts.map(post => (
-                  <PostCard 
-                    key={post.id}
-                    post={post}
+        );
+      case 'posts':
+      default:
+        return (
+            <div>
+                {isCurrentUserProfile && <CreatePost user={currentUser} onAddPost={onAddPost} />}
+                <Feed 
+                    posts={userPosts}
+                    users={users}
                     currentUser={currentUser}
-                    users={allUsers}
                     onToggleLike={onToggleLike}
                     onAddComment={onAddComment}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="bg-surface-dark rounded-lg p-6 text-center text-text-secondary-dark">
-                  <p>{isOwnProfile ? "You haven't posted anything yet." : "This user hasn't posted anything yet."}</p>
-              </div>
+                    onDeletePost={onDeletePost}
+                    onCreateOrOpenConversation={onCreateOrOpenConversation}
+                    onSharePostAsMessage={onSharePostAsMessage}
+                />
+            </div>
+        );
+    }
+  };
+
+  return (
+    <div className="bg-background min-h-screen">
+      <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
+      
+      <main className="container mx-auto px-2 sm:px-4 lg:px-8 pt-8 pb-20 md:pb-4">
+        {/* Profile Header */}
+        <div className="bg-card rounded-lg shadow-sm p-6 mb-6 border border-border max-w-4xl mx-auto">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left space-y-4 sm:space-y-0 sm:space-x-6">
+            <Avatar src={user.avatarUrl} name={user.name} size="xl" />
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold text-foreground">{user.name}</h1>
+              <p className="text-md text-text-muted">
+                {user.tag}
+                {user.tag === 'Student' && user.yearOfStudy && ` - ${getYearOfStudyText(user.yearOfStudy)}`}
+                {' - '}
+                {user.department}
+              </p>
+              {user.bio && <p className="mt-2 text-card-foreground">{user.bio}</p>}
+            </div>
+            {isCurrentUserProfile && (
+              <button onClick={() => setIsEditModalOpen(true)} className="bg-primary/10 border border-primary text-primary font-semibold py-2 px-4 rounded-full text-sm hover:bg-primary/20">
+                Edit Profile
+              </button>
             )}
+          </div>
+        </div>
+        
+        {/* Profile Content */}
+        <div className="max-w-4xl mx-auto">
+            {/* Tab Navigation */}
+            <div className="mb-6">
+                <div className="border-b border-border">
+                    <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                    <button
+                        onClick={() => setActiveTab('posts')}
+                        className={`transition-colors duration-200 ${
+                        activeTab === 'posts'
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
+                        } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                    >
+                        Posts
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('achievements')}
+                        className={`transition-colors duration-200 ${
+                        activeTab === 'achievements'
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
+                        } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                    >
+                        Achievements
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('interests')}
+                        className={`transition-colors duration-200 ${
+                        activeTab === 'interests'
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
+                        } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                    >
+                        Interests
+                    </button>
+                    </nav>
+                </div>
+            </div>
+
+            {/* Tab Content */}
+            <div>
+                {renderTabContent()}
+            </div>
         </div>
       </main>
-      <BottomNavBar onNavigate={onNavigate} currentRoute="#/profile" />
+      
+      <AddAchievementModal
+        isOpen={isAchievementModalOpen}
+        onClose={() => setIsAchievementModalOpen(false)}
+        onAddAchievement={onAddAchievement}
+      />
+
+      {isCurrentUserProfile && (
+        <EditProfileModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          currentUser={currentUser}
+          onUpdateProfile={onUpdateProfile}
+        />
+      )}
+      
+      <BottomNavBar onNavigate={onNavigate} currentPage={currentPath}/>
     </div>
   );
 };

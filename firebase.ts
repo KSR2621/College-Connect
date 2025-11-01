@@ -9,13 +9,13 @@ declare const firebase: any;
 // 3. Generate a NEW API key.
 // 4. Replace the placeholder values below with your new credentials.
 const firebaseConfig = {
- apiKey: "AIzaSyBVuUeutfW6yHzDL4kjV9bInRdpjMgQIHE",
-  authDomain: "campus-connect-4ee95.firebaseapp.com",
-  projectId: "campus-connect-4ee95",
-  storageBucket: "campus-connect-4ee95.appspot.com",
-  messagingSenderId: "1051195816127",
-  appId: "1:1051195816127:web:598b4cc3a135765a6eee0a",
-  measurementId: "G-VWTVTQS5CS"
+   apiKey: "AIzaSyBVuUeutfW6yHzDL4kjV9bInRdpjMgQIHE",
+    authDomain: "campus-connect-4ee95.firebaseapp.com",
+    projectId: "campus-connect-4ee95",
+    storageBucket: "campus-connect-4ee95.firebasestorage.app",
+    messagingSenderId: "1051195816127",
+    appId: "1:1051195816127:web:598b4cc3a135765a6eee0a",
+    measurementId: "G-VWTVTQS5CS"
 };
 
 // Initialize Firebase

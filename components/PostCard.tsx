@@ -2,116 +2,170 @@ import React, { useState } from 'react';
 import type { Post, User } from '../types';
 import Avatar from './Avatar';
 import CommentSection from './CommentSection';
-import { ThumbsUpIcon, ChatBubbleOvalLeftEllipsisIcon, ShareIcon, CalendarDaysIcon } from './Icons';
+import ShareModal from './ShareModal';
+import { LikeIcon, CommentIcon, ShareIcon, OptionsIcon, CalendarIcon, GhostIcon } from './Icons';
 
 interface PostCardProps {
   post: Post;
+  author: User;
   currentUser: User;
   users: { [key: string]: User };
   onToggleLike: (postId: string) => void;
   onAddComment: (postId: string, text: string) => void;
+  onDeletePost: (postId: string) => void;
+  onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
+  onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
 }
 
-const PostCard: React.FC<PostCardProps> = ({ post, currentUser, users, onToggleLike, onAddComment }) => {
+const PostCard: React.FC<PostCardProps> = (props) => {
+  const { post, author, currentUser, users, onToggleLike, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage } = props;
   const [showComments, setShowComments] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   
-  const author = users[post.authorId];
-
-  const timeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    let interval = seconds / 31536000;
-    if (interval > 1) return `${Math.floor(interval)}y`;
-    interval = seconds / 2592000;
-    if (interval > 1) return `${Math.floor(interval)}mo`;
-    interval = seconds / 86400;
-    if (interval > 1) return `${Math.floor(interval)}d`;
-    interval = seconds / 3600;
-    if (interval > 1) return `${Math.floor(interval)}h`;
-    interval = seconds / 60;
-    if (interval > 1) return `${Math.floor(interval)}m`;
-    return `${Math.floor(seconds)}s`;
-  };
+  if (!author && !post.isConfession) return null;
 
   const isLiked = post.likes.includes(currentUser.id);
+  const isAuthor = post.authorId === currentUser.id;
 
-  if (!author) {
-    // Render a placeholder or nothing if author data isn't loaded yet
-    return <div className="bg-surface-dark rounded-lg shadow-lg p-4 sm:p-6 animate-pulse h-48"></div>;
+  const handleAddCommentForPost = (text: string) => {
+    onAddComment(post.id, text);
+  };
+  
+  const formattedDate = new Date(post.timestamp).toLocaleString();
+
+  const handleDelete = () => {
+    if (window.confirm("Are you sure you want to delete this post?")) {
+        onDeletePost(post.id);
+    }
+    setShowOptions(false);
   }
+  
+  const handleShareToUser = async (userId: string) => {
+    const authorName = post.isConfession ? 'Anonymous' : author.name;
+    try {
+        const convoId = await onCreateOrOpenConversation(userId);
+        onSharePostAsMessage(convoId, authorName, post.content);
+        setIsShareModalOpen(false);
+        // Maybe show a success toast here
+    } catch (error) {
+        console.error("Error sharing post as message:", error);
+        alert("Could not share post.");
+    }
+  };
+
 
   return (
-    <div className="bg-surface-dark rounded-lg shadow-lg overflow-hidden">
-      <div className="p-4 sm:p-6">
-        <div className="flex items-start space-x-4">
-          <Avatar src={author.avatarUrl} alt={author.name} size="md" />
-          <div className="flex-1">
-            <div className="flex items-baseline space-x-2">
-              <p className="font-bold text-text-primary-dark">{author.name}</p>
-              <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${author.tag === 'Faculty' ? 'bg-red-500 text-white' : author.tag === 'Alumni' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'}`}>
-                {author.tag}
-              </span>
-            </div>
-            <p className="text-sm text-text-secondary-dark">{author.department} {author.year ? `(Year ${author.year})` : ''}</p>
-            <p className="text-xs text-text-secondary-dark mt-1">{timeAgo(post.timestamp)} ago</p>
-          </div>
-        </div>
-
-        {post.eventType === 'event' && post.eventTitle && (
-            <div className="mt-4 p-4 bg-gray-800 border-l-4 border-brand-secondary rounded-r-lg">
-                <div className="flex items-center space-x-3">
-                    <CalendarDaysIcon className="h-8 w-8 text-brand-secondary" />
-                    <div>
-                        <h3 className="font-bold text-lg text-brand-secondary">{post.eventTitle}</h3>
-                        <p className="text-sm text-text-secondary-dark">{post.eventDate} at {post.eventLocation}</p>
+    <div className="bg-card rounded-lg shadow-sm mb-6 border border-border">
+      <div className="p-4">
+        <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+                {post.isConfession ? (
+                <>
+                    <div className="flex-shrink-0 h-10 w-10 bg-muted text-foreground rounded-full flex items-center justify-center">
+                        <GhostIcon className="h-6 w-6"/>
                     </div>
+                    <div>
+                    <p className="font-bold text-card-foreground">Anonymous</p>
+                    <p className="text-xs text-text-muted">{formattedDate}</p>
+                    </div>
+                </>
+                ) : (
+                <>
+                    <Avatar src={author.avatarUrl} name={author.name} size="md" />
+                    <div>
+                    <p className="font-bold text-card-foreground">{author.name}</p>
+                    <p className="text-xs text-text-muted">{formattedDate}</p>
+                    </div>
+                </>
+                )}
+            </div>
+            {isAuthor && !post.isConfession && (
+                <div className="relative">
+                <button onClick={() => setShowOptions(!showOptions)} className="text-text-muted hover:text-foreground">
+                    <OptionsIcon className="w-5 h-5" />
+                </button>
+                {showOptions && (
+                    <div className="absolute right-0 mt-2 w-32 bg-card rounded-md shadow-lg py-1 border border-border z-10">
+                    <button onClick={handleDelete} className="block w-full text-left px-4 py-2 text-sm text-destructive hover:bg-muted">
+                        Delete Post
+                    </button>
+                    </div>
+                )}
                 </div>
+            )}
+        </div>
+        
+        {post.isEvent && post.eventDetails && (
+             <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                <h3 className="font-bold text-lg text-primary">{post.eventDetails.title}</h3>
+                <div className="flex items-center text-sm text-primary/80 mt-1">
+                    <CalendarIcon className="w-4 h-4 mr-2" />
+                    <span>{new Date(post.eventDetails.date).toLocaleString()} at {post.eventDetails.location}</span>
+                </div>
+                <p className="mt-2 text-card-foreground">{post.content}</p>
             </div>
         )}
 
-        {post.content && <p className="mt-4 text-text-primary-dark whitespace-pre-wrap">{post.content}</p>}
+        {!post.isEvent && post.content && (
+            <p className="my-4 text-card-foreground whitespace-pre-wrap">{post.content}</p>
+        )}
       </div>
 
-      {post.imageUrl && (
-        <div className="bg-black flex justify-center">
-          <img src={post.imageUrl} alt="Post content" className="max-h-[600px] w-auto object-contain" />
+      {post.mediaUrl && (
+        <div className="bg-muted">
+          {post.mediaType === 'image' ? (
+            <img src={post.mediaUrl} alt="Post content" className="w-full max-h-[600px] object-contain" />
+          ) : (
+            <video src={post.mediaUrl} controls className="w-full max-h-[600px]" />
+          )}
+        </div>
+      )}
+      
+      <div className="px-4 py-2">
+         <div className="flex justify-between text-sm text-text-muted">
+            <span>{post.likes.length > 0 && `${post.likes.length} Likes`}</span>
+            <span>{post.comments.length > 0 && `${post.comments.length} Comments`}</span>
+         </div>
+      </div>
+
+      <div className="border-t border-border mx-4"></div>
+
+      <div className="flex justify-around p-1 text-text-muted">
+        <button onClick={() => onToggleLike(post.id)} className={`flex items-center space-x-2 hover:bg-muted p-2 rounded-md w-full justify-center ${isLiked ? 'text-primary' : ''}`}>
+          <LikeIcon className="w-5 h-5" />
+          <span className="font-semibold text-sm">Like</span>
+        </button>
+        <button onClick={() => setShowComments(!showComments)} className="flex items-center space-x-2 hover:bg-muted p-2 rounded-md w-full justify-center">
+          <CommentIcon className="w-5 h-5" />
+          <span className="font-semibold text-sm">Comment</span>
+        </button>
+        <div className="relative w-full">
+            <button onClick={() => setIsShareModalOpen(true)} className="flex items-center space-x-2 hover:bg-muted p-2 rounded-md w-full justify-center">
+                <ShareIcon className="w-5 h-5" />
+                <span className="font-semibold text-sm">Share</span>
+            </button>
+        </div>
+      </div>
+
+      {showComments && (
+        <div className="p-4 border-t border-border">
+          <CommentSection 
+            comments={post.comments}
+            users={users}
+            currentUser={currentUser}
+            onAddComment={handleAddCommentForPost}
+          />
         </div>
       )}
 
-      {post.videoUrl && (
-         <div className="bg-black">
-            <video src={post.videoUrl} controls className="w-full max-h-[600px]"></video>
-         </div>
-      )}
-
-      <div className="px-4 sm:px-6 py-2 flex justify-between items-center text-sm text-text-secondary-dark border-t border-gray-700">
-         <span>{post.likes.length > 0 ? `${post.likes.length} Likes` : ''}</span>
-         <span>{post.comments.length > 0 ? `${post.comments.length} Comments` : ''}</span>
-      </div>
-
-      <div className="border-t border-gray-700 p-2 flex justify-around">
-        <button
-          onClick={() => onToggleLike(post.id)}
-          className={`flex items-center space-x-2 p-2 rounded-md w-full justify-center transition-colors ${isLiked ? 'text-brand-secondary' : 'text-text-secondary-dark hover:bg-gray-700'}`}
-        >
-          <ThumbsUpIcon className="h-5 w-5" />
-          <span>{isLiked ? 'Liked' : 'Like'}</span>
-        </button>
-        <button
-          onClick={() => setShowComments(!showComments)}
-          className="flex items-center space-x-2 p-2 rounded-md w-full justify-center text-text-secondary-dark hover:bg-gray-700 transition-colors"
-        >
-          <ChatBubbleOvalLeftEllipsisIcon className="h-5 w-5" />
-          <span>Comment</span>
-        </button>
-        <button className="flex items-center space-x-2 p-2 rounded-md w-full justify-center text-text-secondary-dark hover:bg-gray-700 transition-colors">
-          <ShareIcon className="h-5 w-5" />
-          <span>Share</span>
-        </button>
-      </div>
-      
-      {showComments && <CommentSection post={post} currentUser={currentUser} users={users} onAddComment={onAddComment} />}
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        currentUser={currentUser}
+        users={Object.values(users)}
+        onShareToUser={handleShareToUser}
+      />
     </div>
   );
 };
