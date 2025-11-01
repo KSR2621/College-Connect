@@ -1,8 +1,8 @@
 import React from 'react';
 import { User } from '../types';
 import { 
-    HomeIcon, UsersIcon, SearchIcon, MessageIcon, UserIcon,
-    HomeIconSolid, UsersIconSolid, SearchIconSolid, MessageIconSolid, UserIconSolid 
+    HomeIcon, UsersIcon, SearchIcon, UserIcon, CalendarIcon,
+    HomeIconSolid, UsersIconSolid, SearchIconSolid, UserIconSolid, CalendarIconSolid
 } from './Icons';
 
 interface BottomNavBarProps {
@@ -16,7 +16,7 @@ const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentUser, onNavigate, cu
     { path: '#/home', icon: HomeIcon, activeIcon: HomeIconSolid, label: 'Home' },
     { path: '#/search', icon: SearchIcon, activeIcon: SearchIconSolid, label: 'Search' },
     { path: '#/groups', icon: UsersIcon, activeIcon: UsersIconSolid, label: 'Groups' },
-    { path: '#/chat', icon: MessageIcon, activeIcon: MessageIconSolid, label: 'Chat' },
+    { path: '#/events', icon: CalendarIcon, activeIcon: CalendarIconSolid, label: 'Events' },
     { path: `#/profile/${currentUser.id}`, icon: UserIcon, activeIcon: UserIconSolid, label: 'Profile' },
   ];
 
