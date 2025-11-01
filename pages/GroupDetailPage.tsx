@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { User, Group, Post } from '../types';
 import Header from '../components/Header';
 import Feed from '../components/Feed';
@@ -6,7 +6,7 @@ import CreatePost from '../components/CreatePost';
 import BottomNavBar from '../components/BottomNavBar';
 import Avatar from '../components/Avatar';
 import { auth } from '../firebase';
-import { UsersIcon, ArrowLeftIcon, ShareIcon, OptionsIcon } from '../components/Icons';
+import { UsersIcon, ArrowLeftIcon, ShareIcon, OptionsIcon, MessageIcon, PostIcon, SendIcon } from '../components/Icons';
 
 interface GroupDetailPageProps {
   group: Group;
@@ -23,14 +23,131 @@ interface GroupDetailPageProps {
   onApproveJoinRequest: (groupId: string, userId: string) => void;
   onDeclineJoinRequest: (groupId: string, userId: string) => void;
   onDeleteGroup: (groupId: string) => void;
+  onSendGroupMessage: (groupId: string, text: string) => void;
+  onRemoveGroupMember: (groupId: string, memberId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
 }
 
+const GroupChatWindow: React.FC<{
+    group: Group;
+    currentUser: User;
+    users: { [key: string]: User };
+    onSendGroupMessage: (groupId: string, text: string) => void;
+}> = ({ group, currentUser, users, onSendGroupMessage }) => {
+    const [message, setMessage] = useState('');
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messages = group.messages || [];
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages]);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (message.trim()) {
+            onSendGroupMessage(group.id, message.trim());
+            setMessage('');
+        }
+    };
+    
+    return (
+        <div className="bg-card rounded-lg shadow-sm border border-border h-[60vh] flex flex-col">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {messages.length === 0 ? (
+                    <p className="text-center text-text-muted mt-8">No messages yet. Start the conversation!</p>
+                ) : (
+                    messages.map((msg) => {
+                        const sender = users[msg.senderId];
+                        if (!sender) return null;
+                        const isCurrentUser = msg.senderId === currentUser.id;
+                        return (
+                            <div key={msg.id} className={`flex items-start gap-3 ${isCurrentUser ? 'justify-end' : ''}`}>
+                                {!isCurrentUser && <Avatar src={sender.avatarUrl} name={sender.name} size="sm" />}
+                                <div className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}>
+                                    {!isCurrentUser && <p className="text-xs text-text-muted mb-1">{sender.name}</p>}
+                                    <div className={`max-w-xs md:max-w-md p-3 rounded-lg ${isCurrentUser ? 'bg-primary text-primary-foreground' : 'bg-muted text-card-foreground'}`}>
+                                        <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    })
+                )}
+                 <div ref={messagesEndRef} />
+            </div>
+            <div className="p-4 border-t border-border">
+                <form onSubmit={handleSubmit} className="flex items-center">
+                    <input
+                        type="text"
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="Type a message..."
+                        className="flex-1 bg-input border border-border rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+                    />
+                    <button type="submit" className="ml-2 p-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
+                        <SendIcon className="w-6 h-6" />
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const GroupMembersList: React.FC<{
+    group: Group;
+    currentUser: User;
+    users: { [key: string]: User };
+    isCreator: boolean;
+    onRemoveGroupMember: (groupId: string, memberId: string) => void;
+}> = ({ group, currentUser, users, isCreator, onRemoveGroupMember }) => {
+    
+    const handleRemove = (memberId: string) => {
+        if (window.confirm("Are you sure you want to remove this member from the group?")) {
+            onRemoveGroupMember(group.id, memberId);
+        }
+    }
+
+    return (
+        <div className="bg-card rounded-lg shadow-sm border border-border p-4">
+             <div className="space-y-4">
+                {group.memberIds.map(memberId => {
+                    const member = users[memberId];
+                    if (!member) return null;
+                    const isGroupCreator = member.id === group.creatorId;
+
+                    return (
+                        <div key={memberId} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">
+                            <div className="flex items-center space-x-3">
+                                <Avatar src={member.avatarUrl} name={member.name} size="md" />
+                                <div>
+                                    <p className="font-semibold text-card-foreground flex items-center">
+                                        {member.name}
+                                        {isGroupCreator && <span className="ml-2 text-xs font-bold bg-secondary/20 text-secondary px-2 py-0.5 rounded-full">Admin</span>}
+                                    </p>
+                                    <p className="text-sm text-text-muted">{member.department}</p>
+                                </div>
+                            </div>
+                            {isCreator && member.id !== currentUser.id && (
+                                <button onClick={() => handleRemove(member.id)} className="bg-destructive/20 text-destructive font-semibold py-1 px-3 rounded-full text-xs hover:bg-destructive/30">
+                                    Remove
+                                </button>
+                            )}
+                        </div>
+                    );
+                })}
+             </div>
+        </div>
+    );
+};
+
+
 const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
-    const { group, currentUser, users, posts, onNavigate, currentPath, onAddPost, onToggleLike, onAddComment, onDeletePost, onJoinGroupRequest, onApproveJoinRequest, onDeclineJoinRequest, onDeleteGroup, onCreateOrOpenConversation, onSharePostAsMessage } = props;
+    const { group, currentUser, users, posts, onNavigate, currentPath, onAddPost, onToggleLike, onAddComment, onDeletePost, onJoinGroupRequest, onApproveJoinRequest, onDeclineJoinRequest, onDeleteGroup, onSendGroupMessage, onRemoveGroupMember, onCreateOrOpenConversation, onSharePostAsMessage } = props;
     const [inviteCopied, setInviteCopied] = useState(false);
     const [showOptions, setShowOptions] = useState(false);
+    const [activeTab, setActiveTab] = useState<'posts' | 'chat' | 'members'>('posts');
+
 
     const handleLogout = async () => {
         await auth.signOut();
@@ -50,7 +167,7 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
     };
 
     const handleDelete = () => {
-        if (window.confirm("Are you sure you want to delete this group? This action cannot be undone. Posts within this group will be orphaned.")) {
+        if (window.confirm("Are you sure you want to delete this group? This action cannot be undone.")) {
             onDeleteGroup(group.id);
             onNavigate('#/groups');
         }
@@ -59,6 +176,33 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
 
     const pendingRequests = (group.pendingMemberIds || []).map(id => users[id]).filter(Boolean);
     
+    const renderTabContent = () => {
+        switch (activeTab) {
+            case 'chat':
+                return <GroupChatWindow group={group} currentUser={currentUser} users={users} onSendGroupMessage={onSendGroupMessage} />;
+            case 'members':
+                return <GroupMembersList group={group} currentUser={currentUser} users={users} isCreator={isCreator} onRemoveGroupMember={onRemoveGroupMember} />;
+            case 'posts':
+            default:
+                return (
+                    <>
+                        <CreatePost user={currentUser} onAddPost={onAddPost} groupId={group.id} />
+                        <Feed 
+                            posts={posts}
+                            users={users}
+                            currentUser={currentUser}
+                            onToggleLike={onToggleLike}
+                            onAddComment={onAddComment}
+                            onDeletePost={onDeletePost}
+                            onCreateOrOpenConversation={onCreateOrOpenConversation}
+                            onSharePostAsMessage={onSharePostAsMessage}
+                        />
+                    </>
+                );
+        }
+    };
+
+
     return (
         <div className="bg-background min-h-screen">
             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
@@ -144,27 +288,49 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
 
 
                 {/* Main Content */}
-                <div className="max-w-3xl mx-auto">
-                    {isMember ? (
-                        <>
-                            <CreatePost user={currentUser} onAddPost={onAddPost} groupId={group.id} />
-                            <Feed 
-                                posts={posts}
-                                users={users}
-                                currentUser={currentUser}
-                                onToggleLike={onToggleLike}
-                                onAddComment={onAddComment}
-                                onDeletePost={onDeletePost}
-                                onCreateOrOpenConversation={onCreateOrOpenConversation}
-                                onSharePostAsMessage={onSharePostAsMessage}
-                            />
-                        </>
+                
+                {isMember ? (
+                    <div className="max-w-3xl mx-auto">
+                        <div className="mb-6">
+                            <div className="border-b border-border">
+                                <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                                <button
+                                    onClick={() => setActiveTab('posts')}
+                                    className={`flex items-center space-x-2 transition-colors duration-200 ${
+                                    activeTab === 'posts' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
+                                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                                >
+                                    <PostIcon className="w-5 h-5"/><span>Posts</span>
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('chat')}
+                                    className={`flex items-center space-x-2 transition-colors duration-200 ${
+                                    activeTab === 'chat' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
+                                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                                >
+                                    <MessageIcon className="w-5 h-5"/><span>Chat</span>
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('members')}
+                                    className={`flex items-center space-x-2 transition-colors duration-200 ${
+                                    activeTab === 'members' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
+                                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                                >
+                                    <UsersIcon className="w-5 h-5"/><span>Members</span>
+                                </button>
+                                </nav>
+                            </div>
+                        </div>
+
+                        <div>
+                            {renderTabContent()}
+                        </div>
+                    </div>
                     ) : (
-                        <div className="text-center bg-card p-8 rounded-lg border border-border">
+                        <div className="text-center bg-card p-8 rounded-lg border border-border max-w-3xl mx-auto">
                             <h3 className="text-lg font-semibold text-foreground">Join this group to see posts and participate.</h3>
                         </div>
                     )}
-                </div>
             </main>
             
             <BottomNavBar onNavigate={onNavigate} currentPage={currentPath}/>

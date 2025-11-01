@@ -53,6 +53,7 @@ export interface Group {
     memberIds: string[];
     creatorId: string;
     pendingMemberIds?: string[];
+    messages?: Message[];
 }
 
 export interface Opportunity {

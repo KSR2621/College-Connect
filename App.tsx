@@ -288,6 +288,19 @@ const App: React.FC = () => {
         });
     };
 
+    const handleSendGroupMessage = async (groupId: string, text: string) => {
+        if (!currentUser) return;
+        const newMessage: Omit<Message, 'id'> = {
+            senderId: currentUser.id,
+            text,
+            timestamp: Date.now(),
+        };
+        const groupRef = db.collection('groups').doc(groupId);
+        await groupRef.update({
+            messages: FieldValue.arrayUnion({ ...newMessage, id: `msg_${Date.now()}` })
+        });
+    };
+
     const handleSharePostAsMessage = async (conversationId: string, authorName: string, postContent: string) => {
         if (!currentUser) return;
         const text = `Shared a post by ${authorName}:\n\n"${postContent}"`;
@@ -322,6 +335,7 @@ const App: React.FC = () => {
             creatorId: currentUser.id,
             memberIds: [currentUser.id],
             pendingMemberIds: [],
+            messages: [],
         };
         await db.collection('groups').add(newGroup);
     };
@@ -348,6 +362,38 @@ const App: React.FC = () => {
         } catch (error) {
             console.error("Error deleting group:", error);
             alert("Could not delete the group. Please try again.");
+        }
+    };
+
+    const handleRemoveGroupMember = async (groupId: string, memberId: string) => {
+        if (!currentUser) return;
+        
+        const groupRef = db.collection('groups').doc(groupId);
+        try {
+            const doc = await groupRef.get();
+            if (!doc.exists) {
+                console.error("Group not found.");
+                return;
+            }
+            const groupData = doc.data() as Omit<Group, 'id'>;
+    
+            if (groupData.creatorId !== currentUser.id) {
+                alert("You are not authorized to remove members from this group.");
+                return;
+            }
+            
+            if (groupData.creatorId === memberId) {
+                alert("You cannot remove yourself from the group.");
+                return;
+            }
+    
+            await groupRef.update({
+                memberIds: FieldValue.arrayRemove(memberId)
+            });
+    
+        } catch (error) {
+            console.error("Error removing member:", error);
+            alert("Could not remove member. Please try again.");
         }
     };
 
@@ -457,7 +503,7 @@ const App: React.FC = () => {
             case 'groups': 
                 if (params[0]) {
                     const group = groups.find(g => g.id === params[0]);
-                    return group ? <GroupDetailPage group={group} currentUser={currentUser} users={users} posts={posts.filter(p => p.groupId === params[0])} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} onJoinGroupRequest={handleJoinGroupRequest} onApproveJoinRequest={handleApproveJoinRequest} onDeclineJoinRequest={handleDeclineJoinRequest} onDeleteGroup={handleDeleteGroup} {...postCardProps} /> : <div>Group not found</div>;
+                    return group ? <GroupDetailPage group={group} currentUser={currentUser} users={users} posts={posts.filter(p => p.groupId === params[0])} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} onJoinGroupRequest={handleJoinGroupRequest} onApproveJoinRequest={handleApproveJoinRequest} onDeclineJoinRequest={handleDeclineJoinRequest} onDeleteGroup={handleDeleteGroup} onRemoveGroupMember={handleRemoveGroupMember} onSendGroupMessage={handleSendGroupMessage} {...postCardProps} /> : <div>Group not found</div>;
                 }
                 return <GroupsPage currentUser={currentUser} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onCreateGroup={handleCreateGroup} />;
             case 'confessions': return <ConfessionsPage currentUser={currentUser} users={users} posts={posts.filter(p => p.isConfession)} onNavigate={handleNavigate} onAddPost={handleAddPost} currentPath={currentPath} {...postCardProps} />;
