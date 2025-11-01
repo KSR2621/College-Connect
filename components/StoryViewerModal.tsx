@@ -57,14 +57,27 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
             return !!users[id.split('-')[1]];
         });
         
+        const currentUserStoryId = `user-${currentUser.id}`;
+
         return entityIdsWithStories.sort((a, b) => {
+            // 1. The story that was clicked to open the viewer always comes first.
             if (a === startEntityId) return -1;
             if (b === startEntityId) return 1;
+    
+            // 2. The current user's own story is prioritized next.
+            if (a === currentUserStoryId) return -1;
+            if (b === currentUserStoryId) return 1;
+            
+            // 3. Stories with unviewed content come after that.
             const aHasUnviewed = storiesByEntity[a].some(s => !s.viewedBy.includes(currentUser.id));
             const bHasUnviewed = storiesByEntity[b].some(s => !s.viewedBy.includes(currentUser.id));
             if (aHasUnviewed && !bHasUnviewed) return -1;
             if (!aHasUnviewed && bHasUnviewed) return 1;
-            return 0;
+    
+            // 4. Finally, sort all others by the timestamp of their most recent story.
+            const aLatest = Math.max(...storiesByEntity[a].map(s => s.timestamp));
+            const bLatest = Math.max(...storiesByEntity[b].map(s => s.timestamp));
+            return bLatest - aLatest;
         });
     }, [stories, users, groups, startEntityId, currentUser.id, currentUser.followingGroups]);
 
@@ -170,17 +183,25 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
             setReplyText('');
         }
     };
+
+    const handleInteractionStart = (e: React.MouseEvent | React.TouchEvent) => {
+        const target = e.target as HTMLElement;
+        // Do not pause if the user is interacting with a button, input, or form
+        if (target.closest('button, input, form')) {
+            return;
+        }
+        setIsPaused(true);
+    };
+
+    const handleInteractionEnd = () => {
+        setIsPaused(false);
+    };
     
     if (!activeEntity || !activeStory) {
         if (orderedEntities.length === 0) onClose();
         return null;
     }
     
-    const handlePause = (shouldPause: boolean) => {
-        setIsPaused(shouldPause);
-        if(shouldPause) setIsOptionsMenuOpen(false);
-    };
-
     const textClasses = `${activeStory.fontSize || 'text-3xl'} ${activeStory.fontFamily || 'font-sans'} ${activeStory.fontWeight || 'font-bold'}`;
     const postingAdmin = isGroupStory ? users[activeStory.authorId] : null;
 
@@ -191,8 +212,8 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
 
             <div 
                 className="relative z-10 w-full h-full max-w-md max-h-[95vh] sm:max-h-[90vh] rounded-lg overflow-hidden flex flex-col"
-                onMouseDown={() => handlePause(true)} onMouseUp={() => handlePause(false)} onMouseLeave={() => handlePause(false)}
-                onTouchStart={() => handlePause(true)} onTouchEnd={() => handlePause(false)}
+                onMouseDown={handleInteractionStart} onMouseUp={handleInteractionEnd} onMouseLeave={handleInteractionEnd}
+                onTouchStart={handleInteractionStart} onTouchEnd={handleInteractionEnd}
             >
                 <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/40 to-transparent">
                      <StoryProgressBar count={activeEntityStories.length} currentIndex={currentStoryIndex} isPaused={isPaused} currentEntityId={activeEntityId}/>
@@ -213,12 +234,18 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
                         <div className="flex items-center space-x-2">
                              {canDelete && (
                                 <div className="relative">
-                                    <button onClick={(e) => { e.stopPropagation(); setIsOptionsMenuOpen(prev => !prev); }} className="p-1 text-white">
+                                    <button
+                                        onClick={() => setIsOptionsMenuOpen(prev => !prev)}
+                                        className="p-1 text-white"
+                                    >
                                         <OptionsIcon className="w-6 h-6"/>
                                     </button>
                                     {isOptionsMenuOpen && (
                                         <div className="absolute right-0 mt-2 w-36 bg-card rounded-md shadow-lg py-1 border border-border z-30">
-                                            <button onClick={handleDelete} className="flex items-center w-full text-left px-4 py-2 text-sm text-destructive hover:bg-muted">
+                                            <button
+                                                onClick={handleDelete}
+                                                className="flex items-center w-full text-left px-4 py-2 text-sm text-destructive hover:bg-muted"
+                                            >
                                                 <TrashIcon className="w-4 h-4 mr-2"/>
                                                 Delete
                                             </button>
@@ -226,7 +253,10 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
                                     )}
                                 </div>
                              )}
-                            <button onClick={onClose} className="p-1 text-white">
+                            <button
+                                onClick={onClose}
+                                className="p-1 text-white"
+                            >
                                 <CloseIcon className="w-7 h-7" />
                             </button>
                         </div>
@@ -238,14 +268,14 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
                 </div>
 
                 <div className="absolute inset-0 flex z-20">
-                    <div className="w-1/3 h-full cursor-pointer" onClick={() => !isPaused && goToPrevStory()} />
+                    <div className="w-1/3 h-full cursor-pointer" onClick={() => { if (!isPaused) goToPrevStory(); }} />
                     <div className="flex-1 h-full" />
-                    <div className="w-1/3 h-full cursor-pointer" onClick={() => !isPaused && goToNextStory()} />
+                    <div className="w-1/3 h-full cursor-pointer" onClick={() => { if (!isPaused) goToNextStory(); }} />
                 </div>
                 
                  <div className="absolute bottom-0 left-0 right-0 p-4 z-30 bg-gradient-to-t from-black/40 to-transparent">
                     {canDelete ? (
-                        <button onClick={() => { setIsViewersListOpen(true); handlePause(true); }} className="text-white text-sm font-semibold flex items-center bg-black/20 backdrop-blur-sm px-3 py-1.5 rounded-lg">
+                        <button onClick={() => { setIsViewersListOpen(true); setIsPaused(true); }} className="text-white text-sm font-semibold flex items-center bg-black/20 backdrop-blur-sm px-3 py-1.5 rounded-lg">
                            Viewed by {activeStory.viewedBy.length}
                         </button>
                     ) : (
@@ -253,8 +283,6 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
                             <input
                                 type="text"
                                 value={replyText}
-                                onFocus={() => handlePause(true)}
-                                onBlur={() => handlePause(false)}
                                 onChange={(e) => setReplyText(e.target.value)}
                                 placeholder={`Reply to ${activeEntity.name}...`}
                                 className="flex-1 bg-black/20 border border-white/30 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-white text-white placeholder:text-white/70 text-sm"
@@ -271,7 +299,7 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
                 <StoryViewersList
                     viewedBy={activeStory.viewedBy}
                     users={users}
-                    onClose={() => { setIsViewersListOpen(false); handlePause(false); }}
+                    onClose={() => { setIsViewersListOpen(false); setIsPaused(false); }}
                 />
             )}
         </div>

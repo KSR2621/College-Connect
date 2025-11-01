@@ -4,7 +4,7 @@ import Avatar from './Avatar';
 import NewConversationModal from './NewConversationModal';
 import { 
     SendIcon, SearchIcon, ArrowLeftIcon, NewChatIcon,
-    PhoneIcon, VideoCallIcon, EmojiIcon, PlusCircleIcon, InfoIcon
+    PhoneIcon, VideoCallIcon, EmojiIcon, PlusCircleIcon, InfoIcon, TrashIcon
 } from './Icons';
 
 interface ChatPanelProps {
@@ -93,9 +93,10 @@ const ConversationList: React.FC<Pick<ChatPanelProps, 'conversations' | 'current
                     return (
                         <div
                             key={convo.id}
-                            className={`flex items-center p-3 cursor-pointer transition-colors duration-200 ${activeConversationId === convo.id ? 'bg-primary/10' : 'hover:bg-slate-50'}`}
+                            className={`flex items-center p-3 cursor-pointer transition-colors duration-200 relative ${activeConversationId === convo.id ? 'bg-primary/5' : 'hover:bg-slate-50'}`}
                             onClick={() => setActiveConversationId(convo.id)}
                         >
+                            {activeConversationId === convo.id && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full"></div>}
                              <div className="relative flex-shrink-0">
                                 <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="md" />
                             </div>
@@ -128,6 +129,55 @@ const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conver
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+    const [messageToDelete, setMessageToDelete] = useState<Message | null>(null);
+    // FIX: Use `ReturnType<typeof setTimeout>` instead of `NodeJS.Timeout` for browser compatibility.
+    const pressTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+    const handlePressStart = (msg: Message) => {
+        pressTimerRef.current = setTimeout(() => {
+            if (msg.senderId === currentUser.id) {
+                setMessageToDelete(msg);
+            }
+        }, 500);
+    };
+
+    const handlePressEnd = () => {
+        clearTimeout(pressTimerRef.current);
+    };
+
+    const confirmDelete = () => {
+        if (messageToDelete) {
+            onDeleteMessage(conversation!.id, messageToDelete.id);
+            setMessageToDelete(null);
+        }
+    };
+    
+    // Swipe to go back logic
+    const [touchStartX, setTouchStartX] = useState<number | null>(null);
+    const [touchStartY, setTouchStartY] = useState<number | null>(null);
+    const minSwipeDistance = 60;
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        setTouchStartX(e.targetTouches[0].clientX);
+        setTouchStartY(e.targetTouches[0].clientY);
+    };
+
+    const handleTouchEnd = (e: React.TouchEvent) => {
+        if (!touchStartX || !touchStartY) return;
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+        const dx = touchEndX - touchStartX;
+        const dy = touchEndY - touchStartY;
+
+        if (Math.abs(dx) > Math.abs(dy) && dx > minSwipeDistance) {
+            setActiveConversationId(null);
+        }
+        
+        setTouchStartX(null);
+        setTouchStartY(null);
+    };
+
+
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [conversation?.messages]);
@@ -158,7 +208,7 @@ const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conver
     };
     
     return (
-        <div className="h-full flex flex-col bg-slate-50">
+        <div className="h-full flex flex-col bg-slate-50" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
             {/* Header - Fixed */}
             <div className="flex-shrink-0 flex items-center p-2.5 h-[60px] border-b border-border bg-white shadow-sm">
                 <button onClick={() => setActiveConversationId(null)} className="md:hidden mr-2 p-2 text-text-muted rounded-full hover:bg-slate-100">
@@ -184,21 +234,31 @@ const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conver
             </div>
 
             {/* Message List - Scrollable */}
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-4 min-h-0">
                 <div className="space-y-1">
                     {conversation.messages.map((msg, index) => {
                         const isCurrentUser = msg.senderId === currentUser.id;
                         const prevMsg = conversation.messages[index - 1];
-                        const isGrouped = prevMsg && prevMsg.senderId === msg.senderId && (msg.timestamp - prevMsg.timestamp) < 60000;
+                        const nextMsg = conversation.messages[index + 1];
+
+                        const isFirstOfGroup = !prevMsg || prevMsg.senderId !== msg.senderId || (msg.timestamp - prevMsg.timestamp) > 60000;
+                        const isLastOfGroup = !nextMsg || nextMsg.senderId !== msg.senderId || (nextMsg.timestamp - msg.timestamp) > 60000;
 
                         return (
-                            <div key={msg.id} className={`flex items-end gap-2 group ${isCurrentUser ? 'justify-end' : 'justify-start'} ${isGrouped ? '' : 'mt-4'}`}>
+                            <div key={msg.id} className={`flex items-end gap-2 group ${isCurrentUser ? 'justify-end' : 'justify-start'} ${isFirstOfGroup ? 'mt-3' : ''}`}>
                                 {!isCurrentUser && (
                                     <div className="w-8 flex-shrink-0 self-end">
-                                        {!isGrouped && <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="sm" />}
+                                        {isLastOfGroup ? <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="sm" /> : <div className="w-8"></div>}
                                     </div>
                                 )}
-                                <div className={`max-w-[70%] p-3 rounded-2xl ${isCurrentUser ? 'bg-primary text-primary-foreground' : 'bg-white text-foreground shadow-sm'}`}>
+                                <div 
+                                    className={`max-w-[70%] p-3 rounded-2xl ${isCurrentUser ? `bg-primary text-primary-foreground ${isLastOfGroup ? 'rounded-br-sm' : ''}` : `bg-white text-foreground shadow-sm ${isLastOfGroup ? 'rounded-bl-sm' : ''}`}`}
+                                    onTouchStart={() => handlePressStart(msg)}
+                                    onTouchEnd={handlePressEnd}
+                                    onMouseDown={() => handlePressStart(msg)}
+                                    onMouseUp={handlePressEnd}
+                                    onMouseLeave={handlePressEnd}
+                                >
                                     <p className="whitespace-pre-wrap break-words text-sm">{msg.text}</p>
                                 </div>
                             </div>
@@ -238,6 +298,20 @@ const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conver
                     </button>
                 </div>
             </div>
+
+             {/* Delete Confirmation Modal */}
+            {messageToDelete && (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setMessageToDelete(null)}>
+                    <div className="bg-card rounded-lg p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                        <h3 className="font-bold text-lg text-foreground">Delete Message?</h3>
+                        <p className="text-sm text-text-muted mt-2">This will permanently delete the message. This action cannot be undone.</p>
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button onClick={() => setMessageToDelete(null)} className="px-4 py-2 font-semibold text-foreground bg-muted rounded-lg hover:bg-muted/80">Cancel</button>
+                            <button onClick={confirmDelete} className="px-4 py-2 font-bold text-primary-foreground bg-destructive rounded-lg hover:bg-destructive/90">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

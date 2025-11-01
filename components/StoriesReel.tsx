@@ -102,8 +102,18 @@ const StoriesReel: React.FC<StoriesReelProps> = ({ stories, users, groups, curre
         });
 
         return Object.values(entities).sort((a, b) => {
+            const isACurrentUserStory = a.id === `user-${currentUser.id}`;
+            const isBCurrentUserStory = b.id === `user-${currentUser.id}`;
+            
+            // Prioritize current user's story first
+            if (isACurrentUserStory && !isBCurrentUserStory) return -1;
+            if (!isACurrentUserStory && isBCurrentUserStory) return 1;
+    
+            // Then, prioritize stories with unviewed content
             if (a.hasUnviewed && !b.hasUnviewed) return -1;
             if (!a.hasUnviewed && b.hasUnviewed) return 1;
+    
+            // Finally, sort by the most recent story's timestamp
             return b.latestTimestamp - a.latestTimestamp;
         });
 

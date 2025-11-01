@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import type { Post, User, Group, ReactionType } from '../types';
 import Avatar from './Avatar';
 import CommentSection from './CommentSection';
 import ShareModal from './ShareModal';
-import { CommentIcon, ShareIcon, OptionsIcon, CalendarIcon, GhostIcon, LikeIcon, HeartIcon, HahaIcon, WowIcon, SadIcon, AngryIcon } from './Icons';
+import { CommentIcon, ShareIcon, OptionsIcon, CalendarIcon, GhostIcon, LikeIcon } from './Icons';
 
 interface PostCardProps {
   post: Post;
@@ -19,13 +19,13 @@ interface PostCardProps {
   groups: Group[];
 }
 
-const reactionsList: { type: ReactionType; icon: React.FC<React.SVGProps<SVGSVGElement>>; color: string; label: string }[] = [
-    { type: 'like', icon: LikeIcon, color: 'text-blue-500', label: 'Like' },
-    { type: 'love', icon: HeartIcon, color: 'text-red-500', label: 'Love' },
-    { type: 'haha', icon: HahaIcon, color: 'text-yellow-500', label: 'Haha' },
-    { type: 'wow', icon: WowIcon, color: 'text-sky-500', label: 'Wow' },
-    { type: 'sad', icon: SadIcon, color: 'text-yellow-500', label: 'Sad' },
-    { type: 'angry', icon: AngryIcon, color: 'text-orange-600', label: 'Angry' },
+const reactionsList: { type: ReactionType; emoji: string; color: string; label: string }[] = [
+    { type: 'like', emoji: '👍', color: 'text-blue-500', label: 'Like' },
+    { type: 'love', emoji: '❤️', color: 'text-red-500', label: 'Love' },
+    { type: 'haha', emoji: '😂', color: 'text-yellow-500', label: 'Haha' },
+    { type: 'wow', emoji: '😮', color: 'text-sky-500', label: 'Wow' },
+    { type: 'sad', emoji: '😢', color: 'text-yellow-500', label: 'Sad' },
+    { type: 'angry', emoji: '😡', color: 'text-orange-600', label: 'Angry' },
 ];
 
 const PostCard: React.FC<PostCardProps> = (props) => {
@@ -34,6 +34,10 @@ const PostCard: React.FC<PostCardProps> = (props) => {
   const [showOptions, setShowOptions] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   
+  const [isPickerVisible, setPickerVisible] = useState(false);
+  const pickerTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const wasLongPress = useRef(false);
+
   if (!author && !post.isConfession) return null;
 
   const isAuthor = post.authorId === currentUser.id;
@@ -57,13 +61,13 @@ const PostCard: React.FC<PostCardProps> = (props) => {
           count: reactions[r.type]?.length || 0
       })).filter(r => r.count > 0).sort((a,b) => b.count - a.count);
 
-      const topIcons = counts.slice(0, 3).map(r => ({ icon: r.icon, type: r.type, color: r.color }));
+      const topEmojis = counts.slice(0, 3).map(r => ({ emoji: r.emoji, type: r.type }));
       
       counts.forEach(r => {
           total += r.count;
       });
 
-      return { total, topIcons };
+      return { total, topEmojis };
   }, [post.reactions]);
 
 
@@ -83,17 +87,15 @@ const PostCard: React.FC<PostCardProps> = (props) => {
   const handleShareToUser = async (userId: string) => {
     const originalPost = post.sharedPost ?? post;
 
-    // FIX: Use a proper type guard with an if/else block to safely access properties.
-    // The 'in' operator in a ternary doesn't sufficiently narrow types for the else clause.
     let isConfession: boolean | undefined;
     let authorId: string;
     let content: string;
     
-    if ('originalId' in originalPost) { // This property is unique to SharedPostInfo
+    if ('originalId' in originalPost) {
       isConfession = originalPost.originalIsConfession;
       authorId = originalPost.originalAuthorId;
       content = originalPost.originalContent;
-    } else { // It's a regular Post
+    } else {
       isConfession = originalPost.isConfession;
       authorId = originalPost.authorId;
       content = originalPost.content;
@@ -113,6 +115,35 @@ const PostCard: React.FC<PostCardProps> = (props) => {
 
   const sharedPostAuthor = post.sharedPost ? users[post.sharedPost.originalAuthorId] : null;
 
+  // --- Reaction Handlers ---
+    const handleMouseEnter = () => {
+        clearTimeout(pickerTimerRef.current);
+        setPickerVisible(true);
+    };
+    const handleMouseLeave = () => {
+        pickerTimerRef.current = setTimeout(() => {
+            setPickerVisible(false);
+        }, 300);
+    };
+    const handleTouchStart = () => {
+        wasLongPress.current = false;
+        pickerTimerRef.current = setTimeout(() => {
+            wasLongPress.current = true;
+            setPickerVisible(true);
+        }, 400);
+    };
+    const handleTouchEnd = () => {
+        clearTimeout(pickerTimerRef.current);
+    };
+    const handleLikeClick = () => {
+        if (wasLongPress.current) return;
+        setPickerVisible(false);
+        onReaction(post.id, currentUserReaction ? currentUserReaction.type : 'like');
+    };
+    const handleReactionSelect = (reactionType: ReactionType) => {
+        onReaction(post.id, reactionType);
+        setPickerVisible(false);
+    };
 
   return (
     <div className="bg-card border-b border-border sm:rounded-lg sm:shadow-sm sm:border mb-6">
@@ -245,11 +276,9 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                 <div className="flex items-center space-x-2">
                     {reactionSummary.total > 0 && (
                         <>
-                            <div className="flex items-center -space-x-1.5">
-                                {reactionSummary.topIcons.map(({ icon: Icon, type, color }) => (
-                                    <div key={type} className="rounded-full bg-card p-0.5 border-2 border-card">
-                                        <Icon className={`w-5 h-5 ${color}`} />
-                                    </div>
+                            <div className="flex items-center">
+                                {reactionSummary.topEmojis.map(({ emoji, type }) => (
+                                    <span key={type} className="text-lg -ml-1 drop-shadow-sm first:ml-0">{emoji}</span>
                                 ))}
                             </div>
                             <span className="hover:underline cursor-pointer">{reactionSummary.total}</span>
@@ -266,24 +295,39 @@ const PostCard: React.FC<PostCardProps> = (props) => {
       
       {/* Actions Bar */}
       <div className="border-t border-border flex justify-around items-center">
-          <div className="relative flex-1 group">
-              {/* Reaction Popover */}
-              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 flex items-center space-x-1 bg-card p-1 rounded-full border border-border shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none group-hover:pointer-events-auto">
-                  {reactionsList.map(reaction => (
-                      <button key={reaction.type} onClick={() => onReaction(post.id, reaction.type)} className={`${reaction.color} p-1 rounded-full hover:scale-125 transition-transform`}>
-                          <reaction.icon className="w-8 h-8" />
-                      </button>
-                  ))}
-              </div>
+          <div 
+            className="relative flex-1"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
+              {isPickerVisible && (
+                  <div className="absolute bottom-full mb-2 left-4 right-4 sm:w-auto sm:left-1/2 sm:-translate-x-1/2 flex flex-wrap items-center justify-center gap-2 bg-card p-2 rounded-2xl border border-border shadow-lg transition-opacity duration-200">
+                      {reactionsList.map(reaction => (
+                          <button 
+                            key={reaction.type} 
+                            onClick={() => handleReactionSelect(reaction.type)}
+                            className="p-1 rounded-full transition-transform duration-150 ease-in-out hover:scale-125 hover:-translate-y-1"
+                            title={reaction.label}
+                          >
+                              <span className="text-3xl drop-shadow-md">{reaction.emoji}</span>
+                          </button>
+                      ))}
+                  </div>
+              )}
               
-              {/* Main Like/Reaction Button */}
               <button 
-                  onClick={() => onReaction(post.id, currentUserReaction ? currentUserReaction.type : 'like')} 
+                  onClick={handleLikeClick}
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={handleTouchEnd}
                   className={`w-full flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted transition-colors ${
                       currentUserReaction ? currentUserReaction.color + ' font-bold' : 'text-text-muted'
                   }`}
               >
-                  {currentUserReaction ? <currentUserReaction.icon className="w-6 h-6" /> : <LikeIcon className="w-6 h-6" fill="none" stroke="currentColor"/>}
+                  {currentUserReaction ? (
+                    <span className="text-xl" role="img" aria-label={currentUserReaction.label}>{currentUserReaction.emoji}</span>
+                  ) : (
+                    <LikeIcon className="w-6 h-6" fill="none" stroke="currentColor"/>
+                  )}
                   <span className="text-sm font-semibold">{currentUserReaction ? currentUserReaction.label : 'Like'}</span>
               </button>
           </div>
