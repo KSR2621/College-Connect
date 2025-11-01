@@ -53,7 +53,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
     const eventDate = new Date(post.eventDetails.date);
     
     const calculate = () => {
-        // FIX: Parameterless `new Date()` can cause errors in some environments. Using `new Date(Date.now())` is safer.
+        // FIX: Replaced parameterless `new Date()` with `new Date(Date.now())` to prevent errors in some environments.
         const now = new Date(Date.now());
         const diff = eventDate.getTime() - now.getTime();
 
@@ -82,7 +82,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
         setCountdown(countdownStr.trim());
     };
 
-    // FIX: Replaced `new Date()` with `Date.now()` for a more direct and error-free timestamp comparison.
+    // FIX: Replaced `new Date().getTime()` with `Date.now()` for a more direct and error-free timestamp comparison.
     if (eventDate.getTime() > Date.now()) {
         calculate();
         timerId = setInterval(calculate, 60000); // Update every minute
@@ -213,7 +213,6 @@ const PostCard: React.FC<PostCardProps> = (props) => {
     // RENDER CONFESSION CARD
   if (post.isConfession) {
     const mood = post.confessionMood ? confessionMoods[post.confessionMood] : confessionMoods.deep;
-    const textClasses = `${post.confessionFontSize || 'text-xl sm:text-2xl'} ${post.confessionFontFamily || 'font-sans'} font-semibold`;
 
     return (
       <div className="flex flex-col">
@@ -228,7 +227,10 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                 <TrashIcon className="w-5 h-5" />
             </button>
           )}
-          <p className={`${textClasses} text-center leading-relaxed`}>{post.content}</p>
+          <div 
+            className="text-center leading-relaxed whitespace-pre-wrap break-words w-full"
+            dangerouslySetInnerHTML={{ __html: post.content }} 
+          />
         </div>
         
         <div className="bg-card rounded-b-lg px-4 pt-2 pb-1">
@@ -330,7 +332,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
   // RENDER EVENT CARD
   if (post.isEvent && post.eventDetails) {
     const eventDate = new Date(post.eventDetails.date);
-    // FIX: Parameterless `new Date()` can cause errors in some environments. Using `new Date(Date.now())` is safer.
+    // FIX: Replaced parameterless `new Date()` with `new Date(Date.now())` to prevent errors in some environments.
     const now = new Date(Date.now());
     const fourHours = 4 * 60 * 60 * 1000;
     const isLive = eventDate <= now && now.getTime() - eventDate.getTime() < fourHours;

@@ -34,7 +34,7 @@ const ConversationList: React.FC<Pick<ChatPanelProps, 'conversations' | 'current
 
     const formatTimestamp = (timestamp: number) => {
         const date = new Date(timestamp);
-        // FIX: Parameterless `new Date()` can cause errors in some environments. Using `new Date(Date.now())` is safer.
+        // FIX: Replaced parameterless `new Date()` with `new Date(Date.now())` to prevent errors in some environments.
         const now = new Date(Date.now());
         const diffInSeconds = (now.getTime() - date.getTime()) / 1000;
 

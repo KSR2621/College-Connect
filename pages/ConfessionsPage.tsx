@@ -19,8 +19,6 @@ interface ConfessionsPageProps {
     mediaType?: "image" | "video" | null; 
     isConfession?: boolean;
     confessionMood?: ConfessionMood;
-    confessionFontFamily?: string;
-    confessionFontSize?: string;
   }) => void;
   onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;

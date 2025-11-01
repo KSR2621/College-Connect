@@ -198,8 +198,6 @@ const App: React.FC = () => {
         groupId?: string;
         isConfession?: boolean;
         confessionMood?: ConfessionMood;
-        confessionFontFamily?: string;
-        confessionFontSize?: string;
         isOpportunity?: boolean;
         opportunityDetails?: { title: string; organization: string; applyLink?: string; };
     }) => {
@@ -225,8 +223,6 @@ const App: React.FC = () => {
                 isEvent: !!postDetails.eventDetails,
                 isConfession: !!postDetails.isConfession,
                 confessionMood: postDetails.confessionMood,
-                confessionFontFamily: postDetails.confessionFontFamily,
-                confessionFontSize: postDetails.confessionFontSize,
                 isOpportunity: !!postDetails.isOpportunity,
             };
 
