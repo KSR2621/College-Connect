@@ -34,8 +34,7 @@ const ConversationList: React.FC<Pick<ChatPanelProps, 'conversations' | 'current
 
     const formatTimestamp = (timestamp: number) => {
         const date = new Date(timestamp);
-        // FIX: Replaced parameterless `new Date()` with `new Date(Date.now())` to prevent errors in some environments.
-        const now = new Date(Date.now());
+        const now = new Date();
         const diffInSeconds = (now.getTime() - date.getTime()) / 1000;
 
         if (diffInSeconds < 60) return 'Now';
@@ -131,8 +130,8 @@ const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conver
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const [messageToDelete, setMessageToDelete] = useState<Message | null>(null);
-    // FIX: Use `ReturnType<typeof setTimeout>` instead of `NodeJS.Timeout` for browser compatibility.
-    const pressTimerRef = useRef<ReturnType<typeof setTimeout>>();
+    // FIX: The `useRef` hook must be called with an initial value. Initialized with `null` to fix the error.
+    const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const handlePressStart = (msg: Message) => {
         pressTimerRef.current = setTimeout(() => {

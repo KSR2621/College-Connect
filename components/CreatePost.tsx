@@ -50,11 +50,18 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim() && !mediaFile && postType === 'post') return;
+
+    if (postType === 'post' && !content.trim() && !mediaFile) {
+        alert("Please write something or add media to create a post.");
+        return;
+    }
 
     let finalEventDetails;
     if (postType === 'event' && !isConfessionMode) {
-        if (!eventDetails.title || !eventDetails.date || !eventDetails.time || !eventDetails.location) return;
+        if (!eventDetails.title || !eventDetails.date || !eventDetails.time || !eventDetails.location) {
+            alert("Please fill in all required event details: Title, Date, Time, and Location.");
+            return;
+        }
         const combinedDateTime = new Date(`${eventDetails.date}T${eventDetails.time}`).toISOString();
         finalEventDetails = {
             title: eventDetails.title,

@@ -32,6 +32,7 @@ const StyleButton: React.FC<{ onClick: () => void; children: React.ReactNode; is
 
 const CreateConfessionModal: React.FC<CreateConfessionModalProps> = ({ isOpen, onClose, onAddPost }) => {
   const [mood, setMood] = useState<ConfessionMood>('deep');
+  const [content, setContent] = useState('');
   const editorRef = useRef<HTMLDivElement>(null);
 
   if (!isOpen) return null;
@@ -40,19 +41,30 @@ const CreateConfessionModal: React.FC<CreateConfessionModalProps> = ({ isOpen, o
     document.execCommand(command, false, value);
     editorRef.current?.focus();
   };
+  
+  const handleInput = () => {
+    setContent(editorRef.current?.innerHTML || '');
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const content = editorRef.current?.innerHTML || '';
-    if (content.trim() && content !== '<br>') {
-      onAddPost({ 
-        content: content.trim(),
+    const currentContent = editorRef.current?.innerHTML || '';
+    const trimmedContent = editorRef.current?.innerText.trim() || '';
+
+    if (!trimmedContent) {
+        alert("Please write a confession before posting.");
+        return;
+    }
+
+    onAddPost({ 
+        content: currentContent,
         isConfession: true,
         confessionMood: mood,
-      });
-      onClose();
-    }
+    });
+    onClose();
   };
+
+  const isContentEmpty = !content.trim() || content === '<br>';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose}>
@@ -72,6 +84,7 @@ const CreateConfessionModal: React.FC<CreateConfessionModalProps> = ({ isOpen, o
                 <div
                     ref={editorRef}
                     contentEditable={true}
+                    onInput={handleInput}
                     data-placeholder="Share your confession anonymously..."
                     className="w-full min-h-[150px] max-h-[300px] overflow-y-auto px-4 py-2 text-foreground bg-input focus:outline-none focus:ring-0 resize-none text-xl empty:before:content-[attr(data-placeholder)] empty:before:text-text-muted empty:before:cursor-text"
                 />
@@ -101,7 +114,7 @@ const CreateConfessionModal: React.FC<CreateConfessionModalProps> = ({ isOpen, o
             <button type="button" onClick={onClose} className="px-4 py-2 font-semibold text-foreground bg-muted rounded-lg hover:bg-muted/80">
               Cancel
             </button>
-            <button type="submit" className="px-6 py-2 font-bold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90">
+            <button type="submit" disabled={isContentEmpty} className="px-6 py-2 font-bold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed">
               Post Anonymously 🚀
             </button>
           </div>

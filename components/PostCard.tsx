@@ -42,7 +42,8 @@ const PostCard: React.FC<PostCardProps> = (props) => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   
   const [isPickerVisible, setPickerVisible] = useState(false);
-  const pickerTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  // FIX: The `useRef` hook must be called with an initial value. Initialized with `null` to fix the error.
+  const pickerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasLongPress = useRef(false);
   const [countdown, setCountdown] = useState('');
 
@@ -53,8 +54,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
     const eventDate = new Date(post.eventDetails.date);
     
     const calculate = () => {
-        // FIX: Replaced parameterless `new Date()` with `new Date(Date.now())` to prevent errors in some environments.
-        const now = new Date(Date.now());
+        const now = new Date();
         const diff = eventDate.getTime() - now.getTime();
 
         if (diff <= 0) {
@@ -82,8 +82,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
         setCountdown(countdownStr.trim());
     };
 
-    // FIX: Replaced `new Date().getTime()` with `Date.now()` for a more direct and error-free timestamp comparison.
-    if (eventDate.getTime() > Date.now()) {
+    if (new Date().getTime() < eventDate.getTime()) {
         calculate();
         timerId = setInterval(calculate, 60000); // Update every minute
     } else {
@@ -332,8 +331,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
   // RENDER EVENT CARD
   if (post.isEvent && post.eventDetails) {
     const eventDate = new Date(post.eventDetails.date);
-    // FIX: Replaced parameterless `new Date()` with `new Date(Date.now())` to prevent errors in some environments.
-    const now = new Date(Date.now());
+    const now = new Date();
     const fourHours = 4 * 60 * 60 * 1000;
     const isLive = eventDate <= now && now.getTime() - eventDate.getTime() < fourHours;
     const isPast = now.getTime() - eventDate.getTime() >= fourHours;
