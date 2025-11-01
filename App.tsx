@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db, storage, FieldValue } from './firebase';
 import type { User, Post, Group, Opportunity, Conversation, Message, Achievement, UserTag } from './types';
@@ -336,6 +335,7 @@ const App: React.FC = () => {
             memberIds: [currentUser.id],
             pendingMemberIds: [],
             messages: [],
+            followers: [currentUser.id],
         };
         await db.collection('groups').add(newGroup);
     };
@@ -362,6 +362,38 @@ const App: React.FC = () => {
         } catch (error) {
             console.error("Error deleting group:", error);
             alert("Could not delete the group. Please try again.");
+        }
+    };
+
+    const handleToggleFollowGroup = async (groupId: string) => {
+        if (!currentUser) return;
+    
+        const userRef = db.collection('users').doc(currentUser.id);
+        const groupRef = db.collection('groups').doc(groupId);
+    
+        const isFollowing = currentUser.followingGroups?.includes(groupId);
+    
+        try {
+            if (isFollowing) {
+                // Unfollow
+                await userRef.update({
+                    followingGroups: FieldValue.arrayRemove(groupId)
+                });
+                await groupRef.update({
+                    followers: FieldValue.arrayRemove(currentUser.id)
+                });
+            } else {
+                // Follow
+                await userRef.update({
+                    followingGroups: FieldValue.arrayUnion(groupId)
+                });
+                await groupRef.update({
+                    followers: FieldValue.arrayUnion(currentUser.id)
+                });
+            }
+        } catch (error) {
+            console.error("Error toggling group follow:", error);
+            alert("Could not update follow status. Please try again.");
         }
     };
 
@@ -408,6 +440,36 @@ const App: React.FC = () => {
             timestamp: Date.now(),
         };
         await db.collection('opportunities').add(newOpp);
+    };
+
+    const handleDeleteOpportunity = async (opportunityId: string) => {
+        if (!currentUser) {
+            alert("You must be logged in to delete opportunities.");
+            return;
+        }
+    
+        const oppRef = db.collection('opportunities').doc(opportunityId);
+    
+        try {
+            const doc = await oppRef.get();
+            if (!doc.exists) {
+                console.error("Opportunity not found.");
+                alert("This opportunity may have already been deleted.");
+                return;
+            }
+    
+            const oppData = doc.data() as Omit<Opportunity, 'id'>;
+    
+            if (oppData.authorId !== currentUser.id) {
+                alert("You are not authorized to delete this opportunity.");
+                return;
+            }
+    
+            await oppRef.delete();
+        } catch (error) {
+            console.error("Error deleting opportunity:", error);
+            alert("Could not delete the opportunity. Please try again.");
+        }
     };
 
     const handleAddAchievement = async (achievement: Achievement) => {
@@ -503,12 +565,12 @@ const App: React.FC = () => {
             case 'groups': 
                 if (params[0]) {
                     const group = groups.find(g => g.id === params[0]);
-                    return group ? <GroupDetailPage group={group} currentUser={currentUser} users={users} posts={posts.filter(p => p.groupId === params[0])} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} onJoinGroupRequest={handleJoinGroupRequest} onApproveJoinRequest={handleApproveJoinRequest} onDeclineJoinRequest={handleDeclineJoinRequest} onDeleteGroup={handleDeleteGroup} onRemoveGroupMember={handleRemoveGroupMember} onSendGroupMessage={handleSendGroupMessage} {...postCardProps} /> : <div>Group not found</div>;
+                    return group ? <GroupDetailPage group={group} currentUser={currentUser} users={users} posts={posts.filter(p => p.groupId === params[0])} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} onJoinGroupRequest={handleJoinGroupRequest} onApproveJoinRequest={handleApproveJoinRequest} onDeclineJoinRequest={handleDeclineJoinRequest} onDeleteGroup={handleDeleteGroup} onRemoveGroupMember={handleRemoveGroupMember} onSendGroupMessage={handleSendGroupMessage} onToggleFollowGroup={handleToggleFollowGroup} {...postCardProps} /> : <div>Group not found</div>;
                 }
                 return <GroupsPage currentUser={currentUser} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onCreateGroup={handleCreateGroup} />;
             case 'confessions': return <ConfessionsPage currentUser={currentUser} users={users} posts={posts.filter(p => p.isConfession)} onNavigate={handleNavigate} onAddPost={handleAddPost} currentPath={currentPath} {...postCardProps} />;
             case 'events': return <EventsPage currentUser={currentUser} users={users} events={posts.filter(p => p.isEvent)} onNavigate={handleNavigate} currentPath={currentPath} {...postCardProps} />;
-            case 'opportunities': return <OpportunitiesPage currentUser={currentUser} users={users} opportunities={opportunities} onNavigate={handleNavigate} currentPath={currentPath} onCreateOpportunity={handleCreateOpportunity} />;
+            case 'opportunities': return <OpportunitiesPage currentUser={currentUser} users={users} opportunities={opportunities} onNavigate={handleNavigate} currentPath={currentPath} onCreateOpportunity={handleCreateOpportunity} onDeleteOpportunity={handleDeleteOpportunity} />;
             case 'chat': return <ChatPage currentUser={currentUser} users={users} conversations={conversations} onSendMessage={handleSendMessage} onCreateOrOpenConversation={handleCreateOrOpenConversation} onNavigate={handleNavigate} currentPath={currentPath} />;
             case 'search': return <SearchPage currentUser={currentUser} users={allUsersList} posts={posts} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} {...postCardProps} />;
             default:

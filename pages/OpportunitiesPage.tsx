@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { Opportunity, User } from '../types';
 import Header from '../components/Header';
@@ -13,10 +14,11 @@ interface OpportunitiesPageProps {
   onNavigate: (path: string) => void;
   currentPath: string;
   onCreateOpportunity: (oppDetails: { title: string; organization: string; description: string; applyLink?: string; }) => void;
+  onDeleteOpportunity: (opportunityId: string) => void;
 }
 
 const OpportunitiesPage: React.FC<OpportunitiesPageProps> = (props) => {
-  const { currentUser, users, opportunities, onNavigate, currentPath, onCreateOpportunity } = props;
+  const { currentUser, users, opportunities, onNavigate, currentPath, onCreateOpportunity, onDeleteOpportunity } = props;
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -41,6 +43,8 @@ const OpportunitiesPage: React.FC<OpportunitiesPageProps> = (props) => {
               key={opp.id} 
               opportunity={opp}
               author={users[opp.authorId]}
+              currentUser={currentUser}
+              onDeleteOpportunity={onDeleteOpportunity}
             />
           ))}
         </div>

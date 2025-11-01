@@ -25,6 +25,7 @@ interface GroupDetailPageProps {
   onDeleteGroup: (groupId: string) => void;
   onSendGroupMessage: (groupId: string, text: string) => void;
   onRemoveGroupMember: (groupId: string, memberId: string) => void;
+  onToggleFollowGroup: (groupId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
 }
@@ -143,7 +144,7 @@ const GroupMembersList: React.FC<{
 
 
 const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
-    const { group, currentUser, users, posts, onNavigate, currentPath, onAddPost, onToggleLike, onAddComment, onDeletePost, onJoinGroupRequest, onApproveJoinRequest, onDeclineJoinRequest, onDeleteGroup, onSendGroupMessage, onRemoveGroupMember, onCreateOrOpenConversation, onSharePostAsMessage } = props;
+    const { group, currentUser, users, posts, onNavigate, currentPath, onAddPost, onToggleLike, onAddComment, onDeletePost, onJoinGroupRequest, onApproveJoinRequest, onDeclineJoinRequest, onDeleteGroup, onSendGroupMessage, onRemoveGroupMember, onToggleFollowGroup, onCreateOrOpenConversation, onSharePostAsMessage } = props;
     const [inviteCopied, setInviteCopied] = useState(false);
     const [showOptions, setShowOptions] = useState(false);
     const [activeTab, setActiveTab] = useState<'posts' | 'chat' | 'members'>('posts');
@@ -157,6 +158,7 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
     const isMember = group.memberIds.includes(currentUser.id);
     const isCreator = group.creatorId === currentUser.id;
     const hasRequested = group.pendingMemberIds?.includes(currentUser.id) ?? false;
+    const isFollowing = currentUser.followingGroups?.includes(group.id) ?? false;
 
     const handleInvite = () => {
         const inviteLink = `${window.location.origin}${window.location.pathname}#/groups/${group.id}`;
@@ -179,14 +181,20 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
     const renderTabContent = () => {
         switch (activeTab) {
             case 'chat':
+                if (!isMember) {
+                    return <div className="text-center bg-card p-8 rounded-lg border border-border"><h3 className="text-lg font-semibold text-foreground">You must be a member of this group to join the chat.</h3></div>;
+                }
                 return <GroupChatWindow group={group} currentUser={currentUser} users={users} onSendGroupMessage={onSendGroupMessage} />;
             case 'members':
+                 if (!isMember) {
+                    return <div className="text-center bg-card p-8 rounded-lg border border-border"><h3 className="text-lg font-semibold text-foreground">You must be a member of this group to see the member list.</h3></div>;
+                }
                 return <GroupMembersList group={group} currentUser={currentUser} users={users} isCreator={isCreator} onRemoveGroupMember={onRemoveGroupMember} />;
             case 'posts':
             default:
                 return (
                     <>
-                        <CreatePost user={currentUser} onAddPost={onAddPost} groupId={group.id} />
+                        {isMember && <CreatePost user={currentUser} onAddPost={onAddPost} groupId={group.id} />}
                         <Feed 
                             posts={posts}
                             users={users}
@@ -224,6 +232,12 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                             </div>
                         </div>
                          <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
+                            <button
+                                onClick={() => onToggleFollowGroup(group.id)}
+                                className={`font-semibold py-2 px-4 rounded-full text-sm transition-colors ${isFollowing ? 'bg-primary/10 border border-primary text-primary hover:bg-primary/20' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
+                            >
+                                {isFollowing ? 'Following' : 'Follow'}
+                            </button>
                             {isMember && (
                                 <div className="relative">
                                     <button onClick={handleInvite} className="bg-secondary text-secondary-foreground font-semibold py-2 px-4 rounded-full text-sm hover:bg-secondary/90 flex items-center">
@@ -243,7 +257,6 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                                     Request Sent
                                 </button>
                             )}
-
                             {isCreator && (
                                 <div className="relative">
                                     <button onClick={() => setShowOptions(!showOptions)} className="p-2 rounded-full hover:bg-muted text-text-muted">
@@ -288,49 +301,42 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
 
 
                 {/* Main Content */}
-                
-                {isMember ? (
-                    <div className="max-w-3xl mx-auto">
-                        <div className="mb-6">
-                            <div className="border-b border-border">
-                                <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                                <button
-                                    onClick={() => setActiveTab('posts')}
-                                    className={`flex items-center space-x-2 transition-colors duration-200 ${
-                                    activeTab === 'posts' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
-                                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-                                >
-                                    <PostIcon className="w-5 h-5"/><span>Posts</span>
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('chat')}
-                                    className={`flex items-center space-x-2 transition-colors duration-200 ${
-                                    activeTab === 'chat' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
-                                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-                                >
-                                    <MessageIcon className="w-5 h-5"/><span>Chat</span>
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('members')}
-                                    className={`flex items-center space-x-2 transition-colors duration-200 ${
-                                    activeTab === 'members' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
-                                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-                                >
-                                    <UsersIcon className="w-5 h-5"/><span>Members</span>
-                                </button>
-                                </nav>
-                            </div>
-                        </div>
-
-                        <div>
-                            {renderTabContent()}
+                <div className="max-w-3xl mx-auto">
+                    <div className="mb-6">
+                        <div className="border-b border-border">
+                            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                            <button
+                                onClick={() => setActiveTab('posts')}
+                                className={`flex items-center space-x-2 transition-colors duration-200 ${
+                                activeTab === 'posts' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
+                                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                            >
+                                <PostIcon className="w-5 h-5"/><span>Posts</span>
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('chat')}
+                                className={`flex items-center space-x-2 transition-colors duration-200 ${
+                                activeTab === 'chat' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
+                                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                            >
+                                <MessageIcon className="w-5 h-5"/><span>Chat</span>
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('members')}
+                                className={`flex items-center space-x-2 transition-colors duration-200 ${
+                                activeTab === 'members' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
+                                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                            >
+                                <UsersIcon className="w-5 h-5"/><span>Members</span>
+                            </button>
+                            </nav>
                         </div>
                     </div>
-                    ) : (
-                        <div className="text-center bg-card p-8 rounded-lg border border-border max-w-3xl mx-auto">
-                            <h3 className="text-lg font-semibold text-foreground">Join this group to see posts and participate.</h3>
-                        </div>
-                    )}
+
+                    <div>
+                        {renderTabContent()}
+                    </div>
+                </div>
             </main>
             
             <BottomNavBar onNavigate={onNavigate} currentPage={currentPath}/>

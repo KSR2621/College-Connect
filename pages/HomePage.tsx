@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { User, Post } from '../types';
 import Header from '../components/Header';
@@ -30,8 +29,11 @@ const HomePage: React.FC<HomePageProps> = (props) => {
         onNavigate('#/');
     };
 
-    // Filter posts for the main feed (not from groups or confessions)
-    const feedPosts = posts.filter(post => !post.groupId && !post.isConfession);
+    // Filter posts for the main feed: show non-group posts OR posts from groups the user follows.
+    const feedPosts = posts.filter(post => 
+        (!post.groupId || (currentUser.followingGroups && currentUser.followingGroups.includes(post.groupId))) 
+        && !post.isConfession
+    );
 
     return (
         <div className="bg-background min-h-screen">

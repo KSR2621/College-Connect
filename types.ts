@@ -11,6 +11,7 @@ export interface User {
   interests?: string[];
   achievements?: Achievement[];
   yearOfStudy?: number;
+  followingGroups?: string[];
 }
 
 export interface Achievement {
@@ -26,7 +27,7 @@ export interface Comment {
 }
 
 export interface Post {
-    id: string;
+    id:string;
     authorId: string;
     content: string;
     mediaUrl?: string;
@@ -54,6 +55,7 @@ export interface Group {
     creatorId: string;
     pendingMemberIds?: string[];
     messages?: Message[];
+    followers?: string[];
 }
 
 export interface Opportunity {
