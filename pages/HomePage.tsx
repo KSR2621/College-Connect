@@ -47,37 +47,6 @@ const HomePage: React.FC<HomePageProps> = (props) => {
     const [isStoryCreatorOpen, setIsStoryCreatorOpen] = useState(false);
     const [viewingStoryEntityId, setViewingStoryEntityId] = useState<string | null>(null);
     
-    // Swipe navigation state
-    const [touchStartX, setTouchStartX] = useState<number | null>(null);
-    const [touchStartY, setTouchStartY] = useState<number | null>(null);
-    const minSwipeDistance = 60;
-
-    const handleTouchStart = (e: React.TouchEvent) => {
-        setTouchStartX(e.targetTouches[0].clientX);
-        setTouchStartY(e.targetTouches[0].clientY);
-    };
-
-    const handleTouchEnd = (e: React.TouchEvent) => {
-        if (!touchStartX || !touchStartY) return;
-
-        const touchEndX = e.changedTouches[0].clientX;
-        const touchEndY = e.changedTouches[0].clientY;
-
-        const dx = touchEndX - touchStartX;
-        const dy = touchEndY - touchStartY;
-
-        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > minSwipeDistance) {
-            // Swipe Right to open Chat
-            if (dx > 0) {
-                onNavigate('#/chat');
-            }
-        }
-        
-        setTouchStartX(null);
-        setTouchStartY(null);
-    };
-
-
     const handleLogout = async () => {
         await auth.signOut();
         onNavigate('#/');
@@ -92,7 +61,7 @@ const HomePage: React.FC<HomePageProps> = (props) => {
     const adminOfGroups = groups.filter(g => g.creatorId === currentUser.id);
 
     return (
-        <div className="bg-muted/50 min-h-screen" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+        <div className="bg-muted/50 min-h-screen">
             <Header 
                 currentUser={currentUser} 
                 onLogout={handleLogout} 

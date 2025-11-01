@@ -49,7 +49,7 @@ export type ReactionType = 'like' | 'love' | 'haha' | 'wow' | 'sad' | 'angry';
 export type Post = {
     id:string;
     authorId: string;
-    content: string;
+    content: string; // Used for description in opportunities
     mediaUrl?: string;
     mediaType?: 'image' | 'video';
     imagePath?: string; // For reliable deletion from storage
@@ -66,6 +66,12 @@ export type Post = {
     };
     isConfession?: boolean;
     sharedPost?: SharedPostInfo;
+    isOpportunity?: boolean;
+    opportunityDetails?: {
+        title: string;
+        organization: string;
+        applyLink?: string;
+    };
 }
 
 export type Story = {
@@ -90,16 +96,6 @@ export type Group = {
     pendingMemberIds?: string[];
     messages?: Message[];
     followers?: string[];
-}
-
-export type Opportunity = {
-    id: string;
-    authorId: string;
-    title: string;
-    organization: string;
-    description: string;
-    applyLink?: string;
-    timestamp: number;
 }
 
 export type Message = {

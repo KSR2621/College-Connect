@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db, storage, FieldValue } from './firebase';
-import type { User, Post, Group, Opportunity, Conversation, Message, Achievement, UserTag, SharedPostInfo, ReactionType, Story } from './types';
+import type { User, Post, Group, Conversation, Message, Achievement, UserTag, SharedPostInfo, ReactionType, Story } from './types';
 
 // Pages
 import WelcomePage from './pages/WelcomePage';
@@ -27,7 +27,6 @@ const App: React.FC = () => {
     const [posts, setPosts] = useState<Post[]>([]);
     const [stories, setStories] = useState<Story[]>([]);
     const [groups, setGroups] = useState<Group[]>([]);
-    const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const prevConversationsRef = useRef<Conversation[]>([]);
 
@@ -123,7 +122,6 @@ const App: React.FC = () => {
             setPosts([]);
             setStories([]);
             setGroups([]);
-            setOpportunities([]);
             setConversations([]);
             return;
         };
@@ -162,13 +160,6 @@ const App: React.FC = () => {
                 });
                 setGroups(groupsData);
             }),
-            db.collection('opportunities').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
-                const opportunitiesData: Opportunity[] = [];
-                snapshot.forEach(doc => {
-                    opportunitiesData.push({ id: doc.id, ...doc.data() } as Opportunity);
-                });
-                setOpportunities(opportunitiesData);
-            }),
             db.collection('conversations').where('participantIds', 'array-contains', currentUser.id).onSnapshot(snapshot => {
                 const conversationsData: Conversation[] = [];
                 snapshot.forEach(doc => {
@@ -206,6 +197,8 @@ const App: React.FC = () => {
         eventDetails?: { title: string; date: string; location: string; };
         groupId?: string;
         isConfession?: boolean;
+        isOpportunity?: boolean;
+        opportunityDetails?: { title: string; organization: string; applyLink?: string; };
     }) => {
         if (!currentUser) return;
 
@@ -228,6 +221,7 @@ const App: React.FC = () => {
                 comments: [],
                 isEvent: !!postDetails.eventDetails,
                 isConfession: !!postDetails.isConfession,
+                isOpportunity: !!postDetails.isOpportunity,
             };
 
             if (mediaUrl && postDetails.mediaType) {
@@ -246,6 +240,10 @@ const App: React.FC = () => {
 
             if (postDetails.eventDetails) {
                 newPost.eventDetails = postDetails.eventDetails;
+            }
+
+            if (postDetails.isOpportunity && postDetails.opportunityDetails) {
+                newPost.opportunityDetails = postDetails.opportunityDetails;
             }
 
             await db.collection('posts').add(newPost);
@@ -656,49 +654,6 @@ const App: React.FC = () => {
         }
     };
 
-    const handleCreateOpportunity = async (oppDetails: { title: string; organization: string; description: string; applyLink?: string; }) => {
-        if (!currentUser) return;
-        const newOpp: Omit<Opportunity, 'id'> = {
-            authorId: currentUser.id,
-            title: oppDetails.title,
-            organization: oppDetails.organization,
-            description: oppDetails.description,
-            applyLink: oppDetails.applyLink || '',
-            timestamp: Date.now(),
-        };
-        await db.collection('opportunities').add(newOpp);
-    };
-
-    const handleDeleteOpportunity = async (opportunityId: string) => {
-        if (!currentUser) {
-            alert("You must be logged in to delete opportunities.");
-            return;
-        }
-    
-        const oppRef = db.collection('opportunities').doc(opportunityId);
-    
-        try {
-            const doc = await oppRef.get();
-            if (!doc.exists) {
-                console.error("Opportunity not found.");
-                alert("This opportunity may have already been deleted.");
-                return;
-            }
-    
-            const oppData = doc.data() as Omit<Opportunity, 'id'>;
-    
-            if (oppData.authorId !== currentUser.id) {
-                alert("You are not authorized to delete this opportunity.");
-                return;
-            }
-    
-            await oppRef.delete();
-        } catch (error) {
-            console.error("Error deleting opportunity:", error);
-            alert("Could not delete the opportunity. Please try again.");
-        }
-    };
-
     const handleAddAchievement = async (achievement: Achievement) => {
         if (!currentUser) return;
         await db.collection('users').doc(currentUser.id).update({
@@ -851,8 +806,8 @@ const App: React.FC = () => {
                 }
                 return <GroupsPage currentUser={currentUser} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onCreateGroup={handleCreateGroup} />;
             case 'confessions': return <ConfessionsPage currentUser={currentUser} users={users} posts={posts.filter(p => p.isConfession)} groups={groups} onNavigate={handleNavigate} onAddPost={handleAddPost} currentPath={currentPath} {...postCardProps} />;
-            case 'events': return <EventsPage currentUser={currentUser} users={users} events={events} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} {...postCardProps} />;
-            case 'opportunities': return <OpportunitiesPage currentUser={currentUser} users={users} opportunities={opportunities} onNavigate={handleNavigate} currentPath={currentPath} onCreateOpportunity={handleCreateOpportunity} onDeleteOpportunity={handleDeleteOpportunity} />;
+            case 'events': return <EventsPage currentUser={currentUser} users={users} events={events} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} {...postCardProps} />;
+            case 'opportunities': return <OpportunitiesPage currentUser={currentUser} users={users} posts={posts} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} postCardProps={postCardProps} />;
             case 'chat': return <ChatPage currentUser={currentUser} users={users} conversations={conversations} onSendMessage={handleSendMessage} onDeleteMessage={handleDeleteMessage} onCreateOrOpenConversation={handleCreateOrOpenConversation} onNavigate={handleNavigate} currentPath={currentPath} />;
             case 'search': return <SearchPage currentUser={currentUser} users={allUsersList} posts={posts} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} {...postCardProps} />;
             case 'admin':

@@ -187,7 +187,7 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
     const handleInteractionStart = (e: React.MouseEvent | React.TouchEvent) => {
         const target = e.target as HTMLElement;
         // Do not pause if the user is interacting with a button, input, or form
-        if (target.closest('button, input, form')) {
+        if (target.closest('button, input, form, a')) {
             return;
         }
         setIsPaused(true);
@@ -215,7 +215,15 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
                 onMouseDown={handleInteractionStart} onMouseUp={handleInteractionEnd} onMouseLeave={handleInteractionEnd}
                 onTouchStart={handleInteractionStart} onTouchEnd={handleInteractionEnd}
             >
-                <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/40 to-transparent">
+                {/* SAFE ZONE for click-through navigation */}
+                <div className="absolute top-20 bottom-24 left-0 right-0 flex z-20">
+                    <div className="w-1/3 h-full cursor-pointer" onClick={() => { if (!isPaused) goToPrevStory(); }} />
+                    <div className="flex-1 h-full" />
+                    <div className="w-1/3 h-full cursor-pointer" onClick={() => { if (!isPaused) goToNextStory(); }} />
+                </div>
+
+                {/* Header - z-30 to be above navigation zone */}
+                <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/40 to-transparent z-30">
                      <StoryProgressBar count={activeEntityStories.length} currentIndex={currentStoryIndex} isPaused={isPaused} currentEntityId={activeEntityId}/>
                      <div className="flex items-center justify-between mt-3">
                         <div className="flex items-center space-x-3">
@@ -266,13 +274,8 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
                 <div className="flex-1 flex items-center justify-center p-6 pointer-events-none">
                     <p className={`text-white text-center shadow-2xl ${textClasses}`}>{activeStory.textContent}</p>
                 </div>
-
-                <div className="absolute inset-0 flex z-20">
-                    <div className="w-1/3 h-full cursor-pointer" onClick={() => { if (!isPaused) goToPrevStory(); }} />
-                    <div className="flex-1 h-full" />
-                    <div className="w-1/3 h-full cursor-pointer" onClick={() => { if (!isPaused) goToNextStory(); }} />
-                </div>
                 
+                 {/* Footer - z-30 to be above navigation zone */}
                  <div className="absolute bottom-0 left-0 right-0 p-4 z-30 bg-gradient-to-t from-black/40 to-transparent">
                     {canDelete ? (
                         <button onClick={() => { setIsViewersListOpen(true); setIsPaused(true); }} className="text-white text-sm font-semibold flex items-center bg-black/20 backdrop-blur-sm px-3 py-1.5 rounded-lg">

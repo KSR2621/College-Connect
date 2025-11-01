@@ -16,11 +16,12 @@ interface CreatePostProps {
   groupId?: string;
   isConfessionMode?: boolean;
   isModalMode?: boolean;
+  defaultType?: 'post' | 'event';
 }
 
-const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isConfessionMode = false, isModalMode = false }) => {
+const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isConfessionMode = false, isModalMode = false, defaultType }) => {
   const [content, setContent] = useState('');
-  const [postType, setPostType] = useState<'post' | 'event'>('post');
+  const [postType, setPostType] = useState<'post' | 'event'>(defaultType || 'post');
   
   const [eventDetails, setEventDetails] = useState({ title: '', date: '', time: '', location: '' });
   const [mediaFile, setMediaFile] = useState<File | null>(null);

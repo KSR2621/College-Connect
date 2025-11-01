@@ -1,10 +1,13 @@
 
+
 import React, { useState } from 'react';
-import type { Opportunity, User } from '../types';
+// FIX: Changed type import from 'Opportunity' to 'Post' as opportunities are a type of Post in this app.
+import type { Post, User } from '../types';
 import { BriefcaseIcon, OptionsIcon } from './Icons';
 
 interface OpportunityCardProps {
-  opportunity: Opportunity;
+  // FIX: Changed prop type to Post
+  opportunity: Post;
   author?: User;
   currentUser: User;
   onDeleteOpportunity: (opportunityId: string) => void;
@@ -21,6 +24,11 @@ const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, author, 
     setShowOptions(false);
   };
 
+  // FIX: Added guard to ensure the post is a valid opportunity.
+  if (!opportunity.isOpportunity || !opportunity.opportunityDetails) {
+    return null;
+  }
+
   return (
     <div className="bg-card p-4 rounded-lg shadow-sm border border-border">
       <div className="flex items-start justify-between">
@@ -29,12 +37,13 @@ const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, author, 
                 <BriefcaseIcon className="h-6 w-6"/>
             </div>
             <div className="flex-1">
-                <h3 className="text-lg font-bold text-card-foreground">{opportunity.title}</h3>
-                <p className="text-md font-medium text-text-muted">{opportunity.organization}</p>
-                <p className="text-sm text-card-foreground mt-2 line-clamp-3">{opportunity.description}</p>
+                {/* FIX: Accessing properties from opportunityDetails and content to match Post type structure. */}
+                <h3 className="text-lg font-bold text-card-foreground">{opportunity.opportunityDetails.title}</h3>
+                <p className="text-md font-medium text-text-muted">{opportunity.opportunityDetails.organization}</p>
+                <p className="text-sm text-card-foreground mt-2 line-clamp-3">{opportunity.content}</p>
                 <div className="mt-4 flex justify-between items-center">
-                    {opportunity.applyLink && (
-                        <a href={opportunity.applyLink} target="_blank" rel="noopener noreferrer" className="bg-primary text-primary-foreground font-semibold py-2 px-4 rounded-full text-sm hover:bg-primary/90">
+                    {opportunity.opportunityDetails.applyLink && (
+                        <a href={opportunity.opportunityDetails.applyLink} target="_blank" rel="noopener noreferrer" className="bg-primary text-primary-foreground font-semibold py-2 px-4 rounded-full text-sm hover:bg-primary/90">
                             Apply Now
                         </a>
                     )}

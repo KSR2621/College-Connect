@@ -14,9 +14,10 @@ interface CreatePostModalProps {
     groupId?: string;
     isConfession?: boolean;
   }) => void;
+  defaultType?: 'post' | 'event';
 }
 
-const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClose, user, onAddPost }) => {
+const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClose, user, onAddPost, defaultType }) => {
   if (!isOpen) return null;
 
   const handlePostSubmit = (postDetails: Parameters<typeof onAddPost>[0]) => {
@@ -31,7 +32,7 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClose, user
           <h2 className="text-xl font-bold text-center flex-1 text-foreground">Create Post</h2>
           <button onClick={onClose} className="text-text-muted hover:text-foreground text-2xl leading-none">&times;</button>
         </div>
-        <CreatePost user={user} onAddPost={handlePostSubmit} isModalMode={true} />
+        <CreatePost user={user} onAddPost={handlePostSubmit} isModalMode={true} defaultType={defaultType} />
       </div>
     </div>
   );
