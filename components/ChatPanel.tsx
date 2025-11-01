@@ -3,8 +3,8 @@ import type { Conversation, User, Message } from '../types';
 import Avatar from './Avatar';
 import NewConversationModal from './NewConversationModal';
 import { 
-    SendIcon, SearchIcon, ArrowLeftIcon, TrashIcon, NewChatIcon, InfoIcon, MessageIcon,
-    PhoneIcon, VideoCallIcon, CameraIcon, MicIcon, ImageIcon, EmojiIcon, PlusCircleIcon
+    SendIcon, SearchIcon, ArrowLeftIcon, NewChatIcon, InfoIcon,
+    PhoneIcon, VideoCallIcon, CameraIcon, MicIcon, ImageIcon, EmojiIcon, PlusCircleIcon, OptionsIcon
 } from './Icons';
 
 interface ChatPanelProps {
@@ -19,16 +19,30 @@ interface ChatPanelProps {
 }
 
 const ChatPlaceholder: React.FC = () => (
-    <div className="h-full hidden md:flex flex-col items-center justify-center text-center text-text-muted bg-white p-4">
-        <MessageIcon className="w-24 h-24 text-gray-300" />
-        <h2 className="mt-4 text-2xl font-semibold">Your Messages</h2>
-        <p className="mt-1">Select a conversation from the left to start chatting.</p>
+    <div className="h-full hidden md:flex flex-col items-center justify-center text-center text-text-muted bg-slate-50 p-4">
+        <div className="w-24 h-24 border-4 border-gray-300 rounded-full flex items-center justify-center">
+            <SendIcon className="w-12 h-12 text-gray-300 transform -rotate-12" />
+        </div>
+        <h2 className="mt-6 text-2xl font-light text-foreground">Your Messages</h2>
+        <p className="mt-1 text-sm">Select a conversation to start chatting.</p>
     </div>
 );
 
 const ConversationList: React.FC<Pick<ChatPanelProps, 'conversations' | 'currentUser' | 'users' | 'setActiveConversationId' | 'activeConversationId'> & { onNewConversationClick: () => void }> = 
 ({ conversations, currentUser, users, setActiveConversationId, activeConversationId, onNewConversationClick }) => {
     const [searchTerm, setSearchTerm] = useState('');
+
+    const formatTimestamp = (timestamp: number) => {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffInSeconds = (now.getTime() - date.getTime()) / 1000;
+
+        if (diffInSeconds < 60) return 'Now';
+        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
+        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
+
+        return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
 
     const filteredConversations = useMemo(() => {
         const lowercasedFilter = searchTerm.toLowerCase();
@@ -51,25 +65,30 @@ const ConversationList: React.FC<Pick<ChatPanelProps, 'conversations' | 'current
 
     return (
         <div className="h-full flex flex-col bg-white">
-            <div className="flex justify-between items-center p-4 border-b border-border flex-shrink-0 h-20">
+            <div className="flex justify-between items-center p-4 border-b border-border flex-shrink-0 h-16">
                 <h2 className="text-xl font-bold text-card-foreground">Messages</h2>
-                <button onClick={onNewConversationClick} className="p-2 text-foreground hover:text-primary rounded-full">
+                <button onClick={onNewConversationClick} className="p-2 text-text-muted hover:text-primary rounded-full">
                     <NewChatIcon className="w-6 h-6" />
                 </button>
             </div>
             <div className="p-2 border-b border-border flex-shrink-0">
-                 <input
-                    type="search"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search..."
-                    className="w-full bg-gray-100 border-none rounded-lg px-4 py-2 text-sm text-foreground placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+                 <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <SearchIcon className="w-5 h-5 text-gray-400" />
+                    </div>
+                    <input
+                        type="search"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search..."
+                        className="w-full bg-gray-100 border-none rounded-lg pl-10 pr-4 py-2 text-sm text-foreground placeholder-text-muted focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                 </div>
             </div>
             <div className="flex-1 overflow-y-auto">
                 {filteredConversations.map(({ convo, otherUser }) => {
                     const lastMessage = convo.messages[convo.messages.length - 1];
-                    const isUnread = lastMessage && lastMessage.senderId !== currentUser.id; // Basic unread logic
+                    const isUnread = lastMessage && lastMessage.senderId !== currentUser.id;
 
                     return (
                         <div
@@ -81,14 +100,19 @@ const ConversationList: React.FC<Pick<ChatPanelProps, 'conversations' | 'current
                                 <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="lg" />
                             </div>
                             <div className="ml-3 flex-1 overflow-hidden">
-                                <p className={`font-semibold text-card-foreground ${isUnread ? 'font-bold' : ''}`}>{otherUser.name}</p>
-                                <p className={`text-sm truncate ${isUnread ? 'text-card-foreground' : 'text-text-muted'}`}>
-                                    {lastMessage?.text || 'No messages yet'}
-                                </p>
+                                <div className="flex justify-between items-start">
+                                    <p className={`font-semibold text-card-foreground ${isUnread ? 'font-bold' : ''}`}>{otherUser.name}</p>
+                                    {lastMessage && <p className="text-xs text-text-muted flex-shrink-0 ml-2">{formatTimestamp(lastMessage.timestamp)}</p>}
+                                </div>
+                                <div className="flex items-center">
+                                    <p className={`text-sm flex-1 truncate ${isUnread ? 'text-card-foreground font-medium' : 'text-gray-500'}`}>
+                                        {lastMessage ? `${lastMessage.senderId === currentUser.id ? "You: " : ""}${lastMessage.text}` : 'No messages yet'}
+                                    </p>
+                                     {isUnread && (
+                                        <span className="block h-2 w-2 rounded-full bg-blue-600 ml-2 flex-shrink-0"/>
+                                    )}
+                                </div>
                             </div>
-                             {isUnread && (
-                                <span className="block h-2.5 w-2.5 rounded-full bg-blue-500 ml-2 flex-shrink-0"/>
-                            )}
                         </div>
                     );
                 })}
@@ -125,29 +149,33 @@ const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conver
     };
 
     return (
-        <div className="h-full flex flex-col bg-white">
-            {/* Header */}
-            <div className="flex-shrink-0 flex items-center p-3 border-b border-border shadow-sm bg-white h-20">
+        <div className="h-full flex flex-col bg-slate-50">
+            {/* Header - Fixed */}
+            <div className="flex-shrink-0 flex items-center p-3 border-b border-border bg-white h-16 shadow-sm">
                 <button onClick={() => setActiveConversationId(null)} className="md:hidden mr-2 p-1 text-text-muted">
                     <ArrowLeftIcon className="w-6 h-6"/>
                 </button>
                 <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="md" />
                 <div className="ml-3">
                     <h3 className="font-bold text-card-foreground">{otherUser.name}</h3>
-                    <p className="text-xs text-text-muted">{otherUser.email}</p>
+                    {/* Placeholder for active status */}
+                    <p className="text-xs text-text-muted">Active now</p> 
                 </div>
                 <div className="flex-grow" />
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1 sm:space-x-2">
                     <button className="p-2 text-text-muted hover:text-primary rounded-full">
                         <PhoneIcon className="w-6 h-6" />
                     </button>
                      <button className="p-2 text-text-muted hover:text-primary rounded-full">
                         <VideoCallIcon className="w-6 h-6" />
                     </button>
+                     <button className="p-2 text-text-muted hover:text-primary rounded-full">
+                        <OptionsIcon className="w-6 h-6" />
+                    </button>
                 </div>
             </div>
 
-            {/* Message List */}
+            {/* Message List - Scrollable */}
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
                 {conversation.messages.map((msg, index) => {
                     const isCurrentUser = msg.senderId === currentUser.id;
@@ -161,7 +189,7 @@ const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conver
                                     {isLastInSequence && sender && <Avatar src={sender.avatarUrl} name={sender.name} size="sm" />}
                                 </div>
                              )}
-                            <div className={`max-w-xs md:max-w-md p-3 rounded-2xl ${isCurrentUser ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-800'}`}>
+                            <div className={`max-w-xs md:max-w-md p-3 rounded-2xl ${isCurrentUser ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}>
                                 <p className="whitespace-pre-wrap break-words">{msg.text}</p>
                             </div>
                         </div>
@@ -170,11 +198,14 @@ const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conver
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Bar */}
+            {/* Input Bar - Fixed */}
             <div className="flex-shrink-0 p-3 border-t border-border bg-white">
-                <div className="bg-gray-100 rounded-full flex items-center p-2">
-                    <button className="p-2 text-indigo-500 rounded-full">
-                        <CameraIcon className="w-6 h-6" />
+                <div className="flex items-center space-x-2 bg-gray-100 rounded-full px-2 py-1">
+                    <button className="p-2 text-text-muted hover:text-primary rounded-full flex-shrink-0">
+                        <PlusCircleIcon className="w-6 h-6" />
+                    </button>
+                    <button className="p-2 text-text-muted hover:text-primary rounded-full flex-shrink-0">
+                        <EmojiIcon className="w-6 h-6" />
                     </button>
                     <form onSubmit={handleSubmit} className="flex-1">
                         <input
@@ -182,23 +213,21 @@ const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conver
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                             placeholder="Message..."
-                            className="w-full bg-transparent px-3 py-1 focus:outline-none text-foreground placeholder-text-muted"
+                            className="w-full bg-transparent py-1 px-2 focus:outline-none text-foreground placeholder-text-muted"
                         />
                     </form>
-                    {message.trim() ? (
-                        <button 
-                            onClick={handleSubmit}
-                            className="p-2 text-indigo-500 font-semibold"
-                        >
-                            Send
-                        </button>
-                    ) : (
-                        <div className="flex items-center space-x-2 px-2">
-                            <button className="text-text-muted hover:text-primary"><MicIcon className="w-6 h-6"/></button>
-                            <button className="text-text-muted hover:text-primary"><ImageIcon className="w-6 h-6"/></button>
-                            <button className="text-text-muted hover:text-primary"><EmojiIcon className="w-6 h-6"/></button>
-                        </div>
-                    )}
+                    <div className="flex items-center space-x-1 flex-shrink-0">
+                        {message.trim() ? (
+                            <button onClick={handleSubmit} className="p-2 text-blue-600 font-semibold">
+                               <SendIcon className="w-6 h-6"/>
+                            </button>
+                        ) : (
+                            <>
+                                <button className="p-2 text-text-muted hover:text-primary"><MicIcon className="w-6 h-6"/></button>
+                                <button className="p-2 text-text-muted hover:text-primary"><ImageIcon className="w-6 h-6"/></button>
+                            </>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
