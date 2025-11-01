@@ -17,18 +17,48 @@ interface ChatPanelProps {
 const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users, onSendMessage, onDeleteMessage, onDeleteMultipleMessages, onClose, onNavigate }) => {
   const [text, setText] = useState('');
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasLongPress = useRef(false);
+  const prevMessagesLength = useRef(conversation.messages.length);
 
   const otherParticipantId = useMemo(() => conversation.participantIds.find(id => id !== currentUser.id), [conversation, currentUser]);
   const otherUser = otherParticipantId ? users[otherParticipantId] : null;
   const isSelectionMode = selectedMessages.length > 0;
 
+  // Effect to scroll to bottom when a new conversation is opened
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [conversation.messages]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    // Reset message length tracking for the new conversation
+    prevMessagesLength.current = conversation.messages.length;
+  }, [conversation.id]);
+
+  // Effect to handle smart scrolling for new messages
+  useEffect(() => {
+    const currentMessagesLength = conversation.messages.length;
+
+    // Only run if new messages have been added
+    if (currentMessagesLength > prevMessagesLength.current) {
+      const messagesContainer = messagesContainerRef.current;
+      if (messagesContainer) {
+        const lastMessage = conversation.messages[currentMessagesLength - 1];
+        const isFromCurrentUser = lastMessage.senderId === currentUser.id;
+        
+        const scrollThreshold = 150; // pixels
+        const isScrolledNearBottom = messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + scrollThreshold;
+
+        // Auto-scroll if the message is from the current user or if they are already near the bottom
+        if (isFromCurrentUser || isScrolledNearBottom) {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    }
+    // Update the ref after the check
+    prevMessagesLength.current = currentMessagesLength;
+  }, [conversation.messages, currentUser.id]);
+
 
   useEffect(() => {
     // Clear selection when conversation changes
@@ -122,7 +152,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4">
         {conversation.messages.map(msg => {
           const sender = users[msg.senderId];
           const isCurrentUser = msg.senderId === currentUser.id;
