@@ -179,6 +179,7 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
                     onSharePostAsMessage={onSharePostAsMessage}
                     onSharePost={onSharePost}
                     groups={groups}
+                    onNavigate={onNavigate}
                 />
             </div>
         );
@@ -186,42 +187,45 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
   };
 
   return (
-    <div className="bg-background min-h-screen">
+    <div className="bg-slate-50 min-h-screen">
       {!isAdminView && <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />}
       
       <main className="container mx-auto px-2 sm:px-4 lg:px-8 pt-4 sm:pt-8 pb-20 md:pb-4">
         {/* Profile Header */}
-        <div className="p-4 mb-6 max-w-4xl mx-auto">
-            <div className="flex items-center space-x-4 sm:space-x-10">
-                <Avatar src={user.avatarUrl} name={user.name} size="xl" className="flex-shrink-0" />
-                <div className="flex-1 flex items-center justify-around">
+        <div className="bg-card rounded-xl shadow-card border border-border max-w-4xl mx-auto mb-6">
+            <div className="h-32 sm:h-40 bg-gradient-to-r from-slate-200 to-slate-300 rounded-t-xl"></div>
+            <div className="px-4 sm:px-6 pb-6">
+                <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-16 sm:-mt-20">
+                    <Avatar src={user.avatarUrl} name={user.name} size="xl" className="border-4 border-card flex-shrink-0" />
+                    <div className="sm:ml-6 mt-4 sm:mt-0 flex-grow text-center sm:text-left">
+                        <h1 className="text-2xl font-bold text-foreground">{user.name}</h1>
+                        <p className="text-sm text-text-muted">
+                            {user.tag}
+                            {user.tag === 'Student' && user.yearOfStudy && ` - ${getYearOfStudyText(user.yearOfStudy)}`}
+                            {' - '}
+                            {user.department}
+                        </p>
+                    </div>
+                     <div className="mt-4 sm:mt-0">
+                        {isCurrentUserProfile && !isAdminView && (
+                        <button onClick={() => setIsEditModalOpen(true)} className="bg-muted border border-border text-foreground font-semibold py-2 px-4 rounded-lg text-sm hover:bg-border">
+                            Edit Profile
+                        </button>
+                        )}
+                        {isAdminView && (
+                        <button onClick={onBackToAdmin} className="bg-muted border border-border text-foreground font-semibold py-2 px-4 rounded-lg text-sm hover:bg-border flex items-center justify-center">
+                            <ArrowLeftIcon className="w-4 h-4 mr-2"/>
+                            Back to Dashboard
+                        </button>
+                        )}
+                    </div>
+                </div>
+                 {user.bio && <p className="mt-4 text-sm text-center sm:text-left text-card-foreground">{user.bio}</p>}
+                 <div className="flex items-center justify-around mt-6 pt-4 border-t border-border">
                     <StatItem count={userPosts.length} label="Posts" />
                     <StatItem count={user.followingGroups?.length || 0} label="Following" />
                     <StatItem count={user.achievements?.length || 0} label="Achievements" />
                 </div>
-            </div>
-            <div className="mt-4">
-                <h1 className="text-lg font-bold text-foreground">{user.name}</h1>
-                <p className="text-sm text-text-muted">
-                    {user.tag}
-                    {user.tag === 'Student' && user.yearOfStudy && ` - ${getYearOfStudyText(user.yearOfStudy)}`}
-                    {' - '}
-                    {user.department}
-                </p>
-                {user.bio && <p className="mt-2 text-sm text-card-foreground">{user.bio}</p>}
-            </div>
-             <div className="mt-4">
-                {isCurrentUserProfile && !isAdminView && (
-                <button onClick={() => setIsEditModalOpen(true)} className="w-full bg-muted border border-border text-foreground font-semibold py-2 px-4 rounded-lg text-sm hover:bg-border">
-                    Edit Profile
-                </button>
-                )}
-                {isAdminView && (
-                <button onClick={onBackToAdmin} className="w-full bg-muted border border-border text-foreground font-semibold py-2 px-4 rounded-lg text-sm hover:bg-border flex items-center justify-center">
-                    <ArrowLeftIcon className="w-4 h-4 mr-2"/>
-                    Back to Dashboard
-                </button>
-                )}
             </div>
         </div>
         
@@ -230,14 +234,14 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
             {/* Tab Navigation */}
             <div className="mb-6">
                 <div className="border-b border-border">
-                    <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                    <nav className="-mb-px flex space-x-2 sm:space-x-8" aria-label="Tabs">
                     <button
                         onClick={() => setActiveTab('posts')}
                         className={`transition-colors duration-200 ${
                         activeTab === 'posts'
                             ? 'border-primary text-primary'
                             : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
-                        } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                        } whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm rounded-t-lg hover:bg-slate-100`}
                     >
                         Posts
                     </button>
@@ -247,7 +251,7 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
                         activeTab === 'groups'
                             ? 'border-primary text-primary'
                             : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
-                        } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                        } whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm rounded-t-lg hover:bg-slate-100`}
                     >
                         Groups
                     </button>
@@ -257,7 +261,7 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
                         activeTab === 'achievements'
                             ? 'border-primary text-primary'
                             : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
-                        } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                        } whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm rounded-t-lg hover:bg-slate-100`}
                     >
                         Achievements
                     </button>
@@ -267,7 +271,7 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
                         activeTab === 'interests'
                             ? 'border-primary text-primary'
                             : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
-                        } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                        } whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm rounded-t-lg hover:bg-slate-100`}
                     >
                         Interests
                     </button>

@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import type { User } from '../types';
 import Avatar from './Avatar';
-import { HomeIcon, UsersIcon, CalendarIcon, BriefcaseIcon, SearchIcon, MessageIcon, LogoutIcon, PlusSquareIcon } from './Icons';
+import { 
+    HomeIcon, UsersIcon, CalendarIcon, BriefcaseIcon, SearchIcon, MessageIcon, LogoutIcon, PlusSquareIcon,
+    HomeIconSolid, UsersIconSolid, CalendarIconSolid, BriefcaseIconSolid, SearchIconSolid, MessageIconSolid, ChevronDownIcon
+} from './Icons';
 
 interface HeaderProps {
     currentUser: User;
@@ -13,12 +16,12 @@ interface HeaderProps {
 }
 
 const navItems = [
-    { path: '#/home', icon: HomeIcon, label: 'Home' },
-    { path: '#/search', icon: SearchIcon, label: 'Search' },
-    { path: '#/groups', icon: UsersIcon, label: 'Groups' },
-    { path: '#/events', icon: CalendarIcon, label: 'Events' },
-    { path: '#/opportunities', icon: BriefcaseIcon, label: 'Opportunities' },
-    { path: '#/chat', icon: MessageIcon, label: 'Chat' },
+    { path: '#/home', icon: HomeIcon, activeIcon: HomeIconSolid, label: 'Home' },
+    { path: '#/search', icon: SearchIcon, activeIcon: SearchIconSolid, label: 'Search' },
+    { path: '#/groups', icon: UsersIcon, activeIcon: UsersIconSolid, label: 'Groups' },
+    { path: '#/events', icon: CalendarIcon, activeIcon: CalendarIconSolid, label: 'Events' },
+    { path: '#/opportunities', icon: BriefcaseIcon, activeIcon: BriefcaseIconSolid, label: 'Opportunities' },
+    { path: '#/chat', icon: MessageIcon, activeIcon: MessageIconSolid, label: 'Chat' },
 ];
 
 
@@ -26,7 +29,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, curr
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     return (
-        <header className="bg-card border-b border-border sticky top-0 z-40">
+        <header className="bg-card border-b border-border sticky top-0 z-40 shadow-sm">
             <div className="container mx-auto px-4">
                 <div className="flex justify-between items-center h-16">
                     {/* Logo */}
@@ -35,20 +38,23 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, curr
                     </div>
 
                     {/* Center: Desktop Navigation */}
-                    <nav className="hidden md:flex items-center space-x-2">
-                       {navItems.map(({ path, icon: Icon, label }) => {
+                    <nav className="hidden md:flex items-center space-x-2 h-full">
+                       {navItems.map(({ path, icon: Icon, activeIcon: ActiveIcon, label }) => {
                            const isActive = currentPath.startsWith(path);
+                           const IconComponent = isActive ? ActiveIcon : Icon;
                            return (
                                 <button
                                     key={path}
                                     onClick={() => onNavigate(path)}
-                                    className={`flex flex-col items-center justify-center h-16 w-20 transition-colors duration-200 ${
-                                        isActive ? 'text-primary border-b-2 border-primary' : 'text-text-muted hover:text-primary'
+                                    className={`flex items-center justify-center h-full w-24 px-2 transition-colors duration-200 relative ${
+                                        isActive ? 'text-primary' : 'text-text-muted hover:text-primary'
                                     }`}
                                     aria-label={label}
                                 >
-                                    <Icon className="w-6 h-6 mb-1" />
-                                    <span className="text-xs font-medium">{label}</span>
+                                    <div className="flex flex-col items-center justify-center p-2 rounded-lg w-full hover:bg-slate-100">
+                                      <IconComponent className="w-6 h-6 mb-1" />
+                                      <span className="text-xs font-medium">{label}</span>
+                                    </div>
                                 </button>
                            )
                        })}
@@ -59,7 +65,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, curr
                          {/* Create Post Icon (all screens) */}
                         {/* FIX: Conditionally render the create post button only if the handler is provided. */}
                         {onOpenCreateModal && (
-                            <button onClick={onOpenCreateModal} className="p-2 text-foreground hover:text-primary rounded-full" aria-label="Create Post">
+                            <button onClick={onOpenCreateModal} className="p-2 text-foreground hover:text-primary rounded-full hover:bg-slate-100" aria-label="Create Post">
                                 <PlusSquareIcon className="w-6 h-6" />
                             </button>
                         )}
@@ -71,9 +77,10 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, curr
 
                         {/* Desktop Profile Dropdown */}
                         <div className="relative hidden md:block">
-                            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="flex items-center space-x-2">
-                            <Avatar src={currentUser.avatarUrl} name={currentUser.name} size="md" />
-                            <span className="hidden lg:block font-medium text-foreground">{currentUser.name}</span>
+                            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="flex items-center space-x-2 p-1 rounded-full hover:bg-slate-100 transition-colors">
+                                <Avatar src={currentUser.avatarUrl} name={currentUser.name} size="md" />
+                                <span className="hidden lg:block font-medium text-foreground pr-1">{currentUser.name}</span>
+                                <ChevronDownIcon className={`w-5 h-5 text-text-muted transition-transform mr-1 ${isMenuOpen ? 'rotate-180' : ''}`} />
                             </button>
                             {isMenuOpen && (
                                 <div className="absolute right-0 mt-2 w-48 bg-card rounded-md shadow-lg py-1 border border-border">

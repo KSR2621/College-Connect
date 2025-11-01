@@ -15,17 +15,18 @@ interface FeedProps {
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
   onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
   groups: Group[];
+  onNavigate: (path: string) => void;
 }
 
 const Feed: React.FC<FeedProps> = (props) => {
-  const { posts, users, currentUser, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, groups } = props;
+  const { posts, users, currentUser, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, groups, onNavigate } = props;
   
   if (posts.length === 0) {
     return <div className="text-center text-text-muted mt-8">No posts to show.</div>;
   }
   
   return (
-    <>
+    <div className="space-y-4">
       {posts.map(post => {
           const author = users[post.authorId];
           // Don't render post if author data is not yet available (unless it's a confession)
@@ -44,10 +45,11 @@ const Feed: React.FC<FeedProps> = (props) => {
               onSharePostAsMessage={onSharePostAsMessage}
               onSharePost={onSharePost}
               groups={groups}
+              onNavigate={onNavigate}
             />
           );
       })}
-    </>
+    </div>
   );
 };
 

@@ -257,6 +257,7 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                             onSharePostAsMessage={onSharePostAsMessage}
                             onSharePost={onSharePost}
                             groups={groups}
+                            onNavigate={onNavigate}
                         />
                     </>
                 );

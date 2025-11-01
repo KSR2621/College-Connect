@@ -51,14 +51,23 @@
                 muted: '#64748b'
             }
           },
+          boxShadow: {
+            'card': '0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07)',
+            'card-hover': '0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07)',
+          },
           keyframes: {
             progress: {
               '0%': { transform: 'scaleX(0)' },
               '100%': { transform: 'scaleX(1)' },
             },
+            fadeIn: {
+                '0%': { opacity: 0, transform: 'translateY(10px)' },
+                '100%': { opacity: 1, transform: 'translateY(0)' },
+            }
           },
           animation: {
             progress: 'progress 5s linear forwards',
+            'fade-in': 'fadeIn 0.5s ease-out forwards',
           },
         }
       }
@@ -85,6 +94,9 @@
           -ms-overflow-style: none;  /* IE and Edge */
           scrollbar-width: none;  /* Firefox */
       }
+      button, a {
+        transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+      }
     </style>
 
     <!--
@@ -98,7 +110,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 
 </head>
-<body class="bg-background text-foreground">
+<body class="bg-slate-50 text-foreground">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
 </body>

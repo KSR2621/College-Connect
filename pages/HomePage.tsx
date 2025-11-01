@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import type { User, Post, Group, ReactionType, Story } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import type { User, Post, Group, ReactionType, Story, FeedPreferences } from '../types';
 import Header from '../components/Header';
 import CreatePostModal from '../components/CreatePostModal';
 import Feed from '../components/Feed';
@@ -9,7 +9,10 @@ import StoryCreatorModal from '../components/StoryCreatorModal';
 import StoryViewerModal from '../components/StoryViewerModal';
 import LeftSidebar from '../components/LeftSidebar';
 import RightSidebar from '../components/RightSidebar';
+import InlineCreatePost from '../components/InlineCreatePost';
+import FeedCustomizationModal from '../components/FeedCustomizationModal';
 import { auth } from '../firebase';
+import { SlidersIcon } from '../components/Icons';
 
 
 interface HomePageProps {
@@ -41,33 +44,71 @@ interface HomePageProps {
   currentPath: string;
 }
 
+const defaultFeedPreferences: FeedPreferences = {
+    showRegularPosts: true,
+    showEvents: true,
+    showOpportunities: true,
+    showSharedPosts: true,
+};
+
 const HomePage: React.FC<HomePageProps> = (props) => {
     const { currentUser, users, posts, stories, groups, events, onNavigate, onAddPost, onAddStory, onMarkStoryAsViewed, onDeleteStory, onReplyToStory, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, currentPath } = props;
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [createModalType, setCreateModalType] = useState<'post' | 'event' | null>(null);
     const [isStoryCreatorOpen, setIsStoryCreatorOpen] = useState(false);
     const [viewingStoryEntityId, setViewingStoryEntityId] = useState<string | null>(null);
-    
+    const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState(false);
+    const [feedPreferences, setFeedPreferences] = useState<FeedPreferences>(defaultFeedPreferences);
+
+    useEffect(() => {
+        const savedPrefs = localStorage.getItem('feedPreferences');
+        if (savedPrefs) {
+            setFeedPreferences(JSON.parse(savedPrefs));
+        }
+    }, []);
+
+    const handleSavePreferences = (newPrefs: FeedPreferences) => {
+        setFeedPreferences(newPrefs);
+        localStorage.setItem('feedPreferences', JSON.stringify(newPrefs));
+        setIsCustomizeModalOpen(false);
+    };
+
     const handleLogout = async () => {
         await auth.signOut();
         onNavigate('#/');
     };
 
-    // Filter posts for the main feed: show non-group posts OR posts from groups the user follows.
-    const feedPosts = posts.filter(post => 
-        (!post.groupId || (currentUser.followingGroups && currentUser.followingGroups.includes(post.groupId))) 
-        && !post.isConfession
-    );
+    const feedPosts = useMemo(() => {
+        return posts.filter(post => {
+            // Filter out posts from groups the user doesn't follow
+            if (post.groupId && !(currentUser.followingGroups && currentUser.followingGroups.includes(post.groupId))) {
+                return false;
+            }
+            // Filter out confessions from the main feed
+            if (post.isConfession) {
+                return false;
+            }
+
+            // Apply user's feed preferences
+            const isRegular = !post.isEvent && !post.isOpportunity && !post.sharedPost;
+            if (!feedPreferences.showRegularPosts && isRegular) return false;
+            if (!feedPreferences.showEvents && post.isEvent) return false;
+            if (!feedPreferences.showOpportunities && post.isOpportunity) return false;
+            if (!feedPreferences.showSharedPosts && post.sharedPost) return false;
+
+            return true;
+        });
+    }, [posts, currentUser.followingGroups, feedPreferences]);
 
     const adminOfGroups = groups.filter(g => g.creatorId === currentUser.id);
 
     return (
-        <div className="bg-muted/50 min-h-screen">
+        <div className="bg-slate-50 min-h-screen">
             <Header 
                 currentUser={currentUser} 
                 onLogout={handleLogout} 
                 onNavigate={onNavigate} 
                 currentPath={currentPath}
-                onOpenCreateModal={() => setIsCreateModalOpen(true)}
+                onOpenCreateModal={() => setCreateModalType('post')}
             />
 
             <main className="container mx-auto pt-8 pb-20 md:pb-4">
@@ -79,15 +120,25 @@ const HomePage: React.FC<HomePageProps> = (props) => {
 
                     {/* Main Content Feed */}
                     <div className="lg:col-span-6">
-                        <div className="bg-card sm:rounded-lg border-b border-border sm:border p-4 mb-6">
-                            <StoriesReel
-                                stories={stories}
-                                users={users}
-                                groups={groups}
-                                currentUser={currentUser}
-                                onAddStoryClick={() => setIsStoryCreatorOpen(true)}
-                                onViewStoryEntity={(entityId) => setViewingStoryEntityId(entityId)}
-                            />
+                        <StoriesReel
+                            stories={stories}
+                            users={users}
+                            groups={groups}
+                            currentUser={currentUser}
+                            onAddStoryClick={() => setIsStoryCreatorOpen(true)}
+                            onViewStoryEntity={(entityId) => setViewingStoryEntityId(entityId)}
+                        />
+                        
+                        <InlineCreatePost user={currentUser} onOpenCreateModal={setCreateModalType} />
+
+                        <div className="flex justify-end items-center mb-4 px-2">
+                            <button 
+                                onClick={() => setIsCustomizeModalOpen(true)}
+                                className="flex items-center gap-2 text-sm font-semibold text-text-muted hover:text-primary transition-colors p-2 rounded-lg hover:bg-muted"
+                            >
+                                <SlidersIcon className="w-4 h-4" />
+                                Filter Feed
+                            </button>
                         </div>
 
                         <Feed 
@@ -101,6 +152,7 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                             onSharePostAsMessage={onSharePostAsMessage}
                             onSharePost={onSharePost}
                             groups={groups}
+                            onNavigate={onNavigate}
                         />
                     </div>
                     
@@ -111,6 +163,7 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                             events={events}
                             currentUser={currentUser}
                             onNavigate={onNavigate}
+                            users={Object.values(users)}
                         />
                     </aside>
 
@@ -120,10 +173,18 @@ const HomePage: React.FC<HomePageProps> = (props) => {
             <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
 
             <CreatePostModal 
-                isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
+                isOpen={!!createModalType}
+                onClose={() => setCreateModalType(null)}
                 user={currentUser}
                 onAddPost={onAddPost}
+                defaultType={createModalType === 'event' ? 'event' : 'post'}
+            />
+
+            <FeedCustomizationModal
+                isOpen={isCustomizeModalOpen}
+                onClose={() => setIsCustomizeModalOpen(false)}
+                currentPreferences={feedPreferences}
+                onSave={handleSavePreferences}
             />
 
             {isStoryCreatorOpen && (

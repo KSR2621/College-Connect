@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { User, Group, Post } from '../types';
 import Avatar from './Avatar';
 import { SendIcon, PostIcon, MessageIcon } from './Icons';
@@ -12,10 +12,11 @@ interface ShareModalProps {
   postToShare: Post;
   onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
   groups: Group[];
+  defaultTab?: 'share' | 'message';
 }
 
-const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, currentUser, users, onShareToUser, postToShare, onSharePost, groups }) => {
-  const [activeTab, setActiveTab] = useState<'share' | 'message'>('share');
+const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, currentUser, users, onShareToUser, postToShare, onSharePost, groups, defaultTab }) => {
+  const [activeTab, setActiveTab] = useState<'share' | 'message'>(defaultTab || 'share');
   
   // State for "Share as Post" tab
   const [commentary, setCommentary] = useState('');
@@ -23,6 +24,14 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, currentUser, u
 
   // State for "Send as Message" tab
   const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+        setActiveTab(defaultTab || 'share');
+        setCommentary('');
+        setSearchTerm('');
+    }
+  }, [isOpen, defaultTab]);
 
   const userMemberGroups = useMemo(() => {
     return groups.filter(g => g.memberIds.includes(currentUser.id));

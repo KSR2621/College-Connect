@@ -90,6 +90,7 @@ const ConfessionsPage: React.FC<ConfessionsPageProps> = (props) => {
                             currentUser={currentUser}
                             groups={groups}
                             {...postCardProps}
+                            onNavigate={onNavigate}
                         />
                     </div>
                 </div>

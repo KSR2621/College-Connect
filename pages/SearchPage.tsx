@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import type { User, Post, Group, ReactionType } from '../types';
 import Header from '../components/Header';
@@ -122,7 +123,7 @@ const SearchPage: React.FC<SearchPageProps> = (props) => {
                         {filteredResults.posts.map(post => {
                             const author = usersMap[post.authorId];
                             if (!author && !post.isConfession) return null;
-                            return <PostCard key={post.id} post={post} author={author} currentUser={currentUser} users={usersMap} onReaction={onReaction} onAddComment={onAddComment} onDeletePost={onDeletePost} onCreateOrOpenConversation={onCreateOrOpenConversation} onSharePostAsMessage={onSharePostAsMessage} onSharePost={onSharePost} groups={groups} />
+                            return <PostCard key={post.id} post={post} author={author} currentUser={currentUser} users={usersMap} onReaction={onReaction} onAddComment={onAddComment} onDeletePost={onDeletePost} onCreateOrOpenConversation={onCreateOrOpenConversation} onSharePostAsMessage={onSharePostAsMessage} onSharePost={onSharePost} groups={groups} onNavigate={onNavigate} />
                         })}
                     </div>
                 </div>

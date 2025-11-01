@@ -1,7 +1,7 @@
 import React from 'react';
 import type { User } from '../types';
 import Avatar from './Avatar';
-import { UserIcon, UsersIcon, GhostIcon, BookmarkIcon } from './Icons';
+import { UserIcon, UsersIcon, GhostIcon, BookmarkIcon, CalendarIcon, BriefcaseIcon } from './Icons';
 
 interface LeftSidebarProps {
   currentUser: User;
@@ -16,9 +16,9 @@ const NavLink: React.FC<{
 }> = ({ icon: Icon, label, path, onNavigate }) => (
     <a 
         onClick={() => onNavigate(path)}
-        className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted cursor-pointer transition-colors"
+        className="flex items-center space-x-4 p-3 rounded-lg hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors group"
     >
-        <Icon className="w-6 h-6 text-text-muted" />
+        <Icon className="w-6 h-6 text-text-muted group-hover:text-primary transition-colors" />
         <span className="font-semibold text-foreground">{label}</span>
     </a>
 );
@@ -50,8 +50,9 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ currentUser, onNavigate }) =>
         <nav className="mt-4 space-y-1">
             <NavLink icon={UserIcon} label="My Profile" path={`#/profile/${currentUser.id}`} onNavigate={onNavigate} />
             <NavLink icon={UsersIcon} label="My Groups" path="#/groups" onNavigate={onNavigate} />
+            <NavLink icon={CalendarIcon} label="Events" path="#/events" onNavigate={onNavigate} />
+            <NavLink icon={BriefcaseIcon} label="Opportunities" path="#/opportunities" onNavigate={onNavigate} />
             <NavLink icon={GhostIcon} label="Confessions" path="#/confessions" onNavigate={onNavigate} />
-            {/* <NavLink icon={BookmarkIcon} label="Saved Posts" path="#/saved" onNavigate={onNavigate} /> */}
         </nav>
       </div>
     </div>

@@ -157,6 +157,8 @@ const OpportunitiesPage: React.FC<OpportunitiesPageProps> = (props) => {
                             currentUser={currentUser}
                             users={users}
                             {...postCardProps}
+                            // FIX: Pass the onNavigate prop to satisfy the PostCardProps interface.
+                            onNavigate={onNavigate}
                         />
                     );
                 })}

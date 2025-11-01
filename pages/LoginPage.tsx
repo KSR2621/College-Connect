@@ -22,8 +22,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
     };
 
     return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-4">
-            <div className="w-full max-w-md p-8 space-y-6 bg-card rounded-xl shadow-lg border border-border">
+        <div className="min-h-screen bg-gradient-to-br from-white to-slate-100 flex items-center justify-center p-4">
+            <div className="w-full max-w-md p-8 space-y-6 bg-card rounded-2xl shadow-xl border border-border animate-fade-in">
                 <h1 className="text-3xl font-bold text-center text-foreground">Welcome Back!</h1>
                 
                 <form onSubmit={handleLogin} className="space-y-6">

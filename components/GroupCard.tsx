@@ -30,7 +30,7 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, onNavigate }) => {
   
   return (
     <div 
-      className="bg-card rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer border border-border flex flex-col h-full overflow-hidden group" 
+      className="bg-card rounded-xl shadow-card hover:shadow-card-hover transition-all duration-300 cursor-pointer border border-border flex flex-col h-full overflow-hidden group hover:-translate-y-1" 
       onClick={() => onNavigate(`#/groups/${group.id}`)}
     >
       {/* Banner */}

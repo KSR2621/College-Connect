@@ -157,6 +157,8 @@ const EventsPage: React.FC<EventsPageProps> = (props) => {
                   onSharePostAsMessage={onSharePostAsMessage}
                   onSharePost={onSharePost}
                   groups={groups}
+                  // FIX: Pass the onNavigate prop to satisfy the PostCardProps interface.
+                  onNavigate={onNavigate}
                 />
               );
             })}

@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Story, User, Group } from '../types';
-import Avatar from './Avatar';
 import { PlusCircleIcon, UsersIcon } from './Icons';
+import Avatar from './Avatar';
 
 interface StoriesReelProps {
   stories: Story[];
@@ -21,45 +21,46 @@ type StoryEntity = {
     latestTimestamp: number;
 }
 
-const AddStoryButton: React.FC<{ user: User; onClick: () => void; }> = ({ user, onClick }) => (
-    <div className="text-center w-20 flex-shrink-0" onClick={onClick}>
-        <div className="relative inline-block cursor-pointer">
-            <Avatar src={user.avatarUrl} name={user.name} size="lg" />
-            <div className="absolute bottom-0 right-0 inline-block">
-               <div className="relative w-7 h-7">
-                  <PlusCircleIcon className="w-7 h-7 text-primary bg-card rounded-full"/>
-               </div>
+// "Add Story" component - a permanent first item in the reel
+const AddStoryCircle: React.FC<{ user: User; onClick: () => void; }> = ({ user, onClick }) => (
+    <div className="text-center flex-shrink-0 w-16 cursor-pointer" onClick={onClick}>
+        <div className="relative group w-14 h-14 mx-auto">
+            <Avatar src={user.avatarUrl} name={user.name} size="lg" className="w-14 h-14"/>
+            <div className="absolute bottom-0 right-0">
+                <PlusCircleIcon className="w-5 h-5 text-primary bg-white rounded-full border-2 border-white" />
             </div>
         </div>
-         <p className="text-xs mt-1 text-foreground font-medium">Add Story</p>
+        <p className="mt-1 text-xs text-foreground font-medium truncate">Add Story</p>
     </div>
 );
 
-const StoryEntityAvatar: React.FC<{ entity: StoryEntity; onClick: () => void }> = ({ entity, onClick }) => {
+// A circle representing a user or group's story
+const StoryCircle: React.FC<{ entity: StoryEntity; onClick: () => void }> = ({ entity, onClick }) => {
     const ringClass = entity.hasUnviewed 
         ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-pink-500' 
-        : 'bg-border';
+        : 'bg-slate-200';
 
     return (
-        <div className="text-center w-20 flex-shrink-0" onClick={onClick}>
-            <div className={`p-0.5 rounded-full ${ringClass} cursor-pointer inline-block`}>
-                <div className="bg-card p-0.5 rounded-full">
+        <div className="text-center flex-shrink-0 w-16 cursor-pointer" onClick={onClick}>
+            <div className={`p-0.5 rounded-full ${ringClass} transition-all`}>
+                <div className="bg-white p-0.5 rounded-full">
                     {entity.type === 'user' ? (
-                         <Avatar src={entity.avatarUrl} name={entity.name} size="lg" />
+                         <Avatar src={entity.avatarUrl} name={entity.name} size="lg" className="w-14 h-14"/>
                     ) : (
-                        <div className="h-12 w-12 text-lg rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold">
+                        <div className="w-14 h-14 rounded-full bg-primary/20 text-primary flex items-center justify-center">
                             <UsersIcon className="w-7 h-7" />
                         </div>
                     )}
                 </div>
             </div>
-            <p className="text-xs mt-1 text-text-muted truncate">{entity.name}</p>
+             <p className="mt-1 text-xs text-foreground font-medium truncate">{entity.name}</p>
         </div>
     );
 };
 
 const StoriesReel: React.FC<StoriesReelProps> = ({ stories, users, groups, currentUser, onAddStoryClick, onViewStoryEntity }) => {
     
+    // This logic groups stories by entity and checks for unviewed stories
     const storyEntities = React.useMemo(() => {
         const entities: { [key: string]: StoryEntity } = {};
 
@@ -68,63 +69,58 @@ const StoriesReel: React.FC<StoriesReelProps> = ({ stories, users, groups, curre
             const entityId = isGroupStory ? `group-${story.groupId}` : `user-${story.authorId}`;
             const isViewed = story.viewedBy.includes(currentUser.id);
 
+            // Basic check to see if we have the user/group data for this story
+             if (isGroupStory) {
+                const group = groups.find(g => g.id === story.groupId);
+                if (!group || !(currentUser.followingGroups || []).includes(group.id)) return;
+            } else {
+                 const user = users[story.authorId];
+                 if (!user) return;
+            }
+
             if (!entities[entityId]) {
                 if (isGroupStory) {
-                    const group = groups.find(g => g.id === story.groupId);
-                    if (!group || !(currentUser.followingGroups || []).includes(group.id)) return; // Only show stories for followed groups
+                    const group = groups.find(g => g.id === story.groupId)!;
                     entities[entityId] = {
-                        id: entityId,
-                        type: 'group',
-                        name: group.name,
-                        hasUnviewed: !isViewed,
-                        latestTimestamp: story.timestamp,
+                        id: entityId, type: 'group', name: group.name,
+                        hasUnviewed: !isViewed, latestTimestamp: story.timestamp,
                     }
                 } else {
-                     const user = users[story.authorId];
-                     if (!user) return;
+                     const user = users[story.authorId]!;
                      entities[entityId] = {
-                        id: entityId,
-                        type: 'user',
-                        name: user.name,
-                        avatarUrl: user.avatarUrl,
-                        hasUnviewed: !isViewed,
-                        latestTimestamp: story.timestamp,
+                        id: entityId, type: 'user', name: user.name, avatarUrl: user.avatarUrl,
+                        hasUnviewed: !isViewed, latestTimestamp: story.timestamp,
                      }
                 }
             } else {
-                if (!isViewed) {
-                    entities[entityId].hasUnviewed = true;
-                }
+                if (!isViewed) entities[entityId].hasUnviewed = true;
                 if (story.timestamp > entities[entityId].latestTimestamp) {
                      entities[entityId].latestTimestamp = story.timestamp;
                 }
             }
         });
 
-        return Object.values(entities).sort((a, b) => {
-            const isACurrentUserStory = a.id === `user-${currentUser.id}`;
-            const isBCurrentUserStory = b.id === `user-${currentUser.id}`;
-            
-            // Prioritize current user's story first
-            if (isACurrentUserStory && !isBCurrentUserStory) return -1;
-            if (!isACurrentUserStory && isBCurrentUserStory) return 1;
-    
-            // Then, prioritize stories with unviewed content
+        // Separate current user's story to place it first (after "Add Story")
+        const currentUserStoryId = `user-${currentUser.id}`;
+        const currentUserStory = entities[currentUserStoryId];
+        delete entities[currentUserStoryId]; // remove from main list
+
+        const otherEntities = Object.values(entities).sort((a, b) => {
             if (a.hasUnviewed && !b.hasUnviewed) return -1;
             if (!a.hasUnviewed && b.hasUnviewed) return 1;
-    
-            // Finally, sort by the most recent story's timestamp
             return b.latestTimestamp - a.latestTimestamp;
         });
+
+        return currentUserStory ? [currentUserStory, ...otherEntities] : otherEntities;
 
     }, [stories, users, groups, currentUser.id, currentUser.followingGroups]);
     
     return (
-        <div className="w-full">
-            <div className="flex items-center space-x-4 overflow-x-auto pb-2 -mx-4 px-4">
-                <AddStoryButton user={currentUser} onClick={onAddStoryClick} />
+        <div className="bg-card rounded-lg shadow-sm border border-border p-4 mb-6">
+            <div className="flex items-center space-x-2 overflow-x-auto pb-2 no-scrollbar">
+                <AddStoryCircle user={currentUser} onClick={onAddStoryClick} />
                 {storyEntities.map(entity => (
-                    <StoryEntityAvatar 
+                    <StoryCircle 
                         key={entity.id}
                         entity={entity}
                         onClick={() => onViewStoryEntity(entity.id)}
