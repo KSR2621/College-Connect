@@ -35,7 +35,7 @@ const NewConversationModal: React.FC<NewConversationModalProps> = ({ isOpen, onC
             className="w-full mt-3 bg-input border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
             />
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto no-scrollbar">
             {filteredUsers.length > 0 ? (
                 filteredUsers.map(user => (
                     <div

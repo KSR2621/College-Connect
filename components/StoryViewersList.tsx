@@ -19,7 +19,7 @@ const StoryViewersList: React.FC<StoryViewersListProps> = ({ viewedBy, users, on
             <CloseIcon className="w-5 h-5" />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="flex-1 overflow-y-auto no-scrollbar p-2">
           {viewedBy.length > 0 ? (
             viewedBy.map(userId => {
               const user = users[userId];

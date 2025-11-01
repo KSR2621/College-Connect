@@ -1,309 +1,243 @@
-import React, { useState } from 'react';
-import type { User, Post, Achievement, UserTag, Group, ReactionType } from '../types';
+import React, { useState, useMemo } from 'react';
+import type { User, Post, Group, ReactionType, Achievement, UserTag } from '../types';
 import Header from '../components/Header';
-import Avatar from '../components/Avatar';
 import Feed from '../components/Feed';
-import AchievementCard from '../components/AchievementCard';
 import CreatePost from '../components/CreatePost';
+import BottomNavBar from '../components/BottomNavBar';
+import Avatar from '../components/Avatar';
+import AchievementCard from '../components/AchievementCard';
 import AddAchievementModal from '../components/AddAchievementModal';
 import EditProfileModal from '../components/EditProfileModal';
-import BottomNavBar from '../components/BottomNavBar';
-import GroupCard from '../components/GroupCard';
 import { auth } from '../firebase';
-import { AwardIcon, SendIcon, UsersIcon, ArrowLeftIcon } from '../components/Icons';
+import { PostIcon, UsersIcon, StarIcon, BookmarkIcon, ArrowLeftIcon, PlusIcon, MessageIcon } from '../components/Icons';
 
 interface ProfilePageProps {
-  profileUserId: string;
+  profileUserId?: string;
   currentUser: User;
   users: { [key: string]: User };
   posts: Post[];
   groups: Group[];
   onNavigate: (path: string) => void;
   currentPath: string;
+  onAddPost: (postDetails: { content: string; mediaFile?: File | null; mediaType?: "image" | "video" | null; }) => void;
+  onAddAchievement: (achievement: Achievement) => void;
+  onAddInterest: (interest: string) => void;
+  onUpdateProfile: (updateData: { name: string; bio: string; department: string; tag: UserTag; yearOfStudy?: number }, avatarFile?: File | null) => void;
   onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;
-  onAddPost: (postDetails: { content: string; mediaFile?: File | null; mediaType?: 'image' | 'video' | null; }) => void;
-  onAddAchievement: (achievement: Achievement) => void;
-  onAddInterest: (interest: string) => void;
-  onUpdateProfile: (updateData: { name: string; bio: string; department: string; tag: UserTag; yearOfStudy?: number; }, avatarFile?: File | null) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
   onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
+  onToggleSavePost: (postId: string) => void;
   isAdminView?: boolean;
   onBackToAdmin?: () => void;
 }
 
-const getYearOfStudyText = (year?: number) => {
-    if (!year) return '';
-    switch (year) {
-        case 1: return '1st Year';
-        case 2: return '2nd Year';
-        case 3: return '3rd Year';
-        case 4: return '4th Year';
-        case 5: return 'Graduate';
-        default: return `${year}th Year`;
-    }
-}
-
-const StatItem: React.FC<{ count: number; label: string }> = ({ count, label }) => (
-    <div className="text-center">
-      <p className="text-xl font-bold text-foreground">{count}</p>
-      <p className="text-sm text-text-muted">{label}</p>
-    </div>
-);
-
 const ProfilePage: React.FC<ProfilePageProps> = (props) => {
-  const { profileUserId, currentUser, users, posts, groups, onNavigate, currentPath, onReaction, onAddComment, onDeletePost, onAddPost, onAddAchievement, onAddInterest, onUpdateProfile, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, isAdminView, onBackToAdmin } = props;
-  const [activeTab, setActiveTab] = useState<'posts' | 'achievements' | 'interests' | 'groups'>('posts');
-  const [isAchievementModalOpen, setIsAchievementModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [newInterest, setNewInterest] = useState('');
+    const { profileUserId, currentUser, users, posts, groups, onNavigate, currentPath, onAddPost, onAddAchievement, onAddInterest, onUpdateProfile, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost, isAdminView, onBackToAdmin } = props;
 
-  const user = users[profileUserId];
-  const isCurrentUserProfile = currentUser.id === profileUserId;
+    const [activeTab, setActiveTab] = useState<'posts' | 'about' | 'groups' | 'saved'>('posts');
+    const [isEditing, setIsEditing] = useState(false);
+    const [isAddingAchievement, setIsAddingAchievement] = useState(false);
+    const [newInterest, setNewInterest] = useState('');
 
-  const handleLogout = async () => {
-    await auth.signOut();
-    onNavigate('#/');
-  };
+    const profileUser = users[profileUserId || currentUser.id];
+    const isOwnProfile = !profileUserId || profileUser?.id === currentUser.id;
 
-  const handleAddInterestSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if(newInterest.trim()) {
-        onAddInterest(newInterest.trim());
-        setNewInterest('');
+    const handleLogout = async () => {
+        await auth.signOut();
+        onNavigate('#/');
+    };
+
+    const handleAddInterestSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (newInterest.trim()) {
+            onAddInterest(newInterest.trim());
+            setNewInterest('');
+        }
+    };
+
+    const handleStartConversation = async () => {
+        if (isOwnProfile) return;
+        const convoId = await onCreateOrOpenConversation(profileUser.id);
+        onNavigate(`#/chat`);
+    };
+    
+    const userPosts = useMemo(() => posts.filter(p => p.authorId === profileUser?.id && !p.isConfession), [posts, profileUser]);
+    const savedPosts = useMemo(() => {
+        if (!isOwnProfile) return [];
+        return posts.filter(p => currentUser.savedPosts?.includes(p.id));
+    }, [posts, currentUser.savedPosts, isOwnProfile]);
+
+    const userGroups = useMemo(() => groups.filter(g => profileUser?.followingGroups?.includes(g.id)), [groups, profileUser]);
+    
+    if (!profileUser) {
+        return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-foreground">User not found.</p></div>;
     }
-  }
 
-  if (!user) {
+    const renderTabContent = () => {
+        switch (activeTab) {
+            case 'about':
+                return (
+                    <div className="space-y-6 max-w-3xl mx-auto">
+                        {profileUser.bio && (
+                            <div className="bg-card rounded-lg shadow-sm p-6 border border-border">
+                                <h3 className="font-bold text-lg text-foreground mb-2">Bio</h3>
+                                <p className="text-card-foreground whitespace-pre-wrap">{profileUser.bio}</p>
+                            </div>
+                        )}
+                        <div className="bg-card rounded-lg shadow-sm p-6 border border-border">
+                            <h3 className="font-bold text-lg text-foreground mb-3">Interests</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {profileUser.interests?.map(interest => (
+                                    <span key={interest} className="bg-primary/10 text-primary text-sm font-medium px-3 py-1 rounded-full">{interest}</span>
+                                ))}
+                                {isOwnProfile && (
+                                    <form onSubmit={handleAddInterestSubmit} className="flex gap-2">
+                                        <input type="text" value={newInterest} onChange={e => setNewInterest(e.target.value)} placeholder="Add interest" className="bg-input border border-border rounded-full px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"/>
+                                        <button type="submit" className="bg-primary text-primary-foreground rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0"><PlusIcon className="w-4 h-4" /></button>
+                                    </form>
+                                )}
+                            </div>
+                        </div>
+                        <div className="bg-card rounded-lg shadow-sm p-6 border border-border">
+                            <div className="flex justify-between items-center mb-3">
+                                <h3 className="font-bold text-lg text-foreground">Achievements</h3>
+                                {isOwnProfile && <button onClick={() => setIsAddingAchievement(true)} className="bg-primary/10 text-primary text-sm font-semibold px-3 py-1 rounded-full hover:bg-primary/20">Add New</button>}
+                            </div>
+                            <div className="space-y-3">
+                                {profileUser.achievements?.map((ach, index) => <AchievementCard key={index} achievement={ach}/>)}
+                                {(!profileUser.achievements || profileUser.achievements.length === 0) && <p className="text-text-muted text-sm">No achievements listed yet.</p>}
+                            </div>
+                        </div>
+                    </div>
+                );
+            case 'groups':
+                return (
+                    <div className="space-y-4 max-w-3xl mx-auto">
+                        {userGroups.length > 0 ? (
+                            userGroups.map(group => (
+                                <div key={group.id} onClick={() => onNavigate(`#/groups/${group.id}`)} className="bg-card p-4 rounded-lg shadow-sm border border-border cursor-pointer hover:bg-muted">
+                                    <h4 className="font-bold text-card-foreground">{group.name}</h4>
+                                    <p className="text-sm text-text-muted">{group.memberIds.length} members</p>
+                                </div>
+                            ))
+                        ) : <p className="text-center text-text-muted p-8">Not a member of any groups yet.</p>}
+                    </div>
+                );
+            case 'saved':
+                if (!isOwnProfile) return null;
+                return <div className="max-w-xl mx-auto"><Feed posts={savedPosts} users={users} currentUser={currentUser} onNavigate={onNavigate} groups={groups} onReaction={onReaction} onAddComment={onAddComment} onDeletePost={onDeletePost} onCreateOrOpenConversation={onCreateOrOpenConversation} onSharePostAsMessage={onSharePostAsMessage} onSharePost={onSharePost} onToggleSavePost={onToggleSavePost} /></div>;
+            case 'posts':
+            default:
+                return (
+                    <div className="space-y-6 max-w-xl mx-auto">
+                        {isOwnProfile && <CreatePost user={currentUser} onAddPost={onAddPost} />}
+                        <Feed posts={userPosts} users={users} currentUser={currentUser} onNavigate={onNavigate} groups={groups} onReaction={onReaction} onAddComment={onAddComment} onDeletePost={onDeletePost} onCreateOrOpenConversation={onCreateOrOpenConversation} onSharePostAsMessage={onSharePostAsMessage} onSharePost={onSharePost} onToggleSavePost={onToggleSavePost} />
+                    </div>
+                );
+        }
+    };
+
     return (
-      <div className="bg-background min-h-screen">
-        {!isAdminView && <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />}
-        <main className="container mx-auto px-4 pt-8">
-            <p className="text-center text-foreground">User not found.</p>
-        </main>
-      </div>
-    );
-  }
-  
-  const userPosts = posts.filter(p => p.authorId === user.id && !p.groupId && !p.isConfession);
+        <div className="bg-slate-50 min-h-screen">
+            <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
+            
+            <main className="pb-20 md:pb-4">
+                {/* Profile Header */}
+                <div className="relative bg-gradient-to-br from-primary to-secondary text-white shadow-lg pt-8 pb-10 mb-6 overflow-hidden">
+                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/az-subtle.png')] opacity-10"></div>
+                     <div className="container mx-auto px-4 relative z-10">
+                        {isAdminView && onBackToAdmin && (
+                            <button onClick={onBackToAdmin} className="flex items-center text-sm text-white/80 hover:text-white mb-4">
+                                <ArrowLeftIcon className="w-4 h-4 mr-2"/>
+                                Back to Admin Dashboard
+                            </button>
+                        )}
+                        <div className="flex flex-col items-center text-center">
+                            <Avatar src={profileUser.avatarUrl} name={profileUser.name} size="xl" className="mb-4 border-4 border-white shadow-md"/>
+                            <div className="flex-1">
+                                <h1 className="text-3xl font-bold">{profileUser.name}</h1>
+                                {profileUser.bio ? (
+                                    <p className="text-lg mt-2 max-w-xl mx-auto opacity-90">{profileUser.bio}</p>
+                                ) : (
+                                    isOwnProfile && <button onClick={() => setIsEditing(true)} className="mt-2 text-white/80 hover:text-white underline">Add a bio</button>
+                                )}
+                                <p className="text-sm mt-2 opacity-80">{profileUser.department} &bull; {profileUser.tag}{profileUser.tag === 'Student' && ` - ${profileUser.yearOfStudy || 1}st Year`}</p>
+                            </div>
+                            <div className="flex items-center space-x-8 mt-6">
+                                <div className="text-center">
+                                    <p className="text-2xl font-bold">{userPosts.length}</p>
+                                    <p className="text-sm opacity-80">Posts</p>
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-2xl font-bold">{userGroups.length}</p>
+                                    <p className="text-sm opacity-80">Groups</p>
+                                </div>
+                            </div>
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'achievements':
-        return (
-          <div className="bg-card rounded-lg shadow-sm p-4 border border-border">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-bold text-foreground flex items-center"><AwardIcon className="w-5 h-5 mr-2"/> Achievements</h2>
-                {isCurrentUserProfile && !isAdminView && (
-                    <button onClick={() => setIsAchievementModalOpen(true)} className="bg-primary text-primary-foreground font-semibold py-1 px-3 rounded-full text-sm hover:bg-primary/90">Add New</button>
-                )}
-            </div>
-            <div className="space-y-4">
-              {user.achievements && user.achievements.length > 0 ? (
-                user.achievements.map((ach, index) => <AchievementCard key={index} achievement={ach} />)
-              ) : (
-                <p className="text-center text-text-muted py-8">No achievements listed yet.</p>
-              )}
-            </div>
-          </div>
-        );
-      case 'interests':
-        return (
-          <div className="bg-card rounded-lg shadow-sm p-4 border border-border">
-            <h2 className="text-lg font-bold text-foreground mb-4">Interests</h2>
-             {isCurrentUserProfile && !isAdminView && (
-                <form onSubmit={handleAddInterestSubmit} className="flex items-center space-x-2 mb-4">
-                    <input type="text" value={newInterest} onChange={(e) => setNewInterest(e.target.value)} placeholder="Add an interest (e.g., Hiking)" className="flex-1 bg-input border border-border rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary text-foreground text-sm" />
-                    <button type="submit" className="p-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50" disabled={!newInterest.trim()}>
-                        <SendIcon className="w-5 h-5" />
-                    </button>
-                </form>
-             )}
-            <div className="flex flex-wrap gap-3">
-              {user.interests && user.interests.length > 0 ? (
-                user.interests.map((interest, index) => (
-                  <span key={index} className="bg-secondary/10 text-secondary text-sm font-medium px-4 py-2 rounded-full">{interest}</span>
-                ))
-              ) : (
-                <p className="text-center text-text-muted py-8 w-full">No interests listed yet.</p>
-              )}
-            </div>
-          </div>
-        );
-      case 'groups':
-        const memberOfGroups = groups.filter(g => g.memberIds.includes(user.id));
-        const followingGroups = groups.filter(g => g.followers?.includes(user.id));
-        return (
-            <div className="space-y-6">
-                <div>
-                    <h2 className="text-lg font-bold text-foreground mb-4">Member Of ({memberOfGroups.length})</h2>
-                    {memberOfGroups.length > 0 ? (
-                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {memberOfGroups.map(group => <GroupCard key={group.id} group={group} onNavigate={onNavigate}/>)}
+                            {isOwnProfile && !isAdminView && (
+                                <button onClick={() => setIsEditing(true)} className="mt-6 bg-white/20 hover:bg-white/30 font-semibold py-2 px-6 rounded-full transition-colors">
+                                    Edit Profile
+                                </button>
+                            )}
+                            {!isOwnProfile && (
+                                <button onClick={handleStartConversation} className="mt-6 bg-white/20 hover:bg-white/30 font-semibold py-2 px-6 rounded-full transition-colors flex items-center gap-2">
+                                    <MessageIcon className="w-5 h-5" /> Message
+                                </button>
+                            )}
                         </div>
-                    ) : (
-                        <div className="bg-card rounded-lg border border-border p-8 text-center text-text-muted">
-                            <p>{user.name} is not a member of any groups yet.</p>
-                        </div>
-                    )}
+                    </div>
                 </div>
-                 <div>
-                    <h2 className="text-lg font-bold text-foreground mb-4">Following ({followingGroups.length})</h2>
-                    {followingGroups.length > 0 ? (
-                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {followingGroups.map(group => <GroupCard key={group.id} group={group} onNavigate={onNavigate}/>)}
-                        </div>
-                    ) : (
-                         <div className="bg-card rounded-lg border border-border p-8 text-center text-text-muted">
-                            <p>{user.name} is not following any groups yet.</p>
-                        </div>
-                    )}
+
+                {/* Tab Navigation */}
+                <div className="container mx-auto px-4">
+                     <div className="border-b border-border flex justify-center mb-6">
+                        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                            <button onClick={() => setActiveTab('posts')} className={`flex items-center space-x-2 transition-colors duration-200 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'posts' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'}`}>
+                                <PostIcon className="w-5 h-5"/><span>Posts</span>
+                            </button>
+                            <button onClick={() => setActiveTab('about')} className={`flex items-center space-x-2 transition-colors duration-200 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'about' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'}`}>
+                                <UsersIcon className="w-5 h-5"/><span>About</span>
+                            </button>
+                             <button onClick={() => setActiveTab('groups')} className={`flex items-center space-x-2 transition-colors duration-200 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'groups' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'}`}>
+                                <StarIcon className="w-5 h-5"/><span>Groups</span>
+                            </button>
+                             {isOwnProfile && (
+                                <button onClick={() => setActiveTab('saved')} className={`flex items-center space-x-2 transition-colors duration-200 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'saved' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'}`}>
+                                    <BookmarkIcon className="w-5 h-5"/><span>Saved</span>
+                                </button>
+                            )}
+                        </nav>
+                     </div>
                 </div>
-            </div>
-        );
-      case 'posts':
-      default:
-        return (
-            <div>
-                {isCurrentUserProfile && !isAdminView && <CreatePost user={currentUser} onAddPost={onAddPost} />}
-                <Feed 
-                    posts={userPosts}
-                    users={users}
-                    currentUser={currentUser}
-                    onReaction={onReaction}
-                    onAddComment={onAddComment}
-                    onDeletePost={onDeletePost}
-                    onCreateOrOpenConversation={onCreateOrOpenConversation}
-                    onSharePostAsMessage={onSharePostAsMessage}
-                    onSharePost={onSharePost}
-                    groups={groups}
-                    onNavigate={onNavigate}
+
+                {/* Content Area */}
+                <div className="container mx-auto px-4">
+                    {renderTabContent()}
+                </div>
+            </main>
+
+            {isOwnProfile && (
+                <EditProfileModal
+                    isOpen={isEditing}
+                    onClose={() => setIsEditing(false)}
+                    currentUser={profileUser}
+                    onUpdateProfile={onUpdateProfile}
                 />
-            </div>
-        );
-    }
-  };
-
-  return (
-    <div className="bg-slate-50 min-h-screen">
-      {!isAdminView && <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />}
-      
-      <main className="container mx-auto px-2 sm:px-4 lg:px-8 pt-4 sm:pt-8 pb-20 md:pb-4">
-        {/* Profile Header */}
-        <div className="bg-card rounded-xl shadow-card border border-border max-w-4xl mx-auto mb-6">
-            <div className="h-32 sm:h-40 bg-gradient-to-r from-slate-200 to-slate-300 rounded-t-xl"></div>
-            <div className="px-4 sm:px-6 pb-6">
-                <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-16 sm:-mt-20">
-                    <Avatar src={user.avatarUrl} name={user.name} size="xl" className="border-4 border-card flex-shrink-0" />
-                    <div className="sm:ml-6 mt-4 sm:mt-0 flex-grow text-center sm:text-left">
-                        <h1 className="text-2xl font-bold text-foreground">{user.name}</h1>
-                        <p className="text-sm text-text-muted">
-                            {user.tag}
-                            {user.tag === 'Student' && user.yearOfStudy && ` - ${getYearOfStudyText(user.yearOfStudy)}`}
-                            {' - '}
-                            {user.department}
-                        </p>
-                    </div>
-                     <div className="mt-4 sm:mt-0">
-                        {isCurrentUserProfile && !isAdminView && (
-                        <button onClick={() => setIsEditModalOpen(true)} className="bg-muted border border-border text-foreground font-semibold py-2 px-4 rounded-lg text-sm hover:bg-border">
-                            Edit Profile
-                        </button>
-                        )}
-                        {isAdminView && (
-                        <button onClick={onBackToAdmin} className="bg-muted border border-border text-foreground font-semibold py-2 px-4 rounded-lg text-sm hover:bg-border flex items-center justify-center">
-                            <ArrowLeftIcon className="w-4 h-4 mr-2"/>
-                            Back to Dashboard
-                        </button>
-                        )}
-                    </div>
-                </div>
-                 {user.bio && <p className="mt-4 text-sm text-center sm:text-left text-card-foreground">{user.bio}</p>}
-                 <div className="flex items-center justify-around mt-6 pt-4 border-t border-border">
-                    <StatItem count={userPosts.length} label="Posts" />
-                    <StatItem count={user.followingGroups?.length || 0} label="Following" />
-                    <StatItem count={user.achievements?.length || 0} label="Achievements" />
-                </div>
-            </div>
+            )}
+            {isOwnProfile && (
+                <AddAchievementModal
+                    isOpen={isAddingAchievement}
+                    onClose={() => setIsAddingAchievement(false)}
+                    onAddAchievement={onAddAchievement}
+                />
+            )}
+            
+            <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
         </div>
-        
-        {/* Profile Content */}
-        <div className="max-w-4xl mx-auto">
-            {/* Tab Navigation */}
-            <div className="mb-6">
-                <div className="border-b border-border">
-                    <nav className="-mb-px flex space-x-2 sm:space-x-8" aria-label="Tabs">
-                    <button
-                        onClick={() => setActiveTab('posts')}
-                        className={`transition-colors duration-200 ${
-                        activeTab === 'posts'
-                            ? 'border-primary text-primary'
-                            : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
-                        } whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm rounded-t-lg hover:bg-slate-100`}
-                    >
-                        Posts
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('groups')}
-                        className={`transition-colors duration-200 ${
-                        activeTab === 'groups'
-                            ? 'border-primary text-primary'
-                            : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
-                        } whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm rounded-t-lg hover:bg-slate-100`}
-                    >
-                        Groups
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('achievements')}
-                        className={`transition-colors duration-200 ${
-                        activeTab === 'achievements'
-                            ? 'border-primary text-primary'
-                            : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
-                        } whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm rounded-t-lg hover:bg-slate-100`}
-                    >
-                        Achievements
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('interests')}
-                        className={`transition-colors duration-200 ${
-                        activeTab === 'interests'
-                            ? 'border-primary text-primary'
-                            : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
-                        } whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm rounded-t-lg hover:bg-slate-100`}
-                    >
-                        Interests
-                    </button>
-                    </nav>
-                </div>
-            </div>
-
-            {/* Tab Content */}
-            <div>
-                {renderTabContent()}
-            </div>
-        </div>
-      </main>
-      
-      <AddAchievementModal
-        isOpen={isAchievementModalOpen}
-        onClose={() => setIsAchievementModalOpen(false)}
-        onAddAchievement={onAddAchievement}
-      />
-
-      {isCurrentUserProfile && (
-        <EditProfileModal
-          isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          currentUser={currentUser}
-          onUpdateProfile={onUpdateProfile}
-        />
-      )}
-      
-      {!isAdminView && <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>}
-    </div>
-  );
+    );
 };
 
 export default ProfilePage;

@@ -543,6 +543,26 @@ const App: React.FC = () => {
         }
     };
 
+    const handleToggleSavePost = async (postId: string) => {
+        if (!currentUser) return;
+        const userRef = db.collection('users').doc(currentUser.id);
+        const isSaved = currentUser.savedPosts?.includes(postId);
+        try {
+            if (isSaved) {
+                await userRef.update({
+                    savedPosts: FieldValue.arrayRemove(postId)
+                });
+            } else {
+                await userRef.update({
+                    savedPosts: FieldValue.arrayUnion(postId)
+                });
+            }
+        } catch (error) {
+            console.error("Error toggling save post:", error);
+            alert("Could not update saved posts. Please try again.");
+        }
+    };
+
     const handleCreateOrOpenConversation = async (otherUserId: string): Promise<string> => {
         if (!currentUser) throw new Error("User not logged in");
     
@@ -687,12 +707,21 @@ const App: React.FC = () => {
         if (!currentUser) return;
         try {
             const userRef = db.collection('users').doc(currentUser.id);
-            const dataToUpdate: any = { ...updateData };
-
-            if (updateData.tag !== 'Student') {
+            
+            // Explicitly build the update object to prevent issues with undefined fields
+            const dataToUpdate: { [key: string]: any } = {
+                name: updateData.name,
+                bio: updateData.bio,
+                department: updateData.department,
+                tag: updateData.tag,
+            };
+    
+            if (updateData.tag === 'Student') {
+                dataToUpdate.yearOfStudy = updateData.yearOfStudy || 1;
+            } else {
                 dataToUpdate.yearOfStudy = FieldValue.delete();
             }
-
+    
             if (avatarFile) {
                 const filePath = `avatars/${currentUser.id}/${avatarFile.name}`;
                 const fileSnapshot = await storage.ref(filePath).put(avatarFile);
@@ -805,6 +834,7 @@ const App: React.FC = () => {
             onCreateOrOpenConversation: handleCreateOrOpenConversation,
             onSharePostAsMessage: handleSharePostAsMessage,
             onSharePost: handleSharePost,
+            onToggleSavePost: handleToggleSavePost,
             groups,
         };
         

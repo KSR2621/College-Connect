@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import type { User, Post, Group, ReactionType, Story, FeedPreferences } from '../types';
+import type { User, Post, Group, ReactionType, Story } from '../types';
 import Header from '../components/Header';
 import CreatePostModal from '../components/CreatePostModal';
 import Feed from '../components/Feed';
@@ -10,9 +10,7 @@ import StoryViewerModal from '../components/StoryViewerModal';
 import LeftSidebar from '../components/LeftSidebar';
 import RightSidebar from '../components/RightSidebar';
 import InlineCreatePost from '../components/InlineCreatePost';
-import FeedCustomizationModal from '../components/FeedCustomizationModal';
 import { auth } from '../firebase';
-import { SlidersIcon } from '../components/Icons';
 
 
 interface HomePageProps {
@@ -41,36 +39,15 @@ interface HomePageProps {
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
   onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
+  onToggleSavePost: (postId: string) => void;
   currentPath: string;
 }
 
-const defaultFeedPreferences: FeedPreferences = {
-    showRegularPosts: true,
-    showEvents: true,
-    showOpportunities: true,
-    showSharedPosts: true,
-};
-
 const HomePage: React.FC<HomePageProps> = (props) => {
-    const { currentUser, users, posts, stories, groups, events, onNavigate, onAddPost, onAddStory, onMarkStoryAsViewed, onDeleteStory, onReplyToStory, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, currentPath } = props;
+    const { currentUser, users, posts, stories, groups, events, onNavigate, onAddPost, onAddStory, onMarkStoryAsViewed, onDeleteStory, onReplyToStory, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost, currentPath } = props;
     const [createModalType, setCreateModalType] = useState<'post' | 'event' | null>(null);
     const [isStoryCreatorOpen, setIsStoryCreatorOpen] = useState(false);
     const [viewingStoryEntityId, setViewingStoryEntityId] = useState<string | null>(null);
-    const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState(false);
-    const [feedPreferences, setFeedPreferences] = useState<FeedPreferences>(defaultFeedPreferences);
-
-    useEffect(() => {
-        const savedPrefs = localStorage.getItem('feedPreferences');
-        if (savedPrefs) {
-            setFeedPreferences(JSON.parse(savedPrefs));
-        }
-    }, []);
-
-    const handleSavePreferences = (newPrefs: FeedPreferences) => {
-        setFeedPreferences(newPrefs);
-        localStorage.setItem('feedPreferences', JSON.stringify(newPrefs));
-        setIsCustomizeModalOpen(false);
-    };
 
     const handleLogout = async () => {
         await auth.signOut();
@@ -78,26 +55,78 @@ const HomePage: React.FC<HomePageProps> = (props) => {
     };
 
     const feedPosts = useMemo(() => {
-        return posts.filter(post => {
-            // Filter out posts from groups the user doesn't follow
-            if (post.groupId && !(currentUser.followingGroups && currentUser.followingGroups.includes(post.groupId))) {
-                return false;
-            }
-            // Filter out confessions from the main feed
-            if (post.isConfession) {
-                return false;
+        const now = Date.now();
+        const oneHour = 1000 * 60 * 60;
+
+        const getPostScore = (post: Post): number => {
+            let score = 0;
+
+            // 1. Recency Score (higher score for newer posts, decays over time)
+            const ageInHours = (now - post.timestamp) / oneHour;
+            score += 10 / (ageInHours + 1); // Heavily favors posts in the first few hours
+
+            // 2. Engagement Score
+            const reactionCount = Object.values(post.reactions || {}).reduce((sum, arr) => sum + (arr?.length || 0), 0);
+            const commentCount = post.comments.length;
+            score += (reactionCount * 0.5) + (commentCount * 1.0);
+
+            // 3. Author Relevance (if not current user)
+            const author = users[post.authorId];
+            if (author && author.department === currentUser.department && author.id !== currentUser.id) {
+                score += 5;
             }
 
-            // Apply user's feed preferences
-            const isRegular = !post.isEvent && !post.isOpportunity && !post.sharedPost;
-            if (!feedPreferences.showRegularPosts && isRegular) return false;
-            if (!feedPreferences.showEvents && post.isEvent) return false;
-            if (!feedPreferences.showOpportunities && post.isOpportunity) return false;
-            if (!feedPreferences.showSharedPosts && post.sharedPost) return false;
+            // 4. Group Relevance (big boost for membership)
+            if (post.groupId) {
+                const group = groups.find(g => g.id === post.groupId);
+                if (group && group.memberIds.includes(currentUser.id)) {
+                    score += 8;
+                }
+            }
 
-            return true;
-        });
-    }, [posts, currentUser.followingGroups, feedPreferences]);
+            // 5. Interest Match
+            const userInterests = currentUser.interests || [];
+            if (userInterests.length > 0) {
+                const postText = [
+                    post.content,
+                    post.eventDetails?.title,
+                    post.opportunityDetails?.title,
+                    post.sharedPost?.originalContent
+                ].join(' ').toLowerCase();
+                
+                for (const interest of userInterests) {
+                    if (postText.includes(interest.toLowerCase())) {
+                        score += 3;
+                    }
+                }
+            }
+
+            // 6. Deprioritize posts the user has already interacted with
+            const hasReacted = Object.values(post.reactions || {}).some(arr => arr?.includes(currentUser.id));
+            const hasCommented = post.comments.some(c => c.authorId === currentUser.id);
+            if (hasReacted || hasCommented) {
+                score *= 0.2;
+            }
+
+            return score;
+        };
+        
+        return posts
+            .filter(post => {
+                // Filter out posts from groups the user doesn't follow
+                if (post.groupId && !(currentUser.followingGroups && currentUser.followingGroups.includes(post.groupId))) {
+                    return false;
+                }
+                // Filter out confessions from the main feed
+                if (post.isConfession) {
+                    return false;
+                }
+                return true;
+            })
+            .map(post => ({ post, score: getPostScore(post) }))
+            .sort((a, b) => b.score - a.score)
+            .map(item => item.post);
+    }, [posts, currentUser, users, groups]);
 
     const adminOfGroups = groups.filter(g => g.creatorId === currentUser.id);
 
@@ -131,16 +160,6 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                         
                         <InlineCreatePost user={currentUser} onOpenCreateModal={setCreateModalType} />
 
-                        <div className="flex justify-end items-center mb-4 px-2">
-                            <button 
-                                onClick={() => setIsCustomizeModalOpen(true)}
-                                className="flex items-center gap-2 text-sm font-semibold text-text-muted hover:text-primary transition-colors p-2 rounded-lg hover:bg-muted"
-                            >
-                                <SlidersIcon className="w-4 h-4" />
-                                Filter Feed
-                            </button>
-                        </div>
-
                         <Feed 
                             posts={feedPosts}
                             users={users}
@@ -151,6 +170,7 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                             onCreateOrOpenConversation={onCreateOrOpenConversation}
                             onSharePostAsMessage={onSharePostAsMessage}
                             onSharePost={onSharePost}
+                            onToggleSavePost={onToggleSavePost}
                             groups={groups}
                             onNavigate={onNavigate}
                         />
@@ -178,13 +198,6 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                 user={currentUser}
                 onAddPost={onAddPost}
                 defaultType={createModalType === 'event' ? 'event' : 'post'}
-            />
-
-            <FeedCustomizationModal
-                isOpen={isCustomizeModalOpen}
-                onClose={() => setIsCustomizeModalOpen(false)}
-                currentPreferences={feedPreferences}
-                onSave={handleSavePreferences}
             />
 
             {isStoryCreatorOpen && (

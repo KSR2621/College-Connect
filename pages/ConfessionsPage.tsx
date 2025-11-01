@@ -26,6 +26,7 @@ interface ConfessionsPageProps {
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
   onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
+  onToggleSavePost: (postId: string) => void;
   currentPath: string;
 }
 

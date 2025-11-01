@@ -20,15 +20,18 @@ interface AdminPageProps {
     onDeletePost: (postId: string) => void;
     onDeleteGroup: (groupId: string) => void;
     // Props to pass down to ProfilePage
-    // FIX: Expanded type to include all necessary props for ProfilePage, resolving type errors.
+    // FIX: Fully defined `postCardProps` type to include all required properties for `ProfilePage`,
+    // resolving a TypeScript error where `onToggleSavePost` was missing.
     postCardProps: {
         onReaction: (postId: string, reaction: ReactionType) => void;
         onAddComment: (postId: string, text: string) => void;
         onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
         onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
         onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
-        [key: string]: any;
-    }; 
+        onToggleSavePost: (postId: string) => void;
+        onDeletePost: (postId: string) => void;
+        groups: Group[];
+    };
 }
 
 const UserManagement: React.FC<{

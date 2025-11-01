@@ -23,6 +23,7 @@ interface SearchPageProps {
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
   onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
+  onToggleSavePost: (postId: string) => void;
 }
 
 const filterTabs: { id: 'all' | 'people' | 'posts' | 'groups', label: string, icon: React.FC<React.SVGProps<SVGSVGElement>> }[] = [
@@ -33,7 +34,7 @@ const filterTabs: { id: 'all' | 'people' | 'posts' | 'groups', label: string, ic
 ];
 
 const SearchPage: React.FC<SearchPageProps> = (props) => {
-  const { currentUser, users, posts, groups, onNavigate, currentPath, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost } = props;
+  const { currentUser, users, posts, groups, onNavigate, currentPath, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost } = props;
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'people' | 'posts' | 'groups'>('all');
 
@@ -123,7 +124,7 @@ const SearchPage: React.FC<SearchPageProps> = (props) => {
                         {filteredResults.posts.map(post => {
                             const author = usersMap[post.authorId];
                             if (!author && !post.isConfession) return null;
-                            return <PostCard key={post.id} post={post} author={author} currentUser={currentUser} users={usersMap} onReaction={onReaction} onAddComment={onAddComment} onDeletePost={onDeletePost} onCreateOrOpenConversation={onCreateOrOpenConversation} onSharePostAsMessage={onSharePostAsMessage} onSharePost={onSharePost} groups={groups} onNavigate={onNavigate} />
+                            return <PostCard key={post.id} post={post} author={author} currentUser={currentUser} users={usersMap} onReaction={onReaction} onAddComment={onAddComment} onDeletePost={onDeletePost} onCreateOrOpenConversation={onCreateOrOpenConversation} onSharePostAsMessage={onSharePostAsMessage} onSharePost={onSharePost} onToggleSavePost={onToggleSavePost} groups={groups} onNavigate={onNavigate} />
                         })}
                     </div>
                 </div>

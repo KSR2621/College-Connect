@@ -1,42 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { User, UserTag } from '../types';
-import Avatar from './Avatar';
+import { CameraIcon, CloseIcon } from './Icons';
 
 interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentUser: User;
   onUpdateProfile: (
-      updateData: { name: string; bio: string; department: string; tag: UserTag; yearOfStudy?: number; }, 
-      avatarFile?: File | null
+    updateData: { name: string; bio: string; department: string; tag: UserTag; yearOfStudy?: number },
+    avatarFile?: File | null
   ) => void;
 }
 
 const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, currentUser, onUpdateProfile }) => {
-  const [name, setName] = useState('');
-  const [bio, setBio] = useState('');
-  const [department, setDepartment] = useState('');
-  const [tag, setTag] = useState<UserTag>('Student');
-  const [yearOfStudy, setYearOfStudy] = useState<number>(1);
+  const [name, setName] = useState(currentUser.name);
+  const [bio, setBio] = useState(currentUser.bio || '');
+  const [department, setDepartment] = useState(currentUser.department);
+  const [tag, setTag] = useState<UserTag>(currentUser.tag);
+  const [yearOfStudy, setYearOfStudy] = useState<number>(currentUser.yearOfStudy || 1);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(currentUser.avatarUrl || null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (currentUser) {
-      setName(currentUser.name);
-      setBio(currentUser.bio || '');
-      setDepartment(currentUser.department);
-      setTag(currentUser.tag);
-      setYearOfStudy(currentUser.yearOfStudy || 1);
-      setAvatarPreview(currentUser.avatarUrl || null);
+    // When the modal opens, populate the form with the current user's data.
+    // This effect should only run when the modal is opened, not on subsequent
+    // re-renders of the parent component, which would overwrite user input.
+    if (isOpen) {
+        setName(currentUser.name);
+        setBio(currentUser.bio || '');
+        setDepartment(currentUser.department);
+        setTag(currentUser.tag);
+        setYearOfStudy(currentUser.yearOfStudy || 1);
+        setAvatarFile(null);
+        setAvatarPreview(currentUser.avatarUrl || null);
     }
-  }, [currentUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
       setAvatarFile(file);
       setAvatarPreview(URL.createObjectURL(file));
     }
@@ -44,65 +50,99 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, cu
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateProfile({ 
-      name, 
-      bio, 
-      department, 
-      tag,
-      yearOfStudy: tag === 'Student' ? yearOfStudy : undefined
-    }, avatarFile);
+    const updateData: { name: string; bio: string; department: string; tag: UserTag; yearOfStudy?: number } = {
+      name,
+      bio,
+      department,
+      tag
+    };
+    if (tag === 'Student') {
+      updateData.yearOfStudy = yearOfStudy;
+    }
+    onUpdateProfile(updateData, avatarFile);
     onClose();
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose}>
-      <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-lg" onClick={e => e.stopPropagation()}>
-        <h2 className="text-2xl font-bold mb-4 text-foreground">Edit Profile</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex items-center space-x-4">
-            <Avatar src={avatarPreview || undefined} name={name} size="xl" />
-            <label className="block">
-                <span className="sr-only">Choose profile photo</span>
-                <input type="file" onChange={handleAvatarChange} accept="image/*" className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"/>
-            </label>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-text-muted mb-1">Full Name</label>
-            <input type="text" value={name} onChange={e => setName(e.target.value)} required className="w-full px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-text-muted mb-1">Bio</label>
-            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} className="w-full px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-text-muted mb-1">Department</label>
-            <input type="text" value={department} onChange={e => setDepartment(e.target.value)} required className="w-full px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-text-muted mb-1">I am a...</label>
-            <select value={tag} onChange={e => setTag(e.target.value as UserTag)} className="w-full px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-              <option>Student</option>
-              <option>Faculty</option>
-              <option>Alumni</option>
-            </select>
-          </div>
+      <div className="bg-card rounded-lg shadow-xl w-full max-w-lg overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="p-4 border-b border-border flex justify-between items-center">
+          <h2 className="text-xl font-bold text-foreground">Edit Profile</h2>
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-muted"><CloseIcon className="w-5 h-5 text-text-muted"/></button>
+        </div>
+        
+        <form onSubmit={handleSubmit}>
+          <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto no-scrollbar">
+            {/* Avatar */}
+            <div className="flex flex-col items-center">
+                <div className="relative">
+                    <img
+                        src={avatarPreview || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`}
+                        alt="Avatar preview"
+                        className="w-24 h-24 rounded-full object-cover"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="absolute bottom-0 right-0 bg-primary text-primary-foreground p-2 rounded-full border-2 border-card"
+                    >
+                        <CameraIcon className="w-5 h-5"/>
+                    </button>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                    />
+                </div>
+            </div>
 
-          {tag === 'Student' && (
+            {/* Form Fields */}
             <div>
-              <label className="block text-sm font-medium text-text-muted mb-1">Year of Study</label>
-              <select value={yearOfStudy} onChange={e => setYearOfStudy(Number(e.target.value))} className="w-full px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-                  <option value={1}>1st Year</option>
-                  <option value={2}>2nd Year</option>
-                  <option value={3}>3rd Year</option>
-                  <option value={4}>4th Year</option>
-                  <option value={5}>Graduate</option>
+              <label htmlFor="name" className="text-sm font-medium text-text-muted">Name</label>
+              <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} required className="w-full mt-1 px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
+            </div>
+
+            <div>
+              <label htmlFor="bio" className="text-sm font-medium text-text-muted">Bio</label>
+              <textarea id="bio" value={bio} onChange={e => setBio(e.target.value)} rows={3} placeholder="Tell us about yourself" className="w-full mt-1 px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none" />
+            </div>
+
+            <div>
+              <label htmlFor="department" className="text-sm font-medium text-text-muted">Department</label>
+              <input type="text" id="department" value={department} onChange={e => setDepartment(e.target.value)} required className="w-full mt-1 px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
+            </div>
+
+            <div>
+              <label htmlFor="tag" className="text-sm font-medium text-text-muted">Role</label>
+              <select id="tag" value={tag} onChange={e => setTag(e.target.value as UserTag)} className="w-full mt-1 px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                <option>Student</option>
+                <option>Faculty</option>
+                <option>Alumni</option>
               </select>
             </div>
-          )}
 
-          <div className="flex justify-end gap-3 mt-6">
-            <button type="button" onClick={onClose} className="px-4 py-2 font-semibold text-foreground bg-muted rounded-lg hover:bg-muted/80">Cancel</button>
-            <button type="submit" className="px-4 py-2 font-bold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90">Save Changes</button>
+            {tag === 'Student' && (
+              <div>
+                <label htmlFor="yearOfStudy" className="text-sm font-medium text-text-muted">Year of Study</label>
+                <select id="yearOfStudy" value={yearOfStudy} onChange={e => setYearOfStudy(Number(e.target.value))} className="w-full mt-1 px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                    <option value={1}>1st Year</option>
+                    <option value={2}>2nd Year</option>
+                    <option value={3}>3rd Year</option>
+                    <option value={4}>4th Year</option>
+                    <option value={5}>Graduate</option>
+                </select>
+              </div>
+            )}
+          </div>
+          <div className="p-4 bg-muted/50 border-t border-border flex justify-end gap-3">
+             <button type="button" onClick={onClose} className="px-4 py-2 font-semibold text-foreground bg-muted rounded-lg hover:bg-muted/80">
+                Cancel
+            </button>
+            <button type="submit" className="px-4 py-2 font-bold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90">
+                Save Changes
+            </button>
           </div>
         </form>
       </div>

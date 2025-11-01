@@ -1,6 +1,4 @@
-import type { UserTag } from './components/EditProfileModal'; // This is a circular dependency, should be fixed.
-
-// FIX: Removed circular import and defined UserTag type.
+// FIX: Removed the import of `UserTag` from './components/EditProfileModal' to resolve a circular dependency. The type is correctly defined below.
 export type UserTag = 'Student' | 'Faculty' | 'Alumni';
 export type ConfessionMood = 'love' | 'funny' | 'sad' | 'chaos' | 'deep';
 
@@ -17,6 +15,7 @@ export type User = {
   yearOfStudy?: number;
   followingGroups?: string[];
   isAdmin?: boolean;
+  savedPosts?: string[];
 }
 
 export type Achievement = {

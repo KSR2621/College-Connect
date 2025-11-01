@@ -62,7 +62,7 @@ const ReactionsModal: React.FC<ReactionsModalProps> = ({ isOpen, onClose, reacti
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="flex-1 overflow-y-auto no-scrollbar p-2">
             {userIdsForActiveTab.length > 0 ? (
                 userIdsForActiveTab.map(userId => {
                     const user = users[userId];

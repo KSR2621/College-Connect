@@ -4,7 +4,7 @@ import Avatar from './Avatar';
 import CommentSection from './CommentSection';
 import ShareModal from './ShareModal';
 import ReactionsModal from './ReactionsModal';
-import { CommentIcon, ShareIcon, CalendarIcon, GhostIcon, LikeIcon, BriefcaseIcon, LinkIcon, TrashIcon, RepostIcon, SendIcon } from './Icons';
+import { CommentIcon, ShareIcon, CalendarIcon, GhostIcon, LikeIcon, BriefcaseIcon, LinkIcon, TrashIcon, BookmarkIcon, SendIcon, BookmarkIconSolid } from './Icons';
 
 interface PostCardProps {
   post: Post;
@@ -17,6 +17,7 @@ interface PostCardProps {
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
   onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
+  onToggleSavePost: (postId: string) => void;
   groups: Group[];
   onNavigate: (path: string) => void;
 }
@@ -56,7 +57,7 @@ const formatTimestamp = (timestamp: number) => {
 
 
 const PostCard: React.FC<PostCardProps> = (props) => {
-  const { post, author, currentUser, users, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, groups, onNavigate } = props;
+  const { post, author, currentUser, users, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost, groups, onNavigate } = props;
   const [showComments, setShowComments] = useState(false);
   const [shareModalState, setShareModalState] = useState<{isOpen: boolean, defaultTab: 'share' | 'message'}>({isOpen: false, defaultTab: 'share'});
   const [isReactionsModalOpen, setIsReactionsModalOpen] = useState(false);
@@ -682,6 +683,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
   }
 
   // RENDER REGULAR/SHARED POST
+  const isSaved = currentUser.savedPosts?.includes(post.id);
   return (
     <div className="bg-card rounded-xl shadow-card border border-border transition-shadow duration-300">
       {/* Post Header */}
@@ -826,9 +828,9 @@ const PostCard: React.FC<PostCardProps> = (props) => {
               <CommentIcon className="w-6 h-6" />
               <span className="text-sm font-semibold">Comment</span>
           </button>
-          <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'share'})} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors">
-              <RepostIcon className="w-6 h-6" />
-              <span className="text-sm font-semibold">Repost</span>
+          <button onClick={() => onToggleSavePost(post.id)} className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted transition-colors ${isSaved ? 'text-primary font-bold' : 'text-text-muted'}`}>
+            {isSaved ? <BookmarkIconSolid className="w-6 h-6" /> : <BookmarkIcon className="w-6 h-6" />}
+            <span className="text-sm font-semibold">Save</span>
           </button>
           <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'message'})} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors">
               <SendIcon className="w-6 h-6" />

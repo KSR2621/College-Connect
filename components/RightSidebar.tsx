@@ -11,6 +11,22 @@ interface RightSidebarProps {
   users: User[];
 }
 
+const generateGradient = (name: string) => {
+    const gradients = [
+        'from-blue-500 to-cyan-400',
+        'from-purple-500 to-indigo-500',
+        'from-green-400 to-teal-500',
+        'from-pink-500 to-rose-500',
+        'from-orange-400 to-red-500'
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash % gradients.length);
+    return gradients[index];
+};
+
 const RightSidebar: React.FC<RightSidebarProps> = ({ groups, events, currentUser, onNavigate, users }) => {
 
   const suggestedGroups = groups
@@ -78,20 +94,24 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ groups, events, currentUser
         <div className="bg-card rounded-lg shadow-sm border border-border p-4">
           <h3 className="font-bold text-foreground mb-3">Suggested Groups</h3>
           <div className="space-y-3">
-            {suggestedGroups.map(group => (
-              <div key={group.id} className="flex items-center space-x-3">
-                <div className="flex-shrink-0 h-10 w-10 bg-primary/10 text-primary rounded-lg flex items-center justify-center">
-                    <UsersIcon className="w-5 h-5"/>
+            {suggestedGroups.map(group => {
+              const gradient = generateGradient(group.name);
+              return (
+                <div 
+                    key={group.id} 
+                    className="flex items-center space-x-3 cursor-pointer p-2 -m-2 rounded-lg hover:bg-muted transition-colors"
+                    onClick={() => onNavigate(`#/groups/${group.id}`)}
+                >
+                  <div className={`flex-shrink-0 h-10 w-10 bg-gradient-to-br ${gradient} text-white rounded-lg flex items-center justify-center`}>
+                      <UsersIcon className="w-5 h-5"/>
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                      <p className="font-semibold text-card-foreground text-sm truncate">{group.name}</p>
+                      <p className="text-xs text-text-muted">{group.memberIds.length} members</p>
+                  </div>
                 </div>
-                <div className="flex-1 overflow-hidden">
-                    <p className="font-semibold text-card-foreground text-sm truncate">{group.name}</p>
-                    <p className="text-xs text-text-muted">{group.memberIds.length} members</p>
-                </div>
-                <button onClick={() => onNavigate(`#/groups/${group.id}`)} className="text-xs font-semibold bg-muted hover:bg-border text-foreground py-1 px-3 rounded-full">
-                    View
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
             <button onClick={() => onNavigate('#/groups')} className="w-full mt-3 text-sm font-semibold text-primary hover:bg-primary/10 p-2 rounded-lg transition-colors">
                 View All Groups

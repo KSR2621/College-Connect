@@ -21,10 +21,11 @@ interface EventsPageProps {
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
   onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
+  onToggleSavePost: (postId: string) => void;
 }
 
 const EventsPage: React.FC<EventsPageProps> = (props) => {
-  const { currentUser, users, events, groups, onNavigate, currentPath, onAddPost, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost } = props;
+  const { currentUser, users, events, groups, onNavigate, currentPath, onAddPost, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost } = props;
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'upcoming' | 'past'>('upcoming');
@@ -156,6 +157,7 @@ const EventsPage: React.FC<EventsPageProps> = (props) => {
                   onCreateOrOpenConversation={onCreateOrOpenConversation}
                   onSharePostAsMessage={onSharePostAsMessage}
                   onSharePost={onSharePost}
+                  onToggleSavePost={onToggleSavePost}
                   groups={groups}
                   // FIX: Pass the onNavigate prop to satisfy the PostCardProps interface.
                   onNavigate={onNavigate}

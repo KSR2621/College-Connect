@@ -39,6 +39,7 @@ interface GroupDetailPageProps {
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
   onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
+  onToggleSavePost: (postId: string) => void;
 }
 
 const GroupChatWindow: React.FC<{
@@ -195,7 +196,7 @@ const GroupFollowersList: React.FC<{
 
 
 const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
-    const { group, currentUser, users, posts, groups, onNavigate, currentPath, onAddPost, onAddStory, onReaction, onAddComment, onDeletePost, onJoinGroupRequest, onApproveJoinRequest, onDeclineJoinRequest, onDeleteGroup, onSendGroupMessage, onRemoveGroupMember, onToggleFollowGroup, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost } = props;
+    const { group, currentUser, users, posts, groups, onNavigate, currentPath, onAddPost, onAddStory, onReaction, onAddComment, onDeletePost, onJoinGroupRequest, onApproveJoinRequest, onDeclineJoinRequest, onDeleteGroup, onSendGroupMessage, onRemoveGroupMember, onToggleFollowGroup, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost } = props;
     const [inviteCopied, setInviteCopied] = useState(false);
     const [showOptions, setShowOptions] = useState(false);
     const [activeTab, setActiveTab] = useState<'posts' | 'chat' | 'members' | 'followers'>('posts');
@@ -256,6 +257,7 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                             onCreateOrOpenConversation={onCreateOrOpenConversation}
                             onSharePostAsMessage={onSharePostAsMessage}
                             onSharePost={onSharePost}
+                            onToggleSavePost={onToggleSavePost}
                             groups={groups}
                             onNavigate={onNavigate}
                         />

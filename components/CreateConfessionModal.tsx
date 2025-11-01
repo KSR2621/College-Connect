@@ -86,7 +86,7 @@ const CreateConfessionModal: React.FC<CreateConfessionModalProps> = ({ isOpen, o
                     contentEditable={true}
                     onInput={handleInput}
                     data-placeholder="Share your confession anonymously..."
-                    className="w-full min-h-[150px] max-h-[300px] overflow-y-auto px-4 py-2 text-foreground bg-input focus:outline-none focus:ring-0 resize-none text-xl empty:before:content-[attr(data-placeholder)] empty:before:text-text-muted empty:before:cursor-text"
+                    className="w-full min-h-[150px] max-h-[300px] overflow-y-auto no-scrollbar px-4 py-2 text-foreground bg-input focus:outline-none focus:ring-0 resize-none text-xl empty:before:content-[attr(data-placeholder)] empty:before:text-text-muted empty:before:cursor-text"
                 />
             </div>
           
