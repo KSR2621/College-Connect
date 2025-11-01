@@ -1,7 +1,9 @@
 
 
+
+
 import React, { useState, useMemo } from 'react';
-import type { User, Post, Group } from '../types';
+import type { User, Post, Group, ReactionType } from '../types';
 import Header from '../components/Header';
 import Avatar from '../components/Avatar';
 import PostCard from '../components/PostCard'; 
@@ -16,7 +18,7 @@ interface SearchPageProps {
   groups: Group[];
   onNavigate: (path: string) => void;
   currentPath: string;
-  onToggleLike: (postId: string) => void;
+  onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
@@ -25,7 +27,7 @@ interface SearchPageProps {
 }
 
 const SearchPage: React.FC<SearchPageProps> = (props) => {
-  const { currentUser, users, posts, groups, onNavigate, currentPath, onToggleLike, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost } = props;
+  const { currentUser, users, posts, groups, onNavigate, currentPath, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost } = props;
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'people' | 'posts' | 'groups'>('all');
 
@@ -90,7 +92,7 @@ const SearchPage: React.FC<SearchPageProps> = (props) => {
                         {filteredResults.posts.map(post => {
                             const author = usersMap[post.authorId];
                             if (!author && !post.isConfession) return null;
-                            return <PostCard key={post.id} post={post} author={author} currentUser={currentUser} users={usersMap} onToggleLike={onToggleLike} onAddComment={onAddComment} onDeletePost={onDeletePost} onCreateOrOpenConversation={onCreateOrOpenConversation} onSharePostAsMessage={onSharePostAsMessage} onSharePost={onSharePost} groups={groups} />
+                            return <PostCard key={post.id} post={post} author={author} currentUser={currentUser} users={usersMap} onReaction={onReaction} onAddComment={onAddComment} onDeletePost={onDeletePost} onCreateOrOpenConversation={onCreateOrOpenConversation} onSharePostAsMessage={onSharePostAsMessage} onSharePost={onSharePost} groups={groups} />
                         })}
                     </div>
                 </div>
@@ -118,7 +120,7 @@ const SearchPage: React.FC<SearchPageProps> = (props) => {
         </div>
       </main>
       
-      <BottomNavBar onNavigate={onNavigate} currentPage={currentPath}/>
+      <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
     </div>
   );
 };

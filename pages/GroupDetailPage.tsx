@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { User, Group, Post } from '../types';
+import type { User, Group, Post, ReactionType } from '../types';
 import Header from '../components/Header';
 import Feed from '../components/Feed';
 import CreatePost from '../components/CreatePost';
 import BottomNavBar from '../components/BottomNavBar';
 import Avatar from '../components/Avatar';
+import StoryCreatorModal from '../components/StoryCreatorModal';
 import { auth } from '../firebase';
-import { UsersIcon, ArrowLeftIcon, ShareIcon, OptionsIcon, MessageIcon, PostIcon, SendIcon, StarIcon } from '../components/Icons';
+import { UsersIcon, ArrowLeftIcon, ShareIcon, OptionsIcon, MessageIcon, PostIcon, SendIcon, StarIcon, PlusCircleIcon } from '../components/Icons';
 
 interface GroupDetailPageProps {
   group: Group;
@@ -17,7 +18,15 @@ interface GroupDetailPageProps {
   onNavigate: (path: string) => void;
   currentPath: string;
   onAddPost: (postDetails: { content: string; groupId?: string; mediaFile?: File | null; mediaType?: "image" | "video" | null; }) => void;
-  onToggleLike: (postId: string) => void;
+  onAddStory: (storyDetails: { 
+    textContent: string; 
+    backgroundColor: string;
+    fontFamily: string;
+    fontWeight: string;
+    fontSize: string;
+    groupId?: string;
+  }) => void;
+  onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;
   onJoinGroupRequest: (groupId: string) => void;
@@ -184,10 +193,11 @@ const GroupFollowersList: React.FC<{
 
 
 const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
-    const { group, currentUser, users, posts, groups, onNavigate, currentPath, onAddPost, onToggleLike, onAddComment, onDeletePost, onJoinGroupRequest, onApproveJoinRequest, onDeclineJoinRequest, onDeleteGroup, onSendGroupMessage, onRemoveGroupMember, onToggleFollowGroup, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost } = props;
+    const { group, currentUser, users, posts, groups, onNavigate, currentPath, onAddPost, onAddStory, onReaction, onAddComment, onDeletePost, onJoinGroupRequest, onApproveJoinRequest, onDeclineJoinRequest, onDeleteGroup, onSendGroupMessage, onRemoveGroupMember, onToggleFollowGroup, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost } = props;
     const [inviteCopied, setInviteCopied] = useState(false);
     const [showOptions, setShowOptions] = useState(false);
     const [activeTab, setActiveTab] = useState<'posts' | 'chat' | 'members' | 'followers'>('posts');
+    const [isStoryCreatorOpen, setIsStoryCreatorOpen] = useState(false);
 
 
     const handleLogout = async () => {
@@ -241,7 +251,7 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                             posts={posts}
                             users={users}
                             currentUser={currentUser}
-                            onToggleLike={onToggleLike}
+                            onReaction={onReaction}
                             onAddComment={onAddComment}
                             onDeletePost={onDeletePost}
                             onCreateOrOpenConversation={onCreateOrOpenConversation}
@@ -298,6 +308,15 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                                     </button>
                                     {inviteCopied && <span className="absolute bottom-full mb-2 right-0 bg-foreground text-background text-xs rounded py-1 px-2">Link Copied!</span>}
                                 </div>
+                            )}
+                            {isCreator && (
+                                <button
+                                    onClick={() => setIsStoryCreatorOpen(true)}
+                                    className="bg-primary text-primary-foreground font-semibold py-2 px-4 rounded-full text-sm hover:bg-primary/90 flex items-center"
+                                >
+                                    <PlusCircleIcon className="w-5 h-5 mr-2" />
+                                    Add Story
+                                </button>
                             )}
                             {!isMember && !hasRequested && (
                                 <button onClick={() => onJoinGroupRequest(group.id)} className="bg-primary text-primary-foreground font-semibold py-2 px-4 rounded-full text-sm hover:bg-primary/90">
@@ -383,7 +402,17 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                 </div>
             </main>
             
-            <BottomNavBar onNavigate={onNavigate} currentPage={currentPath}/>
+            {isStoryCreatorOpen && (
+                <StoryCreatorModal
+                    currentUser={currentUser}
+                    adminOfGroups={[]}
+                    onClose={() => setIsStoryCreatorOpen(false)}
+                    onAddStory={onAddStory}
+                    defaultGroup={group}
+                />
+            )}
+            
+            <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
         </div>
     );
 };

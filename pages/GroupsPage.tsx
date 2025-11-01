@@ -62,7 +62,7 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ currentUser, groups, onNavigate
         onCreateGroup={onCreateGroup}
       />
 
-      <BottomNavBar onNavigate={onNavigate} currentPage={currentPath}/>
+      <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { User, Post, Achievement, UserTag, Group } from '../types';
+import type { User, Post, Achievement, UserTag, Group, ReactionType } from '../types';
 import Header from '../components/Header';
 import Avatar from '../components/Avatar';
 import Feed from '../components/Feed';
@@ -20,7 +20,7 @@ interface ProfilePageProps {
   groups: Group[];
   onNavigate: (path: string) => void;
   currentPath: string;
-  onToggleLike: (postId: string) => void;
+  onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;
   onAddPost: (postDetails: { content: string; mediaFile?: File | null; mediaType?: 'image' | 'video' | null; }) => void;
@@ -46,8 +46,15 @@ const getYearOfStudyText = (year?: number) => {
     }
 }
 
+const StatItem: React.FC<{ count: number; label: string }> = ({ count, label }) => (
+    <div className="text-center">
+      <p className="text-xl font-bold text-foreground">{count}</p>
+      <p className="text-sm text-text-muted">{label}</p>
+    </div>
+);
+
 const ProfilePage: React.FC<ProfilePageProps> = (props) => {
-  const { profileUserId, currentUser, users, posts, groups, onNavigate, currentPath, onToggleLike, onAddComment, onDeletePost, onAddPost, onAddAchievement, onAddInterest, onUpdateProfile, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, isAdminView, onBackToAdmin } = props;
+  const { profileUserId, currentUser, users, posts, groups, onNavigate, currentPath, onReaction, onAddComment, onDeletePost, onAddPost, onAddAchievement, onAddInterest, onUpdateProfile, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, isAdminView, onBackToAdmin } = props;
   const [activeTab, setActiveTab] = useState<'posts' | 'achievements' | 'interests' | 'groups'>('posts');
   const [isAchievementModalOpen, setIsAchievementModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -165,7 +172,7 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
                     posts={userPosts}
                     users={users}
                     currentUser={currentUser}
-                    onToggleLike={onToggleLike}
+                    onReaction={onReaction}
                     onAddComment={onAddComment}
                     onDeletePost={onDeletePost}
                     onCreateOrOpenConversation={onCreateOrOpenConversation}
@@ -182,33 +189,40 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
     <div className="bg-background min-h-screen">
       {!isAdminView && <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />}
       
-      <main className="container mx-auto px-2 sm:px-4 lg:px-8 pt-8 pb-20 md:pb-4">
+      <main className="container mx-auto px-2 sm:px-4 lg:px-8 pt-4 sm:pt-8 pb-20 md:pb-4">
         {/* Profile Header */}
-        <div className="bg-card rounded-lg shadow-sm p-6 mb-6 border border-border max-w-4xl mx-auto">
-          <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left space-y-4 sm:space-y-0 sm:space-x-6">
-            <Avatar src={user.avatarUrl} name={user.name} size="xl" />
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold text-foreground">{user.name}</h1>
-              <p className="text-md text-text-muted">
-                {user.tag}
-                {user.tag === 'Student' && user.yearOfStudy && ` - ${getYearOfStudyText(user.yearOfStudy)}`}
-                {' - '}
-                {user.department}
-              </p>
-              {user.bio && <p className="mt-2 text-card-foreground">{user.bio}</p>}
+        <div className="p-4 mb-6 max-w-4xl mx-auto">
+            <div className="flex items-center space-x-4 sm:space-x-10">
+                <Avatar src={user.avatarUrl} name={user.name} size="xl" className="flex-shrink-0" />
+                <div className="flex-1 flex items-center justify-around">
+                    <StatItem count={userPosts.length} label="Posts" />
+                    <StatItem count={user.followingGroups?.length || 0} label="Following" />
+                    <StatItem count={user.achievements?.length || 0} label="Achievements" />
+                </div>
             </div>
-            {isCurrentUserProfile && !isAdminView && (
-              <button onClick={() => setIsEditModalOpen(true)} className="bg-primary/10 border border-primary text-primary font-semibold py-2 px-4 rounded-full text-sm hover:bg-primary/20">
-                Edit Profile
-              </button>
-            )}
-             {isAdminView && (
-              <button onClick={onBackToAdmin} className="bg-primary/10 border border-primary text-primary font-semibold py-2 px-4 rounded-full text-sm hover:bg-primary/20 flex items-center">
-                <ArrowLeftIcon className="w-4 h-4 mr-2"/>
-                Back to Dashboard
-              </button>
-            )}
-          </div>
+            <div className="mt-4">
+                <h1 className="text-lg font-bold text-foreground">{user.name}</h1>
+                <p className="text-sm text-text-muted">
+                    {user.tag}
+                    {user.tag === 'Student' && user.yearOfStudy && ` - ${getYearOfStudyText(user.yearOfStudy)}`}
+                    {' - '}
+                    {user.department}
+                </p>
+                {user.bio && <p className="mt-2 text-sm text-card-foreground">{user.bio}</p>}
+            </div>
+             <div className="mt-4">
+                {isCurrentUserProfile && !isAdminView && (
+                <button onClick={() => setIsEditModalOpen(true)} className="w-full bg-muted border border-border text-foreground font-semibold py-2 px-4 rounded-lg text-sm hover:bg-border">
+                    Edit Profile
+                </button>
+                )}
+                {isAdminView && (
+                <button onClick={onBackToAdmin} className="w-full bg-muted border border-border text-foreground font-semibold py-2 px-4 rounded-lg text-sm hover:bg-border flex items-center justify-center">
+                    <ArrowLeftIcon className="w-4 h-4 mr-2"/>
+                    Back to Dashboard
+                </button>
+                )}
+            </div>
         </div>
         
         {/* Profile Content */}
@@ -283,7 +297,7 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
         />
       )}
       
-      {!isAdminView && <BottomNavBar onNavigate={onNavigate} currentPage={currentPath}/>}
+      {!isAdminView && <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>}
     </div>
   );
 };

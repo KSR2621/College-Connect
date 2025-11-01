@@ -6,6 +6,8 @@ interface AvatarProps {
   name: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
+  // FIX: Add optional onClick prop to allow the avatar to be clickable.
+  onClick?: () => void;
 }
 
 const sizeClasses = {
@@ -21,7 +23,7 @@ const getInitials = (name: string) => {
   return `${names[0].charAt(0)}${names[names.length - 1].charAt(0)}`.toUpperCase();
 };
 
-const Avatar: React.FC<AvatarProps> = ({ src, name, size = 'md', className = '' }) => {
+const Avatar: React.FC<AvatarProps> = ({ src, name, size = 'md', className = '', onClick }) => {
   const sizeClass = sizeClasses[size];
 
   if (src) {
@@ -30,6 +32,7 @@ const Avatar: React.FC<AvatarProps> = ({ src, name, size = 'md', className = '' 
         src={src}
         alt={name}
         className={`rounded-full object-cover ${sizeClass} ${className}`}
+        onClick={onClick}
       />
     );
   }
@@ -38,6 +41,7 @@ const Avatar: React.FC<AvatarProps> = ({ src, name, size = 'md', className = '' 
     <div
       className={`rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold ${sizeClass} ${className}`}
       title={name}
+      onClick={onClick}
     >
       {getInitials(name)}
     </div>

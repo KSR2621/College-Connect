@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import type { Opportunity, User } from '../types';
 import Header from '../components/Header';
@@ -56,7 +57,7 @@ const OpportunitiesPage: React.FC<OpportunitiesPageProps> = (props) => {
         onCreateOpportunity={onCreateOpportunity}
       />
       
-      <BottomNavBar onNavigate={onNavigate} currentPage={currentPath}/>
+      <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
     </div>
   );
 };

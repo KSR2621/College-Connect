@@ -15,9 +15,10 @@ interface CreatePostProps {
   }) => void;
   groupId?: string;
   isConfessionMode?: boolean;
+  isModalMode?: boolean;
 }
 
-const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isConfessionMode = false }) => {
+const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isConfessionMode = false, isModalMode = false }) => {
   const [content, setContent] = useState('');
   const [postType, setPostType] = useState<'post' | 'event'>('post');
   
@@ -75,9 +76,13 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
     setEventDetails({ title: '', date: '', time: '', location: '' });
     clearMedia();
   };
+  
+  const containerClasses = isModalMode
+    ? "p-4"
+    : "bg-card p-4 rounded-lg shadow-sm mb-6 border border-border";
 
   return (
-    <div className="bg-card p-4 rounded-lg shadow-sm mb-6 border border-border">
+    <div className={containerClasses}>
       <div className="flex items-start space-x-4">
         {isConfessionMode ? (
             <div className="flex-shrink-0 h-10 w-10 bg-primary/10 text-primary rounded-full flex items-center justify-center">

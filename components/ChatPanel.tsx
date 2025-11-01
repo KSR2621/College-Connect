@@ -18,7 +18,7 @@ interface ChatPanelProps {
 const ConversationList: React.FC<Pick<ChatPanelProps, 'conversations' | 'currentUser' | 'users' | 'setActiveConversationId' | 'activeConversationId'> & { onNewConversationClick: () => void }> = 
 ({ conversations, currentUser, users, setActiveConversationId, activeConversationId, onNewConversationClick }) => {
     return (
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col bg-card">
             <div className="flex justify-between items-center p-4 border-b border-border">
                 <h2 className="text-xl font-bold text-card-foreground">Messages</h2>
                 <button onClick={onNewConversationClick} className="bg-primary text-primary-foreground font-semibold py-1 px-3 rounded-full text-sm hover:bg-primary/90">
@@ -36,17 +36,21 @@ const ConversationList: React.FC<Pick<ChatPanelProps, 'conversations' | 'current
 
                     const lastMessage = convo.messages[convo.messages.length - 1];
                     const lastMessageTime = lastMessage ? new Date(lastMessage.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+                    const isUnread = lastMessage && lastMessage.senderId !== currentUser.id;
+
 
                     return (
                         <div
                             key={convo.id}
-                            className={`flex items-center p-3 cursor-pointer hover:bg-muted ${activeConversationId === convo.id ? 'bg-primary/10' : ''}`}
+                            className={`flex items-center p-3 cursor-pointer transition-colors duration-200 ${activeConversationId === convo.id ? 'bg-muted' : 'hover:bg-muted/50'}`}
                             onClick={() => setActiveConversationId(convo.id)}
                         >
                             <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="md" />
                             <div className="ml-3 flex-1 overflow-hidden">
                                 <p className="font-semibold text-card-foreground">{otherUser.name}</p>
-                                <p className="text-sm text-text-muted truncate">{lastMessage?.text || 'No messages yet'}</p>
+                                <p className={`text-sm truncate ${isUnread ? 'text-card-foreground font-semibold' : 'text-text-muted'}`}>
+                                    {lastMessage?.text || 'No messages yet'}
+                                </p>
                             </div>
                             <span className="text-xs text-text-muted ml-2">{lastMessageTime}</span>
                         </div>
@@ -64,18 +68,18 @@ const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conver
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
     }, [conversation?.messages]);
 
     if (!conversation) {
-        return <div className="h-full hidden md:flex items-center justify-center text-text-muted"><p>Select a conversation to start chatting.</p></div>;
+        return <div className="h-full hidden md:flex items-center justify-center text-text-muted bg-card"><p>Select a conversation to start chatting.</p></div>;
     }
 
     const otherParticipantId = conversation.participantIds.find(id => id !== currentUser.id)!;
     const otherUser = users[otherParticipantId];
     
     if(!otherUser) {
-        return <div className="h-full flex items-center justify-center text-text-muted"><p>Loading chat...</p></div>;
+        return <div className="h-full flex items-center justify-center text-text-muted bg-card"><p>Loading chat...</p></div>;
     }
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -93,28 +97,36 @@ const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conver
     };
 
     return (
-        <div className="h-full flex flex-col">
-            <div className="flex items-center p-3 border-b border-border">
+        <div className="h-full flex flex-col bg-card">
+            <div className="flex items-center p-3 border-b border-border shadow-sm">
                 <button onClick={() => setActiveConversationId(null)} className="md:hidden mr-2 p-1 text-text-muted">
                     <ArrowLeftIcon className="w-6 h-6"/>
                 </button>
                 <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="md" />
                 <h3 className="ml-3 font-bold text-card-foreground">{otherUser.name}</h3>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {conversation.messages.map((msg) => {
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                {conversation.messages.map((msg, index) => {
                     const isCurrentUser = msg.senderId === currentUser.id;
+                    const sender = users[msg.senderId];
+                    const isFirstInSequence = (index === 0) || (conversation.messages[index - 1].senderId !== msg.senderId);
+                    const isLastInSequence = (index === conversation.messages.length - 1) || (conversation.messages[index + 1].senderId !== msg.senderId);
+
                     return (
-                        <div key={msg.id} className={`flex items-end gap-2 group ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
-                             {!isCurrentUser && <Avatar src={users[msg.senderId]?.avatarUrl} name={users[msg.senderId]?.name} size="sm" />}
+                        <div key={msg.id} className={`flex items-end gap-3 group ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                             {!isCurrentUser && (
+                                <div className="w-8 flex-shrink-0">
+                                    {isLastInSequence && sender && <Avatar src={sender.avatarUrl} name={sender.name} size="sm" />}
+                                </div>
+                             )}
                             
                             {isCurrentUser && (
-                                <button onClick={() => handleDelete(msg.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-text-muted hover:text-destructive p-1 rounded-full">
+                                <button onClick={() => handleDelete(msg.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-text-muted hover:text-destructive p-1 rounded-full order-1">
                                     <TrashIcon className="w-4 h-4" />
                                 </button>
                             )}
 
-                            <div className={`max-w-xs md:max-w-md p-3 rounded-lg ${isCurrentUser ? 'bg-primary text-primary-foreground' : 'bg-muted text-card-foreground'}`}>
+                            <div className={`max-w-xs md:max-w-xl p-3 rounded-2xl ${isCurrentUser ? 'bg-gradient-to-br from-primary to-secondary text-primary-foreground rounded-br-none' : 'bg-muted text-card-foreground rounded-bl-none'} ${isFirstInSequence ? '' : (isCurrentUser ? 'mr-[1.8rem]' : 'ml-8')}`}>
                                 <p className="whitespace-pre-wrap break-words">{msg.text}</p>
                             </div>
                         </div>
@@ -122,16 +134,20 @@ const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conver
                 })}
                 <div ref={messagesEndRef} />
             </div>
-            <div className="p-4 border-t border-border">
+            <div className="p-4 border-t border-border bg-card">
                 <form onSubmit={handleSubmit} className="flex items-center">
                     <input
                         type="text"
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         placeholder="Type a message..."
-                        className="flex-1 bg-input border border-border rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+                        className="flex-1 bg-input border-border rounded-full px-5 py-3 focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                     />
-                    <button type="submit" className="ml-2 p-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
+                    <button 
+                        type="submit"
+                        disabled={!message.trim()}
+                        className={`ml-3 flex-shrink-0 p-3 rounded-full text-primary-foreground transition-all duration-300 ${message.trim() ? 'bg-gradient-to-br from-primary to-secondary scale-100' : 'bg-muted scale-90 cursor-not-allowed'}`}
+                    >
                         <SendIcon className="w-6 h-6" />
                     </button>
                 </form>
@@ -155,20 +171,20 @@ const ChatPanel: React.FC<ChatPanelProps> = (props) => {
     };
 
     return (
-        <div className="bg-card rounded-lg shadow-lg h-full max-h-[80vh] flex flex-col md:grid md:grid-cols-12 overflow-hidden border border-border">
-           <div className={`col-span-12 md:col-span-4 border-r border-border ${isMobile && activeConversationId ? 'hidden' : 'flex'} flex-col`}>
-                <ConversationList {...props} onNewConversationClick={() => setIsNewConvoModalOpen(true)} />
-            </div>
-             <div className={`col-span-12 md:col-span-8 ${isMobile && !activeConversationId ? 'hidden' : 'flex'} flex-col`}>
-                <ChatWindow {...props} />
-            </div>
-            <NewConversationModal 
-                isOpen={isNewConvoModalOpen}
-                onClose={() => setIsNewConvoModalOpen(false)}
-                users={Object.values(users)}
-                currentUser={currentUser}
-                onSelectUser={handleSelectUser}
-            />
+        <div className="container mx-auto bg-card md:rounded-lg h-full flex flex-col md:grid md:grid-cols-12 overflow-hidden md:border md:border-border md:shadow-lg">
+            <div className={`col-span-12 md:col-span-4 md:border-r md:border-border ${isMobile && activeConversationId ? 'hidden' : 'flex'} flex-col`}>
+                    <ConversationList {...props} onNewConversationClick={() => setIsNewConvoModalOpen(true)} />
+                </div>
+                <div className={`col-span-12 md:col-span-8 ${isMobile && !activeConversationId ? 'hidden' : 'flex'} flex-col`}>
+                    <ChatWindow {...props} />
+                </div>
+                <NewConversationModal 
+                    isOpen={isNewConvoModalOpen}
+                    onClose={() => setIsNewConvoModalOpen(false)}
+                    users={Object.values(users)}
+                    currentUser={currentUser}
+                    onSelectUser={handleSelectUser}
+                />
         </div>
     );
 };

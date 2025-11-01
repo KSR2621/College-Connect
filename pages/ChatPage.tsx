@@ -26,25 +26,23 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
     };
 
     return (
-        <div className="bg-background h-screen flex flex-col">
+        <div className="bg-muted/50 h-screen flex flex-col">
             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
             
-            <main className="flex-1 container mx-auto px-2 sm:px-4 lg:px-8 py-4 overflow-hidden">
-                <div className="h-full">
-                    <ChatPanel
-                        conversations={conversations}
-                        currentUser={currentUser}
-                        users={users}
-                        onSendMessage={onSendMessage}
-                        onDeleteMessage={onDeleteMessage}
-                        onCreateOrOpenConversation={onCreateOrOpenConversation}
-                        activeConversationId={activeConversationId}
-                        setActiveConversationId={setActiveConversationId}
-                    />
-                </div>
+            <main className="flex-1 overflow-hidden p-0 md:p-4">
+                <ChatPanel
+                    conversations={conversations}
+                    currentUser={currentUser}
+                    users={users}
+                    onSendMessage={onSendMessage}
+                    onDeleteMessage={onDeleteMessage}
+                    onCreateOrOpenConversation={onCreateOrOpenConversation}
+                    activeConversationId={activeConversationId}
+                    setActiveConversationId={setActiveConversationId}
+                />
             </main>
             
-            <BottomNavBar onNavigate={onNavigate} currentPage="#/chat"/>
+            <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage="#/chat"/>
         </div>
     );
 };

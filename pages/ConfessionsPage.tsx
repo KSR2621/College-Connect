@@ -1,5 +1,5 @@
 import React from 'react';
-import type { User, Post, Group } from '../types';
+import type { User, Post, Group, ReactionType } from '../types';
 import Header from '../components/Header';
 import CreatePost from '../components/CreatePost';
 import Feed from '../components/Feed';
@@ -14,7 +14,7 @@ interface ConfessionsPageProps {
   groups: Group[];
   onNavigate: (path: string) => void;
   onAddPost: (postDetails: { content: string; mediaFile?: File | null; mediaType?: "image" | "video" | null; isConfession?: boolean; }) => void;
-  onToggleLike: (postId: string) => void;
+  onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
@@ -24,7 +24,7 @@ interface ConfessionsPageProps {
 }
 
 const ConfessionsPage: React.FC<ConfessionsPageProps> = (props) => {
-    const { currentUser, users, posts, groups, onNavigate, onAddPost, onToggleLike, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, currentPath } = props;
+    const { currentUser, users, posts, groups, onNavigate, onAddPost, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, currentPath } = props;
 
     const handleLogout = async () => {
         await auth.signOut();
@@ -48,7 +48,7 @@ const ConfessionsPage: React.FC<ConfessionsPageProps> = (props) => {
                         posts={posts}
                         users={users}
                         currentUser={currentUser}
-                        onToggleLike={onToggleLike}
+                        onReaction={onReaction}
                         onAddComment={onAddComment}
                         onDeletePost={onDeletePost}
                         onCreateOrOpenConversation={onCreateOrOpenConversation}
@@ -59,7 +59,7 @@ const ConfessionsPage: React.FC<ConfessionsPageProps> = (props) => {
                 </div>
             </main>
 
-            <BottomNavBar onNavigate={onNavigate} currentPage={currentPath}/>
+            <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
         </div>
     );
 };

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { User, Post, Group } from '../types';
+import type { User, Post, Group, ReactionType } from '../types';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
 import Avatar from '../components/Avatar';
@@ -20,7 +20,15 @@ interface AdminPageProps {
     onDeletePost: (postId: string) => void;
     onDeleteGroup: (groupId: string) => void;
     // Props to pass down to ProfilePage
-    postCardProps: any; 
+    // FIX: Expanded type to include all necessary props for ProfilePage, resolving type errors.
+    postCardProps: {
+        onReaction: (postId: string, reaction: ReactionType) => void;
+        onAddComment: (postId: string, text: string) => void;
+        onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
+        onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
+        onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
+        [key: string]: any;
+    }; 
 }
 
 const UserManagement: React.FC<{
@@ -203,7 +211,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                 </div>
             </main>
             
-            <BottomNavBar onNavigate={onNavigate} currentPage={currentPath}/>
+            <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
         </div>
     );
 };

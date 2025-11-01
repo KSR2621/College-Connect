@@ -1,13 +1,14 @@
 
+
 import React from 'react';
-import type { Post, User, Group } from '../types';
+import type { Post, User, Group, ReactionType } from '../types';
 import PostCard from './PostCard';
 
 interface FeedProps {
   posts: Post[];
   users: { [key: string]: User };
   currentUser: User;
-  onToggleLike: (postId: string) => void;
+  onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
@@ -17,14 +18,14 @@ interface FeedProps {
 }
 
 const Feed: React.FC<FeedProps> = (props) => {
-  const { posts, users, currentUser, onToggleLike, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, groups } = props;
+  const { posts, users, currentUser, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, groups } = props;
   
   if (posts.length === 0) {
     return <div className="text-center text-text-muted mt-8">No posts to show.</div>;
   }
   
   return (
-    <div>
+    <>
       {posts.map(post => {
           const author = users[post.authorId];
           // Don't render post if author data is not yet available (unless it's a confession)
@@ -36,7 +37,7 @@ const Feed: React.FC<FeedProps> = (props) => {
               author={author} // author can be null for confessions
               currentUser={currentUser}
               users={users}
-              onToggleLike={onToggleLike}
+              onReaction={onReaction}
               onAddComment={onAddComment}
               onDeletePost={onDeletePost}
               onCreateOrOpenConversation={onCreateOrOpenConversation}
@@ -46,7 +47,7 @@ const Feed: React.FC<FeedProps> = (props) => {
             />
           );
       })}
-    </div>
+    </>
   );
 };
 

@@ -1,7 +1,9 @@
 
 
+
+
 import React from 'react';
-import type { User, Post, Group } from '../types';
+import type { User, Post, Group, ReactionType } from '../types';
 import Header from '../components/Header';
 import PostCard from '../components/PostCard'; // Re-using PostCard for events
 import BottomNavBar from '../components/BottomNavBar';
@@ -14,7 +16,7 @@ interface EventsPageProps {
   groups: Group[];
   onNavigate: (path: string) => void;
   currentPath: string;
-  onToggleLike: (postId: string) => void;
+  onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
@@ -23,7 +25,7 @@ interface EventsPageProps {
 }
 
 const EventsPage: React.FC<EventsPageProps> = (props) => {
-  const { currentUser, users, events, groups, onNavigate, currentPath, onToggleLike, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost } = props;
+  const { currentUser, users, events, groups, onNavigate, currentPath, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost } = props;
 
   const handleLogout = async () => {
     await auth.signOut();
@@ -47,7 +49,7 @@ const EventsPage: React.FC<EventsPageProps> = (props) => {
                   author={author}
                   currentUser={currentUser}
                   users={users}
-                  onToggleLike={onToggleLike}
+                  onReaction={onReaction}
                   onAddComment={onAddComment}
                   onDeletePost={onDeletePost}
                   onCreateOrOpenConversation={onCreateOrOpenConversation}
@@ -62,7 +64,7 @@ const EventsPage: React.FC<EventsPageProps> = (props) => {
         </div>
       </main>
       
-      <BottomNavBar onNavigate={onNavigate} currentPage={currentPath}/>
+      <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
     </div>
   );
 };

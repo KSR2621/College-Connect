@@ -1,6 +1,7 @@
+// FIX: Removed circular import of 'UserTag' and added the export of the UserTag type.
 export type UserTag = 'Student' | 'Faculty' | 'Alumni';
 
-export interface User {
+export type User = {
   id: string;
   name: string;
   email: string;
@@ -15,19 +16,19 @@ export interface User {
   isAdmin?: boolean;
 }
 
-export interface Achievement {
+export type Achievement = {
     title: string;
     description: string;
 }
 
-export interface Comment {
-    id: string;
+export type Comment = {
+    id:string;
     authorId: string;
     text: string;
     timestamp: number;
 }
 
-export interface SharedPostInfo {
+export type SharedPostInfo = {
   originalId: string;
   originalAuthorId: string;
   originalTimestamp: number;
@@ -43,7 +44,9 @@ export interface SharedPostInfo {
   originalIsConfession?: boolean;
 }
 
-export interface Post {
+export type ReactionType = 'like' | 'love' | 'haha' | 'wow' | 'sad' | 'angry';
+
+export type Post = {
     id:string;
     authorId: string;
     content: string;
@@ -52,7 +55,7 @@ export interface Post {
     imagePath?: string; // For reliable deletion from storage
     videoPath?: string; // For reliable deletion from storage
     timestamp: number;
-    likes: string[]; // Array of user IDs
+    reactions?: { [key in ReactionType]?: string[] };
     comments: Comment[];
     groupId?: string;
     isEvent?: boolean;
@@ -65,7 +68,20 @@ export interface Post {
     sharedPost?: SharedPostInfo;
 }
 
-export interface Group {
+export type Story = {
+  id: string;
+  authorId: string;
+  textContent: string;
+  backgroundColor: string;
+  timestamp: number;
+  viewedBy: string[];
+  fontFamily?: string;
+  fontWeight?: string;
+  fontSize?: string;
+  groupId?: string;
+}
+
+export type Group = {
     id: string;
     name: string;
     description: string;
@@ -76,7 +92,7 @@ export interface Group {
     followers?: string[];
 }
 
-export interface Opportunity {
+export type Opportunity = {
     id: string;
     authorId: string;
     title: string;
@@ -86,14 +102,14 @@ export interface Opportunity {
     timestamp: number;
 }
 
-export interface Message {
+export type Message = {
     id: string;
     senderId: string;
     text: string;
     timestamp: number;
 }
 
-export interface Conversation {
+export type Conversation = {
     id: string;
     participantIds: string[];
     messages: Message[];

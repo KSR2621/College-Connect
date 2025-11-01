@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db, storage, FieldValue } from './firebase';
-import type { User, Post, Group, Opportunity, Conversation, Message, Achievement, UserTag, SharedPostInfo } from './types';
+import type { User, Post, Group, Opportunity, Conversation, Message, Achievement, UserTag, SharedPostInfo, ReactionType, Story } from './types';
 
 // Pages
 import WelcomePage from './pages/WelcomePage';
@@ -25,6 +25,7 @@ const App: React.FC = () => {
     // Global state
     const [users, setUsers] = useState<{ [key: string]: User }>({});
     const [posts, setPosts] = useState<Post[]>([]);
+    const [stories, setStories] = useState<Story[]>([]);
     const [groups, setGroups] = useState<Group[]>([]);
     const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -120,11 +121,14 @@ const App: React.FC = () => {
         if (!currentUser) {
             setUsers({});
             setPosts([]);
+            setStories([]);
             setGroups([]);
             setOpportunities([]);
             setConversations([]);
             return;
         };
+
+        const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
 
         const unsubscribers = [
             db.collection('users').onSnapshot(snapshot => {
@@ -140,6 +144,16 @@ const App: React.FC = () => {
                     postsData.push({ id: doc.id, ...doc.data() } as Post);
                 });
                 setPosts(postsData);
+            }),
+            db.collection('stories')
+                .where('timestamp', '>', twentyFourHoursAgo)
+                .orderBy('timestamp', 'desc')
+                .onSnapshot(snapshot => {
+                    const storiesData: Story[] = [];
+                    snapshot.forEach(doc => {
+                        storiesData.push({ id: doc.id, ...doc.data() } as Story);
+                    });
+                    setStories(storiesData);
             }),
             db.collection('groups').onSnapshot(snapshot => {
                 const groupsData: Group[] = [];
@@ -210,7 +224,7 @@ const App: React.FC = () => {
                 authorId: currentUser.id,
                 content: postDetails.content,
                 timestamp: Date.now(),
-                likes: [],
+                reactions: {},
                 comments: [],
                 isEvent: !!postDetails.eventDetails,
                 isConfession: !!postDetails.isConfession,
@@ -241,17 +255,110 @@ const App: React.FC = () => {
             alert("Could not create post. Please check your connection or storage permissions.");
         }
     };
+
+    const handleAddStory = async (storyDetails: { 
+        textContent: string; 
+        backgroundColor: string;
+        fontFamily: string;
+        fontWeight: string;
+        fontSize: string;
+        groupId?: string;
+    }) => {
+        if (!currentUser) return;
+        const newStory: Omit<Story, 'id'> = {
+            authorId: currentUser.id,
+            textContent: storyDetails.textContent,
+            backgroundColor: storyDetails.backgroundColor,
+            fontFamily: storyDetails.fontFamily,
+            fontWeight: storyDetails.fontWeight,
+            fontSize: storyDetails.fontSize,
+            timestamp: Date.now(),
+            viewedBy: [],
+        };
+
+        if (storyDetails.groupId) {
+            newStory.groupId = storyDetails.groupId;
+        }
+
+        await db.collection('stories').add(newStory);
+    };
+
+    const handleDeleteStory = async (storyId: string) => {
+        if (!currentUser) return;
+        const storyRef = db.collection('stories').doc(storyId);
+        try {
+            const doc = await storyRef.get();
+            if (!doc.exists) {
+                console.error("Story not found.");
+                return;
+            }
+            const storyData = doc.data() as Omit<Story, 'id'>;
+            const group = storyData.groupId ? groups.find(g => g.id === storyData.groupId) : null;
+
+            const isAuthor = storyData.authorId === currentUser.id;
+            const isGroupCreator = group && group.creatorId === currentUser.id;
     
-    const handleToggleLike = async (postId: string) => {
+            if (!isAuthor && !isGroupCreator) {
+                alert("You can only delete your own stories or stories from groups you created.");
+                return;
+            }
+    
+            await storyRef.delete();
+        } catch (error) {
+            console.error("Error deleting story:", error);
+            alert("Could not delete story.");
+        }
+    };
+
+    const handleMarkStoryAsViewed = async (storyId: string) => {
+        if (!currentUser) return;
+        const storyRef = db.collection('stories').doc(storyId);
+        // We only add the user's ID, Firestore handles ensuring it's unique.
+        await storyRef.update({
+            viewedBy: FieldValue.arrayUnion(currentUser.id)
+        });
+    };
+    
+    const handleReaction = async (postId: string, reactionType: ReactionType) => {
         if (!currentUser) return;
         const postRef = db.collection('posts').doc(postId);
         const post = posts.find(p => p.id === postId);
         if (!post) return;
-
-        if (post.likes.includes(currentUser.id)) {
-            await postRef.update({ likes: FieldValue.arrayRemove(currentUser.id) });
-        } else {
-            await postRef.update({ likes: FieldValue.arrayUnion(currentUser.id) });
+    
+        const currentReactions = post.reactions || {};
+        let userPreviousReaction: ReactionType | null = null;
+    
+        // Find if the user has an existing reaction
+        for (const rType in currentReactions) {
+            if (currentReactions[rType as ReactionType]?.includes(currentUser.id)) {
+                userPreviousReaction = rType as ReactionType;
+                break;
+            }
+        }
+    
+        const batch = db.batch();
+    
+        // If the user has a previous reaction, remove it
+        if (userPreviousReaction) {
+            batch.update(postRef, {
+                [`reactions.${userPreviousReaction}`]: FieldValue.arrayRemove(currentUser.id)
+            });
+        }
+    
+        // If the new reaction is different from the old one, add the new reaction.
+        // This also handles the case where there was no previous reaction.
+        // If the new reaction is the SAME as the old one, we only remove it (toggle off).
+        if (userPreviousReaction !== reactionType) {
+            batch.update(postRef, {
+                [`reactions.${reactionType}`]: FieldValue.arrayUnion(currentUser.id)
+            });
+        }
+    
+        try {
+            await batch.commit();
+        } catch (error) {
+            console.error("Error updating reaction:", error);
+            alert("Could not update reaction. Please try again.");
         }
     };
 
@@ -320,6 +427,18 @@ const App: React.FC = () => {
         await conversationRef.update({
             messages: FieldValue.arrayUnion({ ...newMessage, id: `msg_${Date.now()}` })
         });
+    };
+
+    const handleReplyToStory = async (authorId: string, text: string) => {
+        if (!currentUser) return;
+        try {
+            const conversationId = await handleCreateOrOpenConversation(authorId);
+            await handleSendMessage(conversationId, text);
+            // In a real app, you might show a success toast here.
+        } catch (error) {
+            console.error("Error replying to story:", error);
+            alert("Could not send reply.");
+        }
     };
 
     const handleDeleteMessage = async (conversationId: string, messageId: string) => {
@@ -398,7 +517,7 @@ const App: React.FC = () => {
                 authorId: currentUser.id,
                 content: commentary,
                 timestamp: Date.now(),
-                likes: [],
+                reactions: {},
                 comments: [],
                 sharedPost: originalPostToEmbed,
             };
@@ -702,6 +821,7 @@ const App: React.FC = () => {
     const renderPage = () => {
         const [path, ...params] = currentPath.split('/').slice(1);
         const allUsersList = Object.values(users);
+        const events = posts.filter(p => p.isEvent);
 
         if (!currentUser) {
             switch (path) {
@@ -712,7 +832,7 @@ const App: React.FC = () => {
         }
         
         const postCardProps = {
-            onToggleLike: handleToggleLike,
+            onReaction: handleReaction,
             onAddComment: handleAddComment,
             onDeletePost: handleDeletePost,
             onCreateOrOpenConversation: handleCreateOrOpenConversation,
@@ -722,16 +842,16 @@ const App: React.FC = () => {
         };
         
         switch (path) {
-            case 'home': return <HomePage currentUser={currentUser} users={users} posts={posts} onNavigate={handleNavigate} onAddPost={handleAddPost} currentPath={currentPath} {...postCardProps} />;
-            case 'profile': return <ProfilePage profileUserId={params[0]} currentUser={currentUser} users={users} posts={posts} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} onAddAchievement={handleAddAchievement} onAddInterest={handleAddInterest} onUpdateProfile={handleUpdateProfile} {...postCardProps} />;
+            case 'home': return <HomePage currentUser={currentUser} users={users} posts={posts} stories={stories} groups={groups} events={events} onNavigate={handleNavigate} onAddPost={handleAddPost} currentPath={currentPath} onAddStory={handleAddStory} onMarkStoryAsViewed={handleMarkStoryAsViewed} onDeleteStory={handleDeleteStory} onReplyToStory={handleReplyToStory} {...postCardProps} />;
+            case 'profile': return <ProfilePage profileUserId={params[0]} currentUser={currentUser} users={users} posts={posts} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} onAddAchievement={handleAddAchievement} onAddInterest={handleAddInterest} onUpdateProfile={handleUpdateProfile} {...postCardProps} />;
             case 'groups': 
                 if (params[0]) {
                     const group = groups.find(g => g.id === params[0]);
-                    return group ? <GroupDetailPage group={group} currentUser={currentUser} users={users} posts={posts.filter(p => p.groupId === params[0])} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} onJoinGroupRequest={handleJoinGroupRequest} onApproveJoinRequest={handleApproveJoinRequest} onDeclineJoinRequest={handleDeclineJoinRequest} onDeleteGroup={handleDeleteGroup} onRemoveGroupMember={handleRemoveGroupMember} onSendGroupMessage={handleSendGroupMessage} onToggleFollowGroup={handleToggleFollowGroup} {...postCardProps} /> : <div>Group not found</div>;
+                    return group ? <GroupDetailPage group={group} currentUser={currentUser} users={users} posts={posts.filter(p => p.groupId === params[0])} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} onAddStory={handleAddStory} onJoinGroupRequest={handleJoinGroupRequest} onApproveJoinRequest={handleApproveJoinRequest} onDeclineJoinRequest={handleDeclineJoinRequest} onDeleteGroup={handleDeleteGroup} onRemoveGroupMember={handleRemoveGroupMember} onSendGroupMessage={handleSendGroupMessage} onToggleFollowGroup={handleToggleFollowGroup} {...postCardProps} /> : <div>Group not found</div>;
                 }
                 return <GroupsPage currentUser={currentUser} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onCreateGroup={handleCreateGroup} />;
-            case 'confessions': return <ConfessionsPage currentUser={currentUser} users={users} posts={posts.filter(p => p.isConfession)} onNavigate={handleNavigate} onAddPost={handleAddPost} currentPath={currentPath} {...postCardProps} />;
-            case 'events': return <EventsPage currentUser={currentUser} users={users} events={posts.filter(p => p.isEvent)} onNavigate={handleNavigate} currentPath={currentPath} {...postCardProps} />;
+            case 'confessions': return <ConfessionsPage currentUser={currentUser} users={users} posts={posts.filter(p => p.isConfession)} groups={groups} onNavigate={handleNavigate} onAddPost={handleAddPost} currentPath={currentPath} {...postCardProps} />;
+            case 'events': return <EventsPage currentUser={currentUser} users={users} events={events} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} {...postCardProps} />;
             case 'opportunities': return <OpportunitiesPage currentUser={currentUser} users={users} opportunities={opportunities} onNavigate={handleNavigate} currentPath={currentPath} onCreateOpportunity={handleCreateOpportunity} onDeleteOpportunity={handleDeleteOpportunity} />;
             case 'chat': return <ChatPage currentUser={currentUser} users={users} conversations={conversations} onSendMessage={handleSendMessage} onDeleteMessage={handleDeleteMessage} onCreateOrOpenConversation={handleCreateOrOpenConversation} onNavigate={handleNavigate} currentPath={currentPath} />;
             case 'search': return <SearchPage currentUser={currentUser} users={allUsersList} posts={posts} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} {...postCardProps} />;
