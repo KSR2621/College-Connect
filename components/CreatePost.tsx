@@ -19,6 +19,17 @@ interface CreatePostProps {
   defaultType?: 'post' | 'event';
 }
 
+const StyleButton: React.FC<{ onMouseDown: (e: React.MouseEvent) => void; children: React.ReactNode; }> = ({ onMouseDown, children }) => (
+    <button 
+      type="button" 
+      onMouseDown={onMouseDown} // Use onMouseDown to prevent the editor from losing focus
+      className="font-semibold text-sm w-8 h-8 flex items-center justify-center rounded-md border border-border transition-colors hover:bg-muted"
+    >
+      {children}
+    </button>
+);
+
+
 const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isConfessionMode = false, isModalMode = false, defaultType }) => {
   const [content, setContent] = useState('');
   const [postType, setPostType] = useState<'post' | 'event'>(defaultType || 'post');
@@ -30,6 +41,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
     const file = event.target.files?.[0];
@@ -47,11 +59,25 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
     if(imageInputRef.current) imageInputRef.current.value = '';
     if(videoInputRef.current) videoInputRef.current.value = '';
   }
+  
+  const applyStyle = (e: React.MouseEvent, command: string) => {
+    e.preventDefault();
+    document.execCommand(command, false, undefined);
+    editorRef.current?.focus();
+  };
+
+  const handleContentChange = () => {
+    if (editorRef.current) {
+        setContent(editorRef.current.innerHTML);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (postType === 'post' && !content.trim() && !mediaFile) {
+    const currentTextContent = editorRef.current?.innerText.trim() || '';
+
+    if (postType === 'post' && !currentTextContent && !mediaFile) {
         alert("Please write something or add media to create a post.");
         return;
     }
@@ -81,6 +107,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
 
     // Reset form
     setContent('');
+    if (editorRef.current) editorRef.current.innerHTML = '';
     setEventDetails({ title: '', date: '', time: '', location: '' });
     clearMedia();
   };
@@ -123,13 +150,19 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
                   <input type="text" placeholder="Location*" className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground" value={eventDetails.location} onChange={e => setEventDetails({...eventDetails, location: e.target.value})} />
               </div>
             )}
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder={isConfessionMode ? "Share your confession anonymously..." : (postType === 'event' ? "Describe your event..." : `What's on your mind, ${user.name.split(' ')[0]}?`)}
-              className="w-full bg-transparent focus:outline-none resize-none text-card-foreground text-lg placeholder-text-muted"
-              rows={3}
-            />
+            
+            <div className="border border-border rounded-lg">
+                <div
+                    ref={editorRef}
+                    contentEditable={true}
+                    onInput={handleContentChange}
+                    data-placeholder={isConfessionMode ? "Share your confession anonymously..." : (postType === 'event' ? "Describe your event..." : `What's on your mind, ${user.name.split(' ')[0]}?`)}
+                    className="w-full min-h-[120px] max-h-[400px] overflow-y-auto no-scrollbar p-3 bg-transparent text-card-foreground text-lg focus:outline-none resize-y empty:before:content-[attr(data-placeholder)] empty:before:text-text-muted empty:before:cursor-text"
+                />
+                <div className="p-2 border-t border-border flex items-center">
+                    <StyleButton onMouseDown={(e) => applyStyle(e, 'bold')}><b>B</b></StyleButton>
+                </div>
+            </div>
 
             {mediaPreview && (
               <div className="mt-4 relative">

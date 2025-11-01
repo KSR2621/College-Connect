@@ -423,7 +423,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                     </div>
                 )}
                 
-                {post.content && <p className="mt-3 text-card-foreground text-sm whitespace-pre-wrap line-clamp-2 flex-grow">{post.content}</p>}
+                {post.content && <p className="mt-3 text-card-foreground text-sm whitespace-pre-wrap line-clamp-2 flex-grow" dangerouslySetInnerHTML={{ __html: post.content }}></p>}
             </div>
 
             <div className="mt-auto border-t border-border">
@@ -563,7 +563,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
 
                 <div className="mt-4 flex-1">
                     <h3 className="text-lg font-bold text-foreground leading-tight">{title}</h3>
-                    <p className="mt-2 text-card-foreground text-sm whitespace-pre-wrap line-clamp-3">{post.content}</p>
+                    <p className="mt-2 text-card-foreground text-sm whitespace-pre-wrap line-clamp-3" dangerouslySetInnerHTML={{ __html: post.content }}></p>
                 </div>
                 
                 {applyLink && (
@@ -710,8 +710,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
       {/* Content */}
       <div className="px-4 pb-2">
           {post.content && (
-            <p className="text-card-foreground whitespace-pre-wrap">
-              {post.content}
+            <p className="text-card-foreground whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: post.content }}>
             </p>
           )}
       </div>
@@ -755,7 +754,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                             ) : null
                         )}
                     </div>
-                    <p className="text-card-foreground text-sm whitespace-pre-wrap">{post.sharedPost.originalContent}</p>
+                    <p className="text-card-foreground text-sm whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: post.sharedPost.originalContent }}></p>
                 </div>
                 {post.sharedPost.originalMediaUrl && (
                     <div className="bg-muted">
