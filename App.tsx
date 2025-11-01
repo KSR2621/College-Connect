@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db, storage, FieldValue } from './firebase';
-import type { User, Post, Group, Conversation, Message, Achievement, UserTag, SharedPostInfo, ReactionType, Story } from './types';
+import type { User, Post, Group, Conversation, Message, Achievement, UserTag, SharedPostInfo, ReactionType, Story, ConfessionMood } from './types';
 
 // Pages
 import WelcomePage from './pages/WelcomePage';
@@ -197,6 +197,9 @@ const App: React.FC = () => {
         eventDetails?: { title: string; date: string; location: string; };
         groupId?: string;
         isConfession?: boolean;
+        confessionMood?: ConfessionMood;
+        confessionFontFamily?: string;
+        confessionFontSize?: string;
         isOpportunity?: boolean;
         opportunityDetails?: { title: string; organization: string; applyLink?: string; };
     }) => {
@@ -221,6 +224,9 @@ const App: React.FC = () => {
                 comments: [],
                 isEvent: !!postDetails.eventDetails,
                 isConfession: !!postDetails.isConfession,
+                confessionMood: postDetails.confessionMood,
+                confessionFontFamily: postDetails.confessionFontFamily,
+                confessionFontSize: postDetails.confessionFontSize,
                 isOpportunity: !!postDetails.isOpportunity,
             };
 
@@ -390,10 +396,17 @@ const App: React.FC = () => {
             }
     
             const postToDelete = doc.data() as Omit<Post, 'id'>;
+            
+            const isAuthor = postToDelete.authorId === currentUser.id;
+            const isAdmin = !!currentUser.isAdmin;
     
-            if (postToDelete.authorId !== currentUser.id) {
-                console.error(`User ${currentUser.id} is not authorized to delete post ${postId} owned by ${postToDelete.authorId}.`);
-                alert("You can only delete your own posts.");
+            // Admins can delete any post.
+            // Authors can delete their own posts, as long as it's NOT a confession.
+            const canDelete = isAdmin || (isAuthor && !postToDelete.isConfession);
+    
+            if (!canDelete) {
+                console.error(`User ${currentUser.id} is not authorized to delete post ${postId}.`);
+                alert("You do not have permission to delete this post.");
                 return;
             }
     

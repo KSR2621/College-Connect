@@ -34,7 +34,8 @@ const ConversationList: React.FC<Pick<ChatPanelProps, 'conversations' | 'current
 
     const formatTimestamp = (timestamp: number) => {
         const date = new Date(timestamp);
-        const now = new Date();
+        // FIX: Parameterless `new Date()` can cause errors in some environments. Using `new Date(Date.now())` is safer.
+        const now = new Date(Date.now());
         const diffInSeconds = (now.getTime() - date.getTime()) / 1000;
 
         if (diffInSeconds < 60) return 'Now';
@@ -142,7 +143,8 @@ const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conver
     };
 
     const handlePressEnd = () => {
-        clearTimeout(pressTimerRef.current);
+        // FIX: Guard clearTimeout to prevent type errors with mixed Node/browser environments.
+        if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
     };
 
     const confirmDelete = () => {
@@ -211,103 +213,104 @@ const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conver
         <div className="h-full flex flex-col bg-slate-50" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
             {/* Header - Fixed */}
             <div className="flex-shrink-0 flex items-center p-2.5 h-[60px] border-b border-border bg-white shadow-sm">
-                <button onClick={() => setActiveConversationId(null)} className="md:hidden mr-2 p-2 text-text-muted rounded-full hover:bg-slate-100">
-                    <ArrowLeftIcon className="w-6 h-6"/>
+                <button onClick={() => setActiveConversationId(null)} className="md:hidden mr-2 p-2 text-text-muted rounded-full">
+                    <ArrowLeftIcon className="w-6 h-6" />
                 </button>
                 <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="md" />
                 <div className="ml-3">
                     <h3 className="font-bold text-card-foreground">{otherUser.name}</h3>
-                    <p className="text-xs text-green-500 font-semibold">Active now</p> 
+                    <p className="text-xs text-text-muted">Online</p>
                 </div>
-                <div className="flex-grow" />
-                <div className="flex items-center space-x-1">
-                    <button className="p-2 text-text-muted hover:text-primary rounded-full">
-                        <PhoneIcon className="w-5 h-5" />
-                    </button>
-                     <button className="p-2 text-text-muted hover:text-primary rounded-full">
-                        <VideoCallIcon className="w-5 h-5" />
-                    </button>
-                     <button className="p-2 text-text-muted hover:text-primary rounded-full">
-                        <InfoIcon className="w-5 h-5" />
-                    </button>
+                <div className="ml-auto flex items-center space-x-2">
+                    <button className="p-2 text-text-muted rounded-full hover:bg-muted"><PhoneIcon className="w-5 h-5"/></button>
+                    <button className="p-2 text-text-muted rounded-full hover:bg-muted"><VideoCallIcon className="w-5 h-5"/></button>
+                    <button className="p-2 text-text-muted rounded-full hover:bg-muted"><InfoIcon className="w-5 h-5"/></button>
                 </div>
             </div>
 
-            {/* Message List - Scrollable */}
-            <div className="flex-1 overflow-y-auto p-4 min-h-0">
+            {/* Messages - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-4">
                 <div className="space-y-1">
-                    {conversation.messages.map((msg, index) => {
-                        const isCurrentUser = msg.senderId === currentUser.id;
-                        const prevMsg = conversation.messages[index - 1];
-                        const nextMsg = conversation.messages[index + 1];
+                {conversation.messages.map((msg, index) => {
+                    const sender = users[msg.senderId];
+                    if (!sender) return null;
+                    const isCurrentUser = msg.senderId === currentUser.id;
 
-                        const isFirstOfGroup = !prevMsg || prevMsg.senderId !== msg.senderId || (msg.timestamp - prevMsg.timestamp) > 60000;
-                        const isLastOfGroup = !nextMsg || nextMsg.senderId !== msg.senderId || (nextMsg.timestamp - msg.timestamp) > 60000;
+                    const prevMessage = index > 0 ? conversation.messages[index - 1] : null;
+                    const nextMessage = index < conversation.messages.length - 1 ? conversation.messages[index + 1] : null;
 
-                        return (
-                            <div key={msg.id} className={`flex items-end gap-2 group ${isCurrentUser ? 'justify-end' : 'justify-start'} ${isFirstOfGroup ? 'mt-3' : ''}`}>
-                                {!isCurrentUser && (
-                                    <div className="w-8 flex-shrink-0 self-end">
-                                        {isLastOfGroup ? <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="sm" /> : <div className="w-8"></div>}
-                                    </div>
-                                )}
-                                <div 
-                                    className={`max-w-[70%] p-3 rounded-2xl ${isCurrentUser ? `bg-primary text-primary-foreground ${isLastOfGroup ? 'rounded-br-sm' : ''}` : `bg-white text-foreground shadow-sm ${isLastOfGroup ? 'rounded-bl-sm' : ''}`}`}
-                                    onTouchStart={() => handlePressStart(msg)}
-                                    onTouchEnd={handlePressEnd}
-                                    onMouseDown={() => handlePressStart(msg)}
-                                    onMouseUp={handlePressEnd}
-                                    onMouseLeave={handlePressEnd}
-                                >
-                                    <p className="whitespace-pre-wrap break-words text-sm">{msg.text}</p>
-                                </div>
+                    const isFirstInGroup = !prevMessage || prevMessage.senderId !== msg.senderId;
+                    const isLastInGroup = !nextMessage || nextMessage.senderId !== msg.senderId;
+                    
+                    let bubbleClasses = '';
+                    if (isCurrentUser) {
+                        bubbleClasses = `bg-primary text-primary-foreground ${isFirstInGroup ? 'rounded-tr-lg' : ''} ${isLastInGroup ? 'rounded-br-none' : ''}`;
+                    } else {
+                        bubbleClasses = `bg-white text-card-foreground ${isFirstInGroup ? 'rounded-tl-lg' : ''} ${isLastInGroup ? 'rounded-bl-none' : ''}`;
+                    }
+
+                    return (
+                        <div key={msg.id} className={`flex items-end gap-2 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                            {!isCurrentUser && isLastInGroup && (
+                                <Avatar src={sender.avatarUrl} name={sender.name} size="sm"/>
+                            )}
+                             {!isCurrentUser && !isLastInGroup && (
+                                <div className="w-8"></div> // Spacer
+                            )}
+                            <div
+                                onTouchStart={() => handlePressStart(msg)}
+                                onTouchEnd={handlePressEnd}
+                                onMouseDown={() => handlePressStart(msg)}
+                                onMouseUp={handlePressEnd}
+                                onMouseLeave={handlePressEnd}
+                                className={`max-w-xs md:max-w-md p-3 rounded-2xl ${bubbleClasses}`}
+                            >
+                                <p className="whitespace-pre-wrap break-words">{msg.text}</p>
                             </div>
-                        );
-                    })}
+                        </div>
+                    );
+                })}
                 </div>
-                <div ref={messagesEndRef} />
+                <div ref={messagesEndRef}/>
             </div>
 
-            {/* Input Bar - Fixed */}
-            <div className="flex-shrink-0 p-2 border-t border-border bg-white">
-                <div className="flex items-end space-x-2">
-                    <button className="p-2 text-text-muted hover:text-primary rounded-full flex-shrink-0">
-                        <PlusCircleIcon className="w-6 h-6" />
+            {/* Input - Fixed */}
+            <div className="flex-shrink-0 p-2.5 bg-white border-t border-border">
+                <form onSubmit={handleSubmit} className="flex items-center space-x-2">
+                    <button type="button" className="p-2 text-text-muted rounded-full hover:bg-muted"><PlusCircleIcon className="w-6 h-6"/></button>
+                    <textarea
+                        ref={textareaRef}
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSubmit(e);
+                            }
+                        }}
+                        placeholder="Type a message..."
+                        rows={1}
+                        className="flex-1 bg-input border-none rounded-2xl px-4 py-2 focus:outline-none focus:ring-0 resize-none max-h-32 text-foreground"
+                    />
+                    <button type="button" className="p-2 text-text-muted rounded-full hover:bg-muted"><EmojiIcon className="w-6 h-6"/></button>
+                    <button type="submit" className="p-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50" disabled={!message.trim()}>
+                        <SendIcon className="w-5 h-5" />
                     </button>
-                    <form onSubmit={handleSubmit} className="flex-1 flex items-center bg-slate-100 rounded-2xl">
-                        <textarea
-                            ref={textareaRef}
-                            rows={1}
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleSubmit(e);
-                                }
-                            }}
-                            placeholder="Message..."
-                            className="w-full bg-transparent py-2 px-3 focus:outline-none text-foreground placeholder-text-muted resize-none max-h-24"
-                        />
-                        <button type="button" className="p-2 text-text-muted hover:text-primary rounded-full flex-shrink-0 mr-1">
-                            <EmojiIcon className="w-6 h-6" />
-                        </button>
-                    </form>
-                    <button onClick={handleSubmit} className="p-2 flex-shrink-0" disabled={!message.trim()}>
-                        <SendIcon className={`w-6 h-6 transition-colors ${message.trim() ? 'text-primary' : 'text-gray-400'}`}/>
-                    </button>
-                </div>
+                </form>
             </div>
-
              {/* Delete Confirmation Modal */}
             {messageToDelete && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setMessageToDelete(null)}>
-                    <div className="bg-card rounded-lg p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
-                        <h3 className="font-bold text-lg text-foreground">Delete Message?</h3>
-                        <p className="text-sm text-text-muted mt-2">This will permanently delete the message. This action cannot be undone.</p>
-                        <div className="flex justify-end gap-3 mt-6">
-                            <button onClick={() => setMessageToDelete(null)} className="px-4 py-2 font-semibold text-foreground bg-muted rounded-lg hover:bg-muted/80">Cancel</button>
-                            <button onClick={confirmDelete} className="px-4 py-2 font-bold text-primary-foreground bg-destructive rounded-lg hover:bg-destructive/90">Delete</button>
+                <div className="absolute inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+                    <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-sm text-center">
+                        <h3 className="text-lg font-semibold text-foreground">Delete Message?</h3>
+                        <p className="text-sm text-text-muted mt-2">This message will be permanently removed.</p>
+                        <div className="flex justify-center gap-3 mt-6">
+                            <button onClick={() => setMessageToDelete(null)} className="px-4 py-2 font-semibold text-foreground bg-muted rounded-lg hover:bg-muted/80 w-24">
+                            Cancel
+                            </button>
+                            <button onClick={confirmDelete} className="px-4 py-2 font-bold text-destructive-foreground bg-destructive rounded-lg hover:bg-destructive/90 w-24">
+                            Delete
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -316,46 +319,50 @@ const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conver
     );
 }
 
-const ChatPanel: React.FC<ChatPanelProps> = (props) => {
-    const { activeConversationId, setActiveConversationId, users, currentUser, onCreateOrOpenConversation } = props;
-    const [isNewConvoModalOpen, setIsNewConvoModalOpen] = useState(false);
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-    useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-    
+const ChatPanel: React.FC<ChatPanelProps> = (props) => {
+    const { activeConversationId, setActiveConversationId, users, onCreateOrOpenConversation } = props;
+    const [isNewConvoModalOpen, setIsNewConvoModalOpen] = useState(false);
+
     const handleSelectUser = async (userId: string) => {
-        const convoId = await onCreateOrOpenConversation(userId);
-        setActiveConversationId(convoId);
+        const conversationId = await onCreateOrOpenConversation(userId);
+        setActiveConversationId(conversationId);
         setIsNewConvoModalOpen(false);
     };
 
+    const isChatOpen = activeConversationId !== null;
+
     return (
-        <div className="h-full w-full md:container md:mx-auto md:py-4">
-            <div className="bg-white h-full w-full flex md:grid md:grid-cols-12 overflow-hidden md:rounded-lg md:border md:border-border md:shadow-lg">
-                <div className={`col-span-12 md:col-span-4 lg:col-span-4 md:border-r md:border-border ${isMobile && activeConversationId ? 'hidden' : 'flex'} flex-col min-h-0`}>
-                    <ConversationList {...props} onNewConversationClick={() => setIsNewConvoModalOpen(true)} />
-                </div>
-                <div className={`col-span-12 md:col-span-8 lg:col-span-8 ${isMobile && !activeConversationId ? 'hidden' : 'flex'} flex-col min-h-0`}>
-                    {activeConversationId ? (
-                        <ChatWindow {...props} />
-                    ) : (
-                        <ChatPlaceholder />
-                    )}
-                </div>
+        <div className="h-full grid grid-cols-1 md:grid-cols-12 overflow-hidden">
+            <div className={`
+                ${isChatOpen ? 'hidden' : 'block'}
+                md:block md:col-span-4 lg:col-span-3
+                border-r border-border h-full
+            `}>
+                <ConversationList {...props} onNewConversationClick={() => setIsNewConvoModalOpen(true)} />
             </div>
-            <NewConversationModal 
+
+            <div className={`
+                ${isChatOpen ? 'block' : 'hidden'}
+                md:block md:col-span-8 lg:col-span-9
+                h-full
+            `}>
+                {activeConversationId ? (
+                    <ChatWindow {...props} />
+                ) : (
+                    <ChatPlaceholder />
+                )}
+            </div>
+
+            <NewConversationModal
                 isOpen={isNewConvoModalOpen}
                 onClose={() => setIsNewConvoModalOpen(false)}
                 users={Object.values(users)}
-                currentUser={currentUser}
+                currentUser={props.currentUser}
                 onSelectUser={handleSelectUser}
             />
         </div>
     );
-};
+}
 
 export default ChatPanel;

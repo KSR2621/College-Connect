@@ -1,11 +1,11 @@
-import React from 'react';
-import type { User, Post, Group, ReactionType } from '../types';
+import React, { useState, useMemo } from 'react';
+import type { User, Post, Group, ReactionType, ConfessionMood } from '../types';
 import Header from '../components/Header';
-import CreatePost from '../components/CreatePost';
 import Feed from '../components/Feed';
 import BottomNavBar from '../components/BottomNavBar';
+import CreateConfessionModal from '../components/CreateConfessionModal';
 import { auth } from '../firebase';
-import { GhostIcon } from '../components/Icons';
+import { PlusCircleIcon } from '../components/Icons';
 
 interface ConfessionsPageProps {
   currentUser: User;
@@ -13,7 +13,15 @@ interface ConfessionsPageProps {
   posts: Post[];
   groups: Group[];
   onNavigate: (path: string) => void;
-  onAddPost: (postDetails: { content: string; mediaFile?: File | null; mediaType?: "image" | "video" | null; isConfession?: boolean; }) => void;
+  onAddPost: (postDetails: { 
+    content: string; 
+    mediaFile?: File | null; 
+    mediaType?: "image" | "video" | null; 
+    isConfession?: boolean;
+    confessionMood?: ConfessionMood;
+    confessionFontFamily?: string;
+    confessionFontSize?: string;
+  }) => void;
   onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;
@@ -23,43 +31,87 @@ interface ConfessionsPageProps {
   currentPath: string;
 }
 
+const confessionCategories: { id: ConfessionMood | 'all', label: string, emoji: string }[] = [
+    { id: 'all', label: 'All', emoji: '✨' },
+    { id: 'love', label: 'Love', emoji: '💘' },
+    { id: 'funny', label: 'Funny', emoji: '🤣' },
+    { id: 'sad', label: 'Sad', emoji: '😢' },
+    { id: 'chaos', label: 'Chaos', emoji: '🤯' },
+    { id: 'deep', label: 'Deep', emoji: '🧠' },
+];
+
 const ConfessionsPage: React.FC<ConfessionsPageProps> = (props) => {
-    const { currentUser, users, posts, groups, onNavigate, onAddPost, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, currentPath } = props;
+    const { currentUser, users, posts, groups, onNavigate, onAddPost, ...postCardProps } = props;
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [activeCategory, setActiveCategory] = useState<ConfessionMood | 'all'>('all');
 
     const handleLogout = async () => {
         await auth.signOut();
         onNavigate('#/');
     };
 
+    const filteredPosts = useMemo(() => {
+        if (activeCategory === 'all') return posts;
+        return posts.filter(p => p.confessionMood === activeCategory);
+    }, [posts, activeCategory]);
+
     return (
         <div className="bg-background min-h-screen">
-            <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
+            <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={props.currentPath} />
 
             <main className="container mx-auto px-2 sm:px-4 lg:px-8 pt-8 pb-20 md:pb-4">
                 <div className="max-w-3xl mx-auto">
-                    <div className="text-center mb-8">
-                        <GhostIcon className="w-16 h-16 mx-auto text-secondary"/>
-                        <h1 className="text-4xl font-bold text-foreground mt-4">Campus Confessions</h1>
-                        <p className="text-lg text-text-muted mt-2">Share your thoughts anonymously. Be respectful.</p>
+                    <div className="text-center mb-6 p-6 rounded-lg bg-gradient-to-r from-blue-500 to-teal-400 text-white shadow-lg">
+                        <h1 className="text-4xl font-extrabold">Confessions 💬</h1>
+                        <p className="text-md mt-2 opacity-90">Share your thoughts, crushes, or secrets — 100% anonymous.</p>
                     </div>
 
-                    <CreatePost user={currentUser} onAddPost={onAddPost} isConfessionMode={true} />
-                    <Feed 
-                        posts={posts}
-                        users={users}
-                        currentUser={currentUser}
-                        onReaction={onReaction}
-                        onAddComment={onAddComment}
-                        onDeletePost={onDeletePost}
-                        onCreateOrOpenConversation={onCreateOrOpenConversation}
-                        onSharePostAsMessage={onSharePostAsMessage}
-                        onSharePost={onSharePost}
-                        groups={groups}
-                    />
+                    {/* Category Tabs */}
+                    <div className="py-2 mb-6">
+                        <div className="flex items-center space-x-2 overflow-x-auto pb-2 no-scrollbar">
+                            {confessionCategories.map(cat => (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => setActiveCategory(cat.id)}
+                                    className={`flex-shrink-0 px-4 py-2 text-sm font-semibold rounded-full transition-colors duration-200 ${
+                                        activeCategory === cat.id 
+                                        ? 'bg-primary text-primary-foreground' 
+                                        : 'bg-muted text-text-muted hover:bg-border'
+                                    }`}
+                                >
+                                    {cat.emoji} {cat.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                       <Feed 
+                            posts={filteredPosts}
+                            users={users}
+                            currentUser={currentUser}
+                            groups={groups}
+                            {...postCardProps}
+                        />
+                    </div>
                 </div>
             </main>
 
-            <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
+            <button 
+                onClick={() => setIsCreateModalOpen(true)}
+                className="fixed bottom-20 right-5 md:bottom-8 md:right-8 bg-secondary text-secondary-foreground rounded-full p-4 shadow-lg hover:bg-secondary/90 transition-transform transform hover:scale-110 z-40"
+                aria-label="Create a new confession"
+            >
+                <PlusCircleIcon className="w-8 h-8"/>
+            </button>
+            
+            <CreateConfessionModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onAddPost={onAddPost}
+            />
+
+            <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={props.currentPath}/>
         </div>
     );
 };

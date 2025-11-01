@@ -1,5 +1,6 @@
-// FIX: Removed circular import of 'UserTag' and added the export of the UserTag type.
+// FIX: Removed circular import and defined UserTag type.
 export type UserTag = 'Student' | 'Faculty' | 'Alumni';
+export type ConfessionMood = 'love' | 'funny' | 'sad' | 'chaos' | 'deep';
 
 export type User = {
   id: string;
@@ -65,6 +66,9 @@ export type Post = {
         location: string;
     };
     isConfession?: boolean;
+    confessionMood?: ConfessionMood;
+    confessionFontFamily?: string;
+    confessionFontSize?: string;
     sharedPost?: SharedPostInfo;
     isOpportunity?: boolean;
     opportunityDetails?: {
