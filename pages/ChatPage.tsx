@@ -29,7 +29,7 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
         <div className="bg-muted/50 h-screen flex flex-col">
             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
             
-            <main className="flex-1 overflow-hidden p-0 md:p-4">
+            <main className="flex-1 overflow-hidden">
                 <ChatPanel
                     conversations={conversations}
                     currentUser={currentUser}
