@@ -48,16 +48,16 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="p-3 border-b border-border flex items-center justify-between">
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 flex-1 overflow-hidden">
             <button onClick={onClose} className="md:hidden p-1 rounded-full hover:bg-muted">
                 <ArrowLeftIcon className="w-6 h-6 text-foreground" />
             </button>
             <div className="cursor-pointer" onClick={() => onNavigate(`#/profile/${otherUser.id}`)}>
                 <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="md" />
             </div>
-            <div className="cursor-pointer" onClick={() => onNavigate(`#/profile/${otherUser.id}`)}>
-                <p className="font-bold text-foreground">{otherUser.name}</p>
-                <p className="text-xs text-text-muted">{otherUser.department}</p>
+            <div className="cursor-pointer flex-1 overflow-hidden" onClick={() => onNavigate(`#/profile/${otherUser.id}`)}>
+                <p className="font-bold text-foreground truncate">{otherUser.name}</p>
+                <p className="text-xs text-text-muted truncate">{otherUser.department}</p>
             </div>
         </div>
       </div>

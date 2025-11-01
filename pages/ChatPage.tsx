@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { User, Conversation } from '../types';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
@@ -18,6 +18,21 @@ interface ChatPageProps {
   onNavigate: (path: string) => void;
   currentPath: string;
 }
+
+const formatTimestampForChat = (timestamp: number) => {
+    const messageDate = new Date(timestamp);
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+
+    if (messageDate >= startOfToday) {
+        return messageDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    } else if (messageDate >= startOfYesterday) {
+        return 'Yesterday';
+    } else {
+        return messageDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+};
 
 const ChatPage: React.FC<ChatPageProps> = (props) => {
     const { currentUser, users, conversations, onSendMessage, onDeleteMessage, onCreateOrOpenConversation, onNavigate, currentPath } = props;
@@ -48,13 +63,6 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
         return conversations.find(c => c.id === selectedConversationId);
     }, [conversations, selectedConversationId]);
 
-    // Automatically select the first conversation if none is selected
-    useEffect(() => {
-        if (!selectedConversationId && sortedConversations.length > 0) {
-            setSelectedConversationId(sortedConversations[0].id);
-        }
-    }, [sortedConversations, selectedConversationId]);
-
     const allUsersList = useMemo(() => Object.values(users), [users]);
 
     return (
@@ -82,12 +90,21 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                                     <div
                                         key={convo.id}
                                         onClick={() => setSelectedConversationId(convo.id)}
-                                        className={`p-3 flex items-center space-x-3 cursor-pointer border-l-4 ${selectedConversationId === convo.id ? 'bg-primary/10 border-primary' : 'border-transparent hover:bg-muted'}`}
+                                        className={`p-3 flex items-start space-x-3 cursor-pointer border-l-4 ${selectedConversationId === convo.id ? 'bg-primary/10 border-primary' : 'border-transparent hover:bg-muted'}`}
                                     >
                                         <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="lg" />
                                         <div className="flex-1 overflow-hidden">
-                                            <p className="font-semibold text-card-foreground truncate">{otherUser.name}</p>
-                                            <p className="text-sm text-text-muted truncate">{lastMessage ? lastMessage.text : 'No messages yet'}</p>
+                                            <div className="flex justify-between items-center">
+                                                <p className="font-semibold text-card-foreground truncate">{otherUser.name}</p>
+                                                {lastMessage && (
+                                                    <p className="text-xs text-text-muted flex-shrink-0 ml-2">
+                                                        {formatTimestampForChat(lastMessage.timestamp)}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <p className="text-sm text-text-muted truncate">
+                                                {lastMessage ? `${lastMessage.senderId === currentUser.id ? 'You: ' : ''}${lastMessage.text}` : 'No messages yet'}
+                                            </p>
                                         </div>
                                     </div>
                                 );
