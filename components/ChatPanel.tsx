@@ -2,13 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { Conversation, User, Message } from '../types';
 import Avatar from './Avatar';
 import NewConversationModal from './NewConversationModal';
-import { SendIcon, SearchIcon, ArrowLeftIcon } from './Icons';
+import { SendIcon, SearchIcon, ArrowLeftIcon, TrashIcon } from './Icons';
 
 interface ChatPanelProps {
     conversations: Conversation[];
     currentUser: User;
     users: { [key: string]: User };
     onSendMessage: (conversationId: string, text: string) => void;
+    onDeleteMessage: (conversationId: string, messageId: string) => void;
     onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
     activeConversationId: string | null;
     setActiveConversationId: (id: string | null) => void;
@@ -56,8 +57,8 @@ const ConversationList: React.FC<Pick<ChatPanelProps, 'conversations' | 'current
     );
 }
 
-const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conversations' | 'currentUser' | 'users' | 'onSendMessage' | 'setActiveConversationId'>> =
-({ activeConversationId, conversations, currentUser, users, onSendMessage, setActiveConversationId }) => {
+const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conversations' | 'currentUser' | 'users' | 'onSendMessage' | 'onDeleteMessage' | 'setActiveConversationId'>> =
+({ activeConversationId, conversations, currentUser, users, onSendMessage, onDeleteMessage, setActiveConversationId }) => {
     const [message, setMessage] = useState('');
     const conversation = conversations.find(c => c.id === activeConversationId);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -85,6 +86,12 @@ const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conver
         }
     };
 
+    const handleDelete = (messageId: string) => {
+        if (window.confirm("Are you sure you want to delete this message?")) {
+            onDeleteMessage(conversation.id, messageId);
+        }
+    };
+
     return (
         <div className="h-full flex flex-col">
             <div className="flex items-center p-3 border-b border-border">
@@ -95,14 +102,24 @@ const ChatWindow: React.FC<Pick<ChatPanelProps, 'activeConversationId' | 'conver
                 <h3 className="ml-3 font-bold text-card-foreground">{otherUser.name}</h3>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {conversation.messages.map((msg) => (
-                    <div key={msg.id} className={`flex items-end gap-2 ${msg.senderId === currentUser.id ? 'justify-end' : ''}`}>
-                         {msg.senderId !== currentUser.id && <Avatar src={users[msg.senderId]?.avatarUrl} name={users[msg.senderId]?.name} size="sm" />}
-                        <div className={`max-w-xs md:max-w-md p-3 rounded-lg ${msg.senderId === currentUser.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-card-foreground'}`}>
-                            <p>{msg.text}</p>
+                {conversation.messages.map((msg) => {
+                    const isCurrentUser = msg.senderId === currentUser.id;
+                    return (
+                        <div key={msg.id} className={`flex items-end gap-2 group ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                             {!isCurrentUser && <Avatar src={users[msg.senderId]?.avatarUrl} name={users[msg.senderId]?.name} size="sm" />}
+                            
+                            {isCurrentUser && (
+                                <button onClick={() => handleDelete(msg.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-text-muted hover:text-destructive p-1 rounded-full">
+                                    <TrashIcon className="w-4 h-4" />
+                                </button>
+                            )}
+
+                            <div className={`max-w-xs md:max-w-md p-3 rounded-lg ${isCurrentUser ? 'bg-primary text-primary-foreground' : 'bg-muted text-card-foreground'}`}>
+                                <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
                 <div ref={messagesEndRef} />
             </div>
             <div className="p-4 border-t border-border">

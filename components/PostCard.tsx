@@ -80,7 +80,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                 </>
                 )}
             </div>
-            {isAuthor && !post.isConfession && (
+            {isAuthor && (
                 <div className="relative">
                 <button onClick={() => setShowOptions(!showOptions)} className="text-text-muted hover:text-foreground">
                     <OptionsIcon className="w-5 h-5" />

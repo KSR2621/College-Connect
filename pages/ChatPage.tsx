@@ -10,13 +10,14 @@ interface ChatPageProps {
     users: { [key: string]: User };
     conversations: Conversation[];
     onSendMessage: (conversationId: string, text: string) => void;
+    onDeleteMessage: (conversationId: string, messageId: string) => void;
     onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
     onNavigate: (path: string) => void;
     currentPath: string;
 }
 
 const ChatPage: React.FC<ChatPageProps> = (props) => {
-    const { currentUser, users, conversations, onSendMessage, onCreateOrOpenConversation, onNavigate, currentPath } = props;
+    const { currentUser, users, conversations, onSendMessage, onDeleteMessage, onCreateOrOpenConversation, onNavigate, currentPath } = props;
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
 
     const handleLogout = async () => {
@@ -35,6 +36,7 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                         currentUser={currentUser}
                         users={users}
                         onSendMessage={onSendMessage}
+                        onDeleteMessage={onDeleteMessage}
                         onCreateOrOpenConversation={onCreateOrOpenConversation}
                         activeConversationId={activeConversationId}
                         setActiveConversationId={setActiveConversationId}

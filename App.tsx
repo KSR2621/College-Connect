@@ -140,6 +140,19 @@ const App: React.FC = () => {
 
     }, [currentUser]);
 
+    // This effect synchronizes the `currentUser` state with the real-time `users` data map.
+    // This is crucial for features like the "Follow" button to update correctly in the UI
+    // after the action is performed.
+    useEffect(() => {
+        if (currentUser && users[currentUser.id]) {
+            const latestUserData = users[currentUser.id];
+            // Simple stringify check to prevent infinite re-render loops if the user object hasn't changed.
+            if (JSON.stringify(currentUser) !== JSON.stringify(latestUserData)) {
+                setCurrentUser(latestUserData);
+            }
+        }
+    }, [users, currentUser]);
+
     const handleNavigate = (path: string) => {
         window.location.hash = path;
     };
@@ -245,12 +258,6 @@ const App: React.FC = () => {
     
             const postToDelete = doc.data() as Omit<Post, 'id'>;
     
-            if (postToDelete.isConfession) {
-                // This case should not be reachable from the UI, but it's a good safeguard.
-                console.warn(`Attempted to delete a confession post (${postId}), which is not allowed.`);
-                return;
-            }
-    
             if (postToDelete.authorId !== currentUser.id) {
                 console.error(`User ${currentUser.id} is not authorized to delete post ${postId} owned by ${postToDelete.authorId}.`);
                 alert("You can only delete your own posts.");
@@ -285,6 +292,39 @@ const App: React.FC = () => {
         await conversationRef.update({
             messages: FieldValue.arrayUnion({ ...newMessage, id: `msg_${Date.now()}` })
         });
+    };
+
+    const handleDeleteMessage = async (conversationId: string, messageId: string) => {
+        if (!currentUser) return;
+    
+        const conversationRef = db.collection('conversations').doc(conversationId);
+        try {
+            const doc = await conversationRef.get();
+            if (!doc.exists) {
+                console.error("Conversation not found.");
+                return;
+            }
+            const conversationData = doc.data() as Omit<Conversation, 'id'>;
+    
+            const messageToDelete = conversationData.messages.find(m => m.id === messageId);
+            if (!messageToDelete) {
+                console.warn(`Message ${messageId} not found in conversation ${conversationId}.`);
+                return;
+            }
+    
+            if (messageToDelete.senderId !== currentUser.id) {
+                alert("You can only delete your own messages.");
+                return;
+            }
+            
+            await conversationRef.update({
+                messages: FieldValue.arrayRemove(messageToDelete)
+            });
+    
+        } catch (error) {
+            console.error("Error deleting message:", error);
+            alert("Could not delete the message. Please try again.");
+        }
     };
 
     const handleSendGroupMessage = async (groupId: string, text: string) => {
@@ -571,7 +611,7 @@ const App: React.FC = () => {
             case 'confessions': return <ConfessionsPage currentUser={currentUser} users={users} posts={posts.filter(p => p.isConfession)} onNavigate={handleNavigate} onAddPost={handleAddPost} currentPath={currentPath} {...postCardProps} />;
             case 'events': return <EventsPage currentUser={currentUser} users={users} events={posts.filter(p => p.isEvent)} onNavigate={handleNavigate} currentPath={currentPath} {...postCardProps} />;
             case 'opportunities': return <OpportunitiesPage currentUser={currentUser} users={users} opportunities={opportunities} onNavigate={handleNavigate} currentPath={currentPath} onCreateOpportunity={handleCreateOpportunity} onDeleteOpportunity={handleDeleteOpportunity} />;
-            case 'chat': return <ChatPage currentUser={currentUser} users={users} conversations={conversations} onSendMessage={handleSendMessage} onCreateOrOpenConversation={handleCreateOrOpenConversation} onNavigate={handleNavigate} currentPath={currentPath} />;
+            case 'chat': return <ChatPage currentUser={currentUser} users={users} conversations={conversations} onSendMessage={handleSendMessage} onDeleteMessage={handleDeleteMessage} onCreateOrOpenConversation={handleCreateOrOpenConversation} onNavigate={handleNavigate} currentPath={currentPath} />;
             case 'search': return <SearchPage currentUser={currentUser} users={allUsersList} posts={posts} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} {...postCardProps} />;
             default:
                 handleNavigate('#/home');

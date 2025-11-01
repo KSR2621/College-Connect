@@ -6,7 +6,7 @@ import CreatePost from '../components/CreatePost';
 import BottomNavBar from '../components/BottomNavBar';
 import Avatar from '../components/Avatar';
 import { auth } from '../firebase';
-import { UsersIcon, ArrowLeftIcon, ShareIcon, OptionsIcon, MessageIcon, PostIcon, SendIcon } from '../components/Icons';
+import { UsersIcon, ArrowLeftIcon, ShareIcon, OptionsIcon, MessageIcon, PostIcon, SendIcon, StarIcon } from '../components/Icons';
 
 interface GroupDetailPageProps {
   group: Group;
@@ -142,12 +142,50 @@ const GroupMembersList: React.FC<{
     );
 };
 
+const GroupFollowersList: React.FC<{
+    group: Group;
+    users: { [key: string]: User };
+}> = ({ group, users }) => {
+    const followers = group.followers || [];
+
+    if (followers.length === 0) {
+        return (
+             <div className="bg-card rounded-lg shadow-sm border border-border p-4">
+                <p className="text-center text-text-muted py-8">This group doesn't have any followers yet.</p>
+            </div>
+        )
+    }
+
+    return (
+        <div className="bg-card rounded-lg shadow-sm border border-border p-4">
+             <div className="space-y-4">
+                {followers.map(followerId => {
+                    const follower = users[followerId];
+                    if (!follower) return null;
+
+                    return (
+                        <div key={followerId} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">
+                            <div className="flex items-center space-x-3">
+                                <Avatar src={follower.avatarUrl} name={follower.name} size="md" />
+                                <div>
+                                    <p className="font-semibold text-card-foreground">{follower.name}</p>
+                                    <p className="text-sm text-text-muted">{follower.department}</p>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+             </div>
+        </div>
+    );
+};
+
 
 const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
     const { group, currentUser, users, posts, onNavigate, currentPath, onAddPost, onToggleLike, onAddComment, onDeletePost, onJoinGroupRequest, onApproveJoinRequest, onDeclineJoinRequest, onDeleteGroup, onSendGroupMessage, onRemoveGroupMember, onToggleFollowGroup, onCreateOrOpenConversation, onSharePostAsMessage } = props;
     const [inviteCopied, setInviteCopied] = useState(false);
     const [showOptions, setShowOptions] = useState(false);
-    const [activeTab, setActiveTab] = useState<'posts' | 'chat' | 'members'>('posts');
+    const [activeTab, setActiveTab] = useState<'posts' | 'chat' | 'members' | 'followers'>('posts');
 
 
     const handleLogout = async () => {
@@ -190,6 +228,8 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                     return <div className="text-center bg-card p-8 rounded-lg border border-border"><h3 className="text-lg font-semibold text-foreground">You must be a member of this group to see the member list.</h3></div>;
                 }
                 return <GroupMembersList group={group} currentUser={currentUser} users={users} isCreator={isCreator} onRemoveGroupMember={onRemoveGroupMember} />;
+            case 'followers':
+                return <GroupFollowersList group={group} users={users} />;
             case 'posts':
             default:
                 return (
@@ -222,16 +262,24 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                         <ArrowLeftIcon className="w-4 h-4 mr-2"/>
                         Back to all groups
                     </button>
-                    <div className="flex justify-between items-start">
+                    <div className="flex flex-col sm:flex-row justify-between items-start">
                         <div className="flex-1">
                             <h1 className="text-3xl font-bold text-foreground">{group.name}</h1>
                             <p className="text-md text-text-muted mt-2">{group.description}</p>
-                            <div className="flex items-center text-sm text-text-muted mt-4">
-                                <UsersIcon className="w-4 h-4 mr-2" />
-                                <span>{group.memberIds.length} members</span>
+                            <div className="flex items-center text-sm text-text-muted mt-4 space-x-4">
+                               <button onClick={() => setActiveTab('members')} className={`flex items-center transition-colors duration-200 rounded-md p-1 -ml-1 ${activeTab === 'members' ? 'text-primary bg-primary/10' : 'hover:bg-muted'}`}>
+                                    <UsersIcon className="w-4 h-4 mr-2" />
+                                    <strong className="font-semibold">{group.memberIds.length}</strong>
+                                    <span className="ml-1">members</span>
+                                </button>
+                                <button onClick={() => setActiveTab('followers')} className={`flex items-center transition-colors duration-200 rounded-md p-1 ${activeTab === 'followers' ? 'text-primary bg-primary/10' : 'hover:bg-muted'}`}>
+                                    <StarIcon className="w-4 h-4 mr-2" />
+                                    <strong className="font-semibold">{group.followers?.length || 0}</strong>
+                                    <span className="ml-1">followers</span>
+                                </button>
                             </div>
                         </div>
-                         <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
+                         <div className="flex items-center space-x-2 flex-shrink-0 mt-4 sm:mt-0 sm:ml-4">
                             <button
                                 onClick={() => onToggleFollowGroup(group.id)}
                                 className={`font-semibold py-2 px-4 rounded-full text-sm transition-colors ${isFollowing ? 'bg-primary/10 border border-primary text-primary hover:bg-primary/20' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
@@ -308,7 +356,7 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                             <button
                                 onClick={() => setActiveTab('posts')}
                                 className={`flex items-center space-x-2 transition-colors duration-200 ${
-                                activeTab === 'posts' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
+                                (activeTab === 'posts' || activeTab === 'members' || activeTab === 'followers') ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
                                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
                             >
                                 <PostIcon className="w-5 h-5"/><span>Posts</span>
@@ -320,14 +368,6 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
                             >
                                 <MessageIcon className="w-5 h-5"/><span>Chat</span>
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('members')}
-                                className={`flex items-center space-x-2 transition-colors duration-200 ${
-                                activeTab === 'members' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
-                                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-                            >
-                                <UsersIcon className="w-5 h-5"/><span>Members</span>
                             </button>
                             </nav>
                         </div>
