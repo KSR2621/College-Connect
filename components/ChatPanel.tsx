@@ -253,10 +253,10 @@ const ChatPanel: React.FC<ChatPanelProps> = (props) => {
 
     return (
         <div className="bg-white rounded-lg h-full w-full flex md:grid md:grid-cols-12 overflow-hidden border border-border shadow-lg">
-            <div className={`col-span-12 md:col-span-4 lg:col-span-4 md:border-r md:border-border ${isMobile && activeConversationId ? 'hidden' : 'flex'} flex-col`}>
+            <div className={`col-span-12 md:col-span-4 lg:col-span-4 md:border-r md:border-border ${isMobile && activeConversationId ? 'hidden' : 'flex'} flex-col min-h-0`}>
                 <ConversationList {...props} onNewConversationClick={() => setIsNewConvoModalOpen(true)} />
             </div>
-            <div className={`col-span-12 md:col-span-8 lg:col-span-8 ${isMobile && !activeConversationId ? 'hidden' : 'flex'} flex-col`}>
+            <div className={`col-span-12 md:col-span-8 lg:col-span-8 ${isMobile && !activeConversationId ? 'hidden' : 'flex'} flex-col min-h-0`}>
                 {activeConversationId ? (
                     <ChatWindow {...props} />
                 ) : (
