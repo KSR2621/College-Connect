@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import type { User, Post, Group } from '../types';
 import Header from '../components/Header';
@@ -20,10 +21,11 @@ interface SearchPageProps {
   onDeletePost: (postId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
+  onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
 }
 
 const SearchPage: React.FC<SearchPageProps> = (props) => {
-  const { currentUser, users, posts, groups, onNavigate, currentPath, onToggleLike, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage } = props;
+  const { currentUser, users, posts, groups, onNavigate, currentPath, onToggleLike, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost } = props;
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'people' | 'posts' | 'groups'>('all');
 
@@ -88,7 +90,7 @@ const SearchPage: React.FC<SearchPageProps> = (props) => {
                         {filteredResults.posts.map(post => {
                             const author = usersMap[post.authorId];
                             if (!author && !post.isConfession) return null;
-                            return <PostCard key={post.id} post={post} author={author} currentUser={currentUser} users={usersMap} onToggleLike={onToggleLike} onAddComment={onAddComment} onDeletePost={onDeletePost} onCreateOrOpenConversation={onCreateOrOpenConversation} onSharePostAsMessage={onSharePostAsMessage} />
+                            return <PostCard key={post.id} post={post} author={author} currentUser={currentUser} users={usersMap} onToggleLike={onToggleLike} onAddComment={onAddComment} onDeletePost={onDeletePost} onCreateOrOpenConversation={onCreateOrOpenConversation} onSharePostAsMessage={onSharePostAsMessage} onSharePost={onSharePost} groups={groups} />
                         })}
                     </div>
                 </div>

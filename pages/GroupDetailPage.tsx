@@ -13,6 +13,7 @@ interface GroupDetailPageProps {
   currentUser: User;
   users: { [key: string]: User };
   posts: Post[];
+  groups: Group[];
   onNavigate: (path: string) => void;
   currentPath: string;
   onAddPost: (postDetails: { content: string; groupId?: string; mediaFile?: File | null; mediaType?: "image" | "video" | null; }) => void;
@@ -28,6 +29,7 @@ interface GroupDetailPageProps {
   onToggleFollowGroup: (groupId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
+  onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
 }
 
 const GroupChatWindow: React.FC<{
@@ -182,7 +184,7 @@ const GroupFollowersList: React.FC<{
 
 
 const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
-    const { group, currentUser, users, posts, onNavigate, currentPath, onAddPost, onToggleLike, onAddComment, onDeletePost, onJoinGroupRequest, onApproveJoinRequest, onDeclineJoinRequest, onDeleteGroup, onSendGroupMessage, onRemoveGroupMember, onToggleFollowGroup, onCreateOrOpenConversation, onSharePostAsMessage } = props;
+    const { group, currentUser, users, posts, groups, onNavigate, currentPath, onAddPost, onToggleLike, onAddComment, onDeletePost, onJoinGroupRequest, onApproveJoinRequest, onDeclineJoinRequest, onDeleteGroup, onSendGroupMessage, onRemoveGroupMember, onToggleFollowGroup, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost } = props;
     const [inviteCopied, setInviteCopied] = useState(false);
     const [showOptions, setShowOptions] = useState(false);
     const [activeTab, setActiveTab] = useState<'posts' | 'chat' | 'members' | 'followers'>('posts');
@@ -244,6 +246,8 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                             onDeletePost={onDeletePost}
                             onCreateOrOpenConversation={onCreateOrOpenConversation}
                             onSharePostAsMessage={onSharePostAsMessage}
+                            onSharePost={onSharePost}
+                            groups={groups}
                         />
                     </>
                 );

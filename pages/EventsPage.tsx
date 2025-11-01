@@ -1,6 +1,7 @@
 
+
 import React from 'react';
-import type { User, Post } from '../types';
+import type { User, Post, Group } from '../types';
 import Header from '../components/Header';
 import PostCard from '../components/PostCard'; // Re-using PostCard for events
 import BottomNavBar from '../components/BottomNavBar';
@@ -10,6 +11,7 @@ interface EventsPageProps {
   currentUser: User;
   users: { [key: string]: User };
   events: Post[]; // Events are a type of Post
+  groups: Group[];
   onNavigate: (path: string) => void;
   currentPath: string;
   onToggleLike: (postId: string) => void;
@@ -17,10 +19,11 @@ interface EventsPageProps {
   onDeletePost: (postId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
+  onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
 }
 
 const EventsPage: React.FC<EventsPageProps> = (props) => {
-  const { currentUser, users, events, onNavigate, currentPath, onToggleLike, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage } = props;
+  const { currentUser, users, events, groups, onNavigate, currentPath, onToggleLike, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost } = props;
 
   const handleLogout = async () => {
     await auth.signOut();
@@ -49,6 +52,8 @@ const EventsPage: React.FC<EventsPageProps> = (props) => {
                   onDeletePost={onDeletePost}
                   onCreateOrOpenConversation={onCreateOrOpenConversation}
                   onSharePostAsMessage={onSharePostAsMessage}
+                  onSharePost={onSharePost}
+                  groups={groups}
                 />
               )
           }) : (

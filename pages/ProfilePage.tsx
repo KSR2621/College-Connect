@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { User, Post, Achievement, UserTag } from '../types';
+import type { User, Post, Achievement, UserTag, Group } from '../types';
 import Header from '../components/Header';
 import Avatar from '../components/Avatar';
 import Feed from '../components/Feed';
@@ -8,14 +8,16 @@ import CreatePost from '../components/CreatePost';
 import AddAchievementModal from '../components/AddAchievementModal';
 import EditProfileModal from '../components/EditProfileModal';
 import BottomNavBar from '../components/BottomNavBar';
+import GroupCard from '../components/GroupCard';
 import { auth } from '../firebase';
-import { AwardIcon, SendIcon } from '../components/Icons';
+import { AwardIcon, SendIcon, UsersIcon, ArrowLeftIcon } from '../components/Icons';
 
 interface ProfilePageProps {
   profileUserId: string;
   currentUser: User;
   users: { [key: string]: User };
   posts: Post[];
+  groups: Group[];
   onNavigate: (path: string) => void;
   currentPath: string;
   onToggleLike: (postId: string) => void;
@@ -27,6 +29,9 @@ interface ProfilePageProps {
   onUpdateProfile: (updateData: { name: string; bio: string; department: string; tag: UserTag; yearOfStudy?: number; }, avatarFile?: File | null) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
+  onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
+  isAdminView?: boolean;
+  onBackToAdmin?: () => void;
 }
 
 const getYearOfStudyText = (year?: number) => {
@@ -42,8 +47,8 @@ const getYearOfStudyText = (year?: number) => {
 }
 
 const ProfilePage: React.FC<ProfilePageProps> = (props) => {
-  const { profileUserId, currentUser, users, posts, onNavigate, currentPath, onToggleLike, onAddComment, onDeletePost, onAddPost, onAddAchievement, onAddInterest, onUpdateProfile, onCreateOrOpenConversation, onSharePostAsMessage } = props;
-  const [activeTab, setActiveTab] = useState<'posts' | 'achievements' | 'interests'>('posts');
+  const { profileUserId, currentUser, users, posts, groups, onNavigate, currentPath, onToggleLike, onAddComment, onDeletePost, onAddPost, onAddAchievement, onAddInterest, onUpdateProfile, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, isAdminView, onBackToAdmin } = props;
+  const [activeTab, setActiveTab] = useState<'posts' | 'achievements' | 'interests' | 'groups'>('posts');
   const [isAchievementModalOpen, setIsAchievementModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [newInterest, setNewInterest] = useState('');
@@ -67,7 +72,7 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
   if (!user) {
     return (
       <div className="bg-background min-h-screen">
-        <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
+        {!isAdminView && <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />}
         <main className="container mx-auto px-4 pt-8">
             <p className="text-center text-foreground">User not found.</p>
         </main>
@@ -84,7 +89,7 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
           <div className="bg-card rounded-lg shadow-sm p-4 border border-border">
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-bold text-foreground flex items-center"><AwardIcon className="w-5 h-5 mr-2"/> Achievements</h2>
-                {isCurrentUserProfile && (
+                {isCurrentUserProfile && !isAdminView && (
                     <button onClick={() => setIsAchievementModalOpen(true)} className="bg-primary text-primary-foreground font-semibold py-1 px-3 rounded-full text-sm hover:bg-primary/90">Add New</button>
                 )}
             </div>
@@ -101,7 +106,7 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
         return (
           <div className="bg-card rounded-lg shadow-sm p-4 border border-border">
             <h2 className="text-lg font-bold text-foreground mb-4">Interests</h2>
-             {isCurrentUserProfile && (
+             {isCurrentUserProfile && !isAdminView && (
                 <form onSubmit={handleAddInterestSubmit} className="flex items-center space-x-2 mb-4">
                     <input type="text" value={newInterest} onChange={(e) => setNewInterest(e.target.value)} placeholder="Add an interest (e.g., Hiking)" className="flex-1 bg-input border border-border rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary text-foreground text-sm" />
                     <button type="submit" className="p-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50" disabled={!newInterest.trim()}>
@@ -120,11 +125,42 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
             </div>
           </div>
         );
+      case 'groups':
+        const memberOfGroups = groups.filter(g => g.memberIds.includes(user.id));
+        const followingGroups = groups.filter(g => g.followers?.includes(user.id));
+        return (
+            <div className="space-y-6">
+                <div>
+                    <h2 className="text-lg font-bold text-foreground mb-4">Member Of ({memberOfGroups.length})</h2>
+                    {memberOfGroups.length > 0 ? (
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {memberOfGroups.map(group => <GroupCard key={group.id} group={group} onNavigate={onNavigate}/>)}
+                        </div>
+                    ) : (
+                        <div className="bg-card rounded-lg border border-border p-8 text-center text-text-muted">
+                            <p>{user.name} is not a member of any groups yet.</p>
+                        </div>
+                    )}
+                </div>
+                 <div>
+                    <h2 className="text-lg font-bold text-foreground mb-4">Following ({followingGroups.length})</h2>
+                    {followingGroups.length > 0 ? (
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {followingGroups.map(group => <GroupCard key={group.id} group={group} onNavigate={onNavigate}/>)}
+                        </div>
+                    ) : (
+                         <div className="bg-card rounded-lg border border-border p-8 text-center text-text-muted">
+                            <p>{user.name} is not following any groups yet.</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
       case 'posts':
       default:
         return (
             <div>
-                {isCurrentUserProfile && <CreatePost user={currentUser} onAddPost={onAddPost} />}
+                {isCurrentUserProfile && !isAdminView && <CreatePost user={currentUser} onAddPost={onAddPost} />}
                 <Feed 
                     posts={userPosts}
                     users={users}
@@ -134,6 +170,8 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
                     onDeletePost={onDeletePost}
                     onCreateOrOpenConversation={onCreateOrOpenConversation}
                     onSharePostAsMessage={onSharePostAsMessage}
+                    onSharePost={onSharePost}
+                    groups={groups}
                 />
             </div>
         );
@@ -142,7 +180,7 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
 
   return (
     <div className="bg-background min-h-screen">
-      <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
+      {!isAdminView && <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />}
       
       <main className="container mx-auto px-2 sm:px-4 lg:px-8 pt-8 pb-20 md:pb-4">
         {/* Profile Header */}
@@ -159,9 +197,15 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
               </p>
               {user.bio && <p className="mt-2 text-card-foreground">{user.bio}</p>}
             </div>
-            {isCurrentUserProfile && (
+            {isCurrentUserProfile && !isAdminView && (
               <button onClick={() => setIsEditModalOpen(true)} className="bg-primary/10 border border-primary text-primary font-semibold py-2 px-4 rounded-full text-sm hover:bg-primary/20">
                 Edit Profile
+              </button>
+            )}
+             {isAdminView && (
+              <button onClick={onBackToAdmin} className="bg-primary/10 border border-primary text-primary font-semibold py-2 px-4 rounded-full text-sm hover:bg-primary/20 flex items-center">
+                <ArrowLeftIcon className="w-4 h-4 mr-2"/>
+                Back to Dashboard
               </button>
             )}
           </div>
@@ -182,6 +226,16 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
                         } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
                     >
                         Posts
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('groups')}
+                        className={`transition-colors duration-200 ${
+                        activeTab === 'groups'
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-text-muted hover:text-foreground hover:border-border'
+                        } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                    >
+                        Groups
                     </button>
                     <button
                         onClick={() => setActiveTab('achievements')}
@@ -229,7 +283,7 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
         />
       )}
       
-      <BottomNavBar onNavigate={onNavigate} currentPage={currentPath}/>
+      {!isAdminView && <BottomNavBar onNavigate={onNavigate} currentPage={currentPath}/>}
     </div>
   );
 };

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import type { Post, User } from '../types';
+import type { Post, User, Group } from '../types';
 import PostCard from './PostCard';
 
 interface FeedProps {
@@ -12,10 +12,12 @@ interface FeedProps {
   onDeletePost: (postId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
+  onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
+  groups: Group[];
 }
 
 const Feed: React.FC<FeedProps> = (props) => {
-  const { posts, users, currentUser, onToggleLike, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage } = props;
+  const { posts, users, currentUser, onToggleLike, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, groups } = props;
   
   if (posts.length === 0) {
     return <div className="text-center text-text-muted mt-8">No posts to show.</div>;
@@ -39,6 +41,8 @@ const Feed: React.FC<FeedProps> = (props) => {
               onDeletePost={onDeletePost}
               onCreateOrOpenConversation={onCreateOrOpenConversation}
               onSharePostAsMessage={onSharePostAsMessage}
+              onSharePost={onSharePost}
+              groups={groups}
             />
           );
       })}

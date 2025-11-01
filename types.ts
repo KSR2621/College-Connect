@@ -12,6 +12,7 @@ export interface User {
   achievements?: Achievement[];
   yearOfStudy?: number;
   followingGroups?: string[];
+  isAdmin?: boolean;
 }
 
 export interface Achievement {
@@ -24,6 +25,22 @@ export interface Comment {
     authorId: string;
     text: string;
     timestamp: number;
+}
+
+export interface SharedPostInfo {
+  originalId: string;
+  originalAuthorId: string;
+  originalTimestamp: number;
+  originalContent: string;
+  originalMediaUrl?: string;
+  originalMediaType?: 'image' | 'video';
+  originalIsEvent?: boolean;
+  originalEventDetails?: {
+      title: string;
+      date: string;
+      location: string;
+  };
+  originalIsConfession?: boolean;
 }
 
 export interface Post {
@@ -45,6 +62,7 @@ export interface Post {
         location: string;
     };
     isConfession?: boolean;
+    sharedPost?: SharedPostInfo;
 }
 
 export interface Group {

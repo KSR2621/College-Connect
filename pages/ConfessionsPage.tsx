@@ -1,5 +1,5 @@
 import React from 'react';
-import type { User, Post } from '../types';
+import type { User, Post, Group } from '../types';
 import Header from '../components/Header';
 import CreatePost from '../components/CreatePost';
 import Feed from '../components/Feed';
@@ -11,6 +11,7 @@ interface ConfessionsPageProps {
   currentUser: User;
   users: { [key: string]: User };
   posts: Post[];
+  groups: Group[];
   onNavigate: (path: string) => void;
   onAddPost: (postDetails: { content: string; mediaFile?: File | null; mediaType?: "image" | "video" | null; isConfession?: boolean; }) => void;
   onToggleLike: (postId: string) => void;
@@ -18,11 +19,12 @@ interface ConfessionsPageProps {
   onDeletePost: (postId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
+  onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
   currentPath: string;
 }
 
 const ConfessionsPage: React.FC<ConfessionsPageProps> = (props) => {
-    const { currentUser, users, posts, onNavigate, onAddPost, onToggleLike, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, currentPath } = props;
+    const { currentUser, users, posts, groups, onNavigate, onAddPost, onToggleLike, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, currentPath } = props;
 
     const handleLogout = async () => {
         await auth.signOut();
@@ -51,6 +53,8 @@ const ConfessionsPage: React.FC<ConfessionsPageProps> = (props) => {
                         onDeletePost={onDeletePost}
                         onCreateOrOpenConversation={onCreateOrOpenConversation}
                         onSharePostAsMessage={onSharePostAsMessage}
+                        onSharePost={onSharePost}
+                        groups={groups}
                     />
                 </div>
             </main>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db, storage, FieldValue } from './firebase';
-import type { User, Post, Group, Opportunity, Conversation, Message, Achievement, UserTag } from './types';
+import type { User, Post, Group, Opportunity, Conversation, Message, Achievement, UserTag, SharedPostInfo } from './types';
 
 // Pages
 import WelcomePage from './pages/WelcomePage';
@@ -15,6 +15,7 @@ import EventsPage from './pages/EventsPage';
 import ChatPage from './pages/ChatPage';
 import SearchPage from './pages/SearchPage';
 import ConfessionsPage from './pages/ConfessionsPage';
+import AdminPage from './pages/AdminPage';
 
 const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -75,16 +76,43 @@ const App: React.FC = () => {
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(async (user) => {
             if (user) {
-                const userDoc = await db.collection('users').doc(user.uid).get();
+                const userRef = db.collection('users').doc(user.uid);
+                let userDoc = await userRef.get();
+                let userData = userDoc.data();
+    
+                // Hardcoded admin check. If a user logs in with this email, they are an admin.
+                // This will create/update their user document in Firestore to reflect this.
+                if (user.email === 'admin@gmail.com' && (!userData || userData.isAdmin !== true)) {
+                    const adminData = {
+                        name: userData?.name || 'Campus Admin',
+                        email: user.email,
+                        department: userData?.department || 'Administration',
+                        tag: userData?.tag || 'Faculty',
+                        isAdmin: true,
+                    };
+                    
+                    await userRef.set(adminData, { merge: true });
+    
+                    // After updating, refetch the document to ensure we have the latest data for the session.
+                    userDoc = await userRef.get();
+                    userData = userDoc.data();
+                }
+    
                 if (userDoc.exists) {
-                    setCurrentUser({ id: user.uid, ...userDoc.data() } as User);
+                    setCurrentUser({ id: user.uid, ...userData } as User);
+                } else {
+                    // A user exists in Firebase Auth, but not in Firestore database.
+                    // This is an inconsistent state, so we won't log them in.
+                    console.error(`User document not found for UID: ${user.uid}. Logging out.`);
+                    auth.signOut();
+                    setCurrentUser(null);
                 }
             } else {
                 setCurrentUser(null);
             }
             setLoading(false);
         });
-
+    
         return () => unsubscribe();
     }, []);
 
@@ -346,6 +374,46 @@ const App: React.FC = () => {
         await handleSendMessage(conversationId, text);
     };
     
+    const handleSharePost = async (
+        originalPost: Post,
+        commentary: string,
+        shareTarget: { type: 'feed' | 'group'; id?: string }
+    ) => {
+        if (!currentUser) return;
+
+        try {
+            const originalPostToEmbed = originalPost.sharedPost ? originalPost.sharedPost : {
+                originalId: originalPost.id,
+                originalAuthorId: originalPost.authorId,
+                originalTimestamp: originalPost.timestamp,
+                originalContent: originalPost.content,
+                originalMediaUrl: originalPost.mediaUrl,
+                originalMediaType: originalPost.mediaType,
+                originalIsEvent: originalPost.isEvent,
+                originalEventDetails: originalPost.eventDetails,
+                originalIsConfession: originalPost.isConfession,
+            };
+
+            const newPost: Partial<Omit<Post, 'id'>> = {
+                authorId: currentUser.id,
+                content: commentary,
+                timestamp: Date.now(),
+                likes: [],
+                comments: [],
+                sharedPost: originalPostToEmbed,
+            };
+
+            if (shareTarget.type === 'group' && shareTarget.id) {
+                newPost.groupId = shareTarget.id;
+            }
+
+            await db.collection('posts').add(newPost);
+        } catch (error) {
+            console.error("Error sharing post:", error);
+            alert("Could not share post. Please try again.");
+        }
+    };
+
     const handleCreateOrOpenConversation = async (otherUserId: string): Promise<string> => {
         if (!currentUser) throw new Error("User not logged in");
     
@@ -575,6 +643,58 @@ const App: React.FC = () => {
         });
     };
 
+    // --- ADMIN HANDLERS ---
+    const handleAdminDeleteUser = async (userId: string) => {
+        if (!currentUser?.isAdmin) return;
+        // Note: This is a simple deletion. In a real app, you might want to handle user's content (posts, etc.)
+        // or implement a "soft delete" by flagging the user as deleted.
+        try {
+            await db.collection('users').doc(userId).delete();
+        } catch (error) {
+            console.error("Error deleting user:", error);
+            alert("Could not delete user.");
+        }
+    };
+    
+    const handleAdminToggleAdminStatus = async (userId: string, currentStatus: boolean) => {
+        if (!currentUser?.isAdmin) return;
+        try {
+            await db.collection('users').doc(userId).update({ isAdmin: !currentStatus });
+        } catch (error) {
+            console.error("Error updating admin status:", error);
+            alert("Could not update admin status.");
+        }
+    };
+
+    const handleAdminDeletePost = async (postId: string) => {
+        if (!currentUser?.isAdmin) return;
+        const postRef = db.collection('posts').doc(postId);
+        try {
+            const doc = await postRef.get();
+            if (!doc.exists) return;
+            const postToDelete = doc.data() as Omit<Post, 'id'>;
+            const mediaPath = postToDelete.imagePath || postToDelete.videoPath;
+            if (mediaPath) {
+                await storage.ref(mediaPath).delete().catch(err => console.warn(`Could not delete media at ${mediaPath}:`, err));
+            }
+            await postRef.delete();
+        } catch (error) {
+            console.error(`Admin error deleting post ${postId}:`, error);
+            alert("Could not delete the post.");
+        }
+    };
+
+    const handleAdminDeleteGroup = async (groupId: string) => {
+        if (!currentUser?.isAdmin) return;
+        try {
+            await db.collection('groups').doc(groupId).delete();
+        } catch (error) {
+            console.error("Error deleting group:", error);
+            alert("Could not delete the group.");
+        }
+    };
+
+
     if (loading) {
         return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-foreground">Loading...</p></div>;
     }
@@ -597,6 +717,8 @@ const App: React.FC = () => {
             onDeletePost: handleDeletePost,
             onCreateOrOpenConversation: handleCreateOrOpenConversation,
             onSharePostAsMessage: handleSharePostAsMessage,
+            onSharePost: handleSharePost,
+            groups,
         };
         
         switch (path) {
@@ -613,6 +735,25 @@ const App: React.FC = () => {
             case 'opportunities': return <OpportunitiesPage currentUser={currentUser} users={users} opportunities={opportunities} onNavigate={handleNavigate} currentPath={currentPath} onCreateOpportunity={handleCreateOpportunity} onDeleteOpportunity={handleDeleteOpportunity} />;
             case 'chat': return <ChatPage currentUser={currentUser} users={users} conversations={conversations} onSendMessage={handleSendMessage} onDeleteMessage={handleDeleteMessage} onCreateOrOpenConversation={handleCreateOrOpenConversation} onNavigate={handleNavigate} currentPath={currentPath} />;
             case 'search': return <SearchPage currentUser={currentUser} users={allUsersList} posts={posts} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} {...postCardProps} />;
+            case 'admin':
+                if (!currentUser.isAdmin) {
+                    handleNavigate('#/home');
+                    return null;
+                }
+                return <AdminPage 
+                            currentUser={currentUser} 
+                            allUsers={allUsersList} 
+                            allPosts={posts} 
+                            allGroups={groups}
+                            usersMap={users}
+                            onNavigate={handleNavigate} 
+                            currentPath={currentPath}
+                            onDeleteUser={handleAdminDeleteUser}
+                            onToggleAdmin={handleAdminToggleAdminStatus}
+                            onDeletePost={handleAdminDeletePost}
+                            onDeleteGroup={handleAdminDeleteGroup}
+                            postCardProps={{...postCardProps, onDeletePost: handleAdminDeletePost}} // Pass admin delete post
+                        />;
             default:
                 handleNavigate('#/home');
                 return null;

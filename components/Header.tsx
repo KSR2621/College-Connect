@@ -64,6 +64,11 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, curr
                                     <Avatar src={currentUser.avatarUrl} name={currentUser.name} size="sm" className="mr-2"/>
                                     Profile
                                 </a>
+                                {currentUser.isAdmin && (
+                                    <a onClick={() => { onNavigate('#/admin'); setIsMenuOpen(false); }} className="block px-4 py-2 text-sm text-foreground hover:bg-muted cursor-pointer">
+                                        Admin Dashboard
+                                    </a>
+                                )}
                                 <div className="border-t border-border my-1"></div>
                                 <a onClick={() => { onLogout(); setIsMenuOpen(false); }} className="flex items-center w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted cursor-pointer">
                                   <LogoutIcon className="w-5 h-5 mr-2" />

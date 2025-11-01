@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Post, User } from '../types';
+import type { Post, User, Group } from '../types';
 import Avatar from './Avatar';
 import CommentSection from './CommentSection';
 import ShareModal from './ShareModal';
@@ -15,10 +15,12 @@ interface PostCardProps {
   onDeletePost: (postId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
+  onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
+  groups: Group[];
 }
 
 const PostCard: React.FC<PostCardProps> = (props) => {
-  const { post, author, currentUser, users, onToggleLike, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage } = props;
+  const { post, author, currentUser, users, onToggleLike, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, groups } = props;
   const [showComments, setShowComments] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -42,17 +44,20 @@ const PostCard: React.FC<PostCardProps> = (props) => {
   }
   
   const handleShareToUser = async (userId: string) => {
-    const authorName = post.isConfession ? 'Anonymous' : author.name;
+    const originalPost = post.sharedPost ?? post;
+    const authorName = originalPost.isConfession ? 'Anonymous' : users[originalPost.authorId]?.name || 'A user';
+    const contentToShare = originalPost.content || 'an image/video';
     try {
         const convoId = await onCreateOrOpenConversation(userId);
-        onSharePostAsMessage(convoId, authorName, post.content);
+        onSharePostAsMessage(convoId, authorName, contentToShare);
         setIsShareModalOpen(false);
-        // Maybe show a success toast here
     } catch (error) {
         console.error("Error sharing post as message:", error);
         alert("Could not share post.");
     }
   };
+
+  const sharedPostAuthor = post.sharedPost ? users[post.sharedPost.originalAuthorId] : null;
 
 
   return (
@@ -110,9 +115,64 @@ const PostCard: React.FC<PostCardProps> = (props) => {
         {!post.isEvent && post.content && (
             <p className="my-4 text-card-foreground whitespace-pre-wrap">{post.content}</p>
         )}
+
+        {/* Render Embedded Shared Post */}
+        {post.sharedPost && (
+            <div className="mt-4 border border-border rounded-lg p-3">
+                <div className="flex items-center space-x-3 mb-3">
+                    {post.sharedPost.originalIsConfession ? (
+                        <>
+                           <div className="flex-shrink-0 h-8 w-8 bg-muted text-foreground rounded-full flex items-center justify-center">
+                                <GhostIcon className="h-5 w-5"/>
+                            </div>
+                            <div>
+                                <p className="font-bold text-card-foreground text-sm">Anonymous</p>
+                                <p className="text-xs text-text-muted">{new Date(post.sharedPost.originalTimestamp).toLocaleString()}</p>
+                            </div>
+                        </>
+                    ) : (
+                        sharedPostAuthor ? (
+                            <>
+                                <Avatar src={sharedPostAuthor.avatarUrl} name={sharedPostAuthor.name} size="sm" />
+                                <div>
+                                    <p className="font-bold text-card-foreground text-sm">{sharedPostAuthor.name}</p>
+                                    <p className="text-xs text-text-muted">{new Date(post.sharedPost.originalTimestamp).toLocaleString()}</p>
+                                </div>
+                            </>
+                        ) : (
+                             <p className="text-sm text-text-muted">Original post by a user who is no longer available.</p>
+                        )
+                    )}
+                </div>
+
+                {post.sharedPost.originalIsEvent && post.sharedPost.originalEventDetails && (
+                    <div className="mb-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                        <h3 className="font-bold text-base text-primary">{post.sharedPost.originalEventDetails.title}</h3>
+                        <div className="flex items-center text-xs text-primary/80 mt-1">
+                            <CalendarIcon className="w-3 h-3 mr-1.5" />
+                            <span>{new Date(post.sharedPost.originalEventDetails.date).toLocaleString()} at {post.sharedPost.originalEventDetails.location}</span>
+                        </div>
+                    </div>
+                )}
+                
+                {post.sharedPost.originalContent && (
+                    <p className="text-card-foreground text-sm whitespace-pre-wrap line-clamp-4">{post.sharedPost.originalContent}</p>
+                )}
+                
+                {post.sharedPost.originalMediaUrl && (
+                    <div className="mt-3 bg-muted rounded-md overflow-hidden">
+                        {post.sharedPost.originalMediaType === 'image' ? (
+                            <img src={post.sharedPost.originalMediaUrl} alt="Shared post content" className="w-full max-h-[300px] object-contain" />
+                        ) : (
+                            <video src={post.sharedPost.originalMediaUrl} controls className="w-full max-h-[300px]" />
+                        )}
+                    </div>
+                )}
+            </div>
+        )}
       </div>
 
-      {post.mediaUrl && (
+      {post.mediaUrl && !post.sharedPost && (
         <div className="bg-muted">
           {post.mediaType === 'image' ? (
             <img src={post.mediaUrl} alt="Post content" className="w-full max-h-[600px] object-contain" />
@@ -165,6 +225,9 @@ const PostCard: React.FC<PostCardProps> = (props) => {
         currentUser={currentUser}
         users={Object.values(users)}
         onShareToUser={handleShareToUser}
+        postToShare={post}
+        onSharePost={onSharePost}
+        groups={groups}
       />
     </div>
   );
