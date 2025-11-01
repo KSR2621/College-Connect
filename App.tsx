@@ -222,7 +222,6 @@ const App: React.FC = () => {
                 comments: [],
                 isEvent: !!postDetails.eventDetails,
                 isConfession: !!postDetails.isConfession,
-                confessionMood: postDetails.confessionMood,
                 isOpportunity: !!postDetails.isOpportunity,
             };
 
@@ -242,6 +241,10 @@ const App: React.FC = () => {
 
             if (postDetails.eventDetails) {
                 newPost.eventDetails = postDetails.eventDetails;
+            }
+            
+            if (postDetails.isConfession && postDetails.confessionMood) {
+                newPost.confessionMood = postDetails.confessionMood;
             }
 
             if (postDetails.isOpportunity && postDetails.opportunityDetails) {
