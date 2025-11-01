@@ -20,47 +20,16 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
     const { currentUser, users, conversations, onSendMessage, onDeleteMessage, onCreateOrOpenConversation, onNavigate, currentPath } = props;
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
 
-    // Swipe navigation state
-    const [touchStartX, setTouchStartX] = useState<number | null>(null);
-    const [touchStartY, setTouchStartY] = useState<number | null>(null);
-    const minSwipeDistance = 60;
-
-    const handleTouchStart = (e: React.TouchEvent) => {
-        setTouchStartX(e.targetTouches[0].clientX);
-        setTouchStartY(e.targetTouches[0].clientY);
-    };
-
-    const handleTouchEnd = (e: React.TouchEvent) => {
-        if (!touchStartX || !touchStartY) return;
-
-        const touchEndX = e.changedTouches[0].clientX;
-        const touchEndY = e.changedTouches[0].clientY;
-
-        const dx = touchEndX - touchStartX;
-        const dy = touchEndY - touchStartY;
-
-        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > minSwipeDistance) {
-            // Swipe Left to go back to Home
-            if (dx < 0) {
-                onNavigate('#/home');
-            }
-        }
-        
-        setTouchStartX(null);
-        setTouchStartY(null);
-    };
-
-
     const handleLogout = async () => {
         await auth.signOut();
         onNavigate('#/');
     };
 
     return (
-        <div className="bg-muted/50 h-screen flex flex-col" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+        <div className="bg-background h-screen flex flex-col">
             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
             
-            <main className="flex-1 overflow-hidden min-h-0 container mx-auto p-0 md:py-4">
+            <main className="flex-1 overflow-hidden">
                 <ChatPanel
                     conversations={conversations}
                     currentUser={currentUser}
