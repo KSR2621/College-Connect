@@ -484,6 +484,49 @@ const App: React.FC = () => {
         }
     };
 
+    const handleDeleteMultipleMessages = async (conversationId: string, messageIds: string[]) => {
+        if (!currentUser || messageIds.length === 0) return;
+    
+        const conversationRef = db.collection('conversations').doc(conversationId);
+        try {
+            const doc = await conversationRef.get();
+            if (!doc.exists) {
+                console.error("Conversation not found.");
+                return;
+            }
+            const conversationData = doc.data() as Omit<Conversation, 'id'>;
+    
+            const messagesToDelete = new Set(messageIds);
+            const updatedMessages = conversationData.messages.filter(m => !messagesToDelete.has(m.id));
+    
+            await conversationRef.update({
+                messages: updatedMessages
+            });
+    
+        } catch (error) {
+            console.error("Error deleting messages:", error);
+            alert("Could not delete the messages. Please try again.");
+        }
+    };
+
+    const handleDeleteConversations = async (conversationIds: string[]) => {
+        if (!currentUser || conversationIds.length === 0) return;
+        
+        const batch = db.batch();
+        
+        conversationIds.forEach(id => {
+            const conversationRef = db.collection('conversations').doc(id);
+            batch.delete(conversationRef);
+        });
+
+        try {
+            await batch.commit();
+        } catch (error) {
+            console.error("Error deleting conversations:", error);
+            alert("Could not delete the conversations. Please try again.");
+        }
+    };
+
     const handleSendGroupMessage = async (groupId: string, text: string) => {
         if (!currentUser) return;
         const newMessage: Omit<Message, 'id'> = {
@@ -850,7 +893,7 @@ const App: React.FC = () => {
             case 'confessions': return <ConfessionsPage currentUser={currentUser} users={users} posts={posts.filter(p => p.isConfession)} groups={groups} onNavigate={handleNavigate} onAddPost={handleAddPost} currentPath={currentPath} {...postCardProps} />;
             case 'events': return <EventsPage currentUser={currentUser} users={users} events={events} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} {...postCardProps} />;
             case 'opportunities': return <OpportunitiesPage currentUser={currentUser} users={users} posts={posts} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} postCardProps={postCardProps} />;
-            case 'chat': return <ChatPage currentUser={currentUser} users={users} conversations={conversations} onSendMessage={handleSendMessage} onDeleteMessage={handleDeleteMessage} onCreateOrOpenConversation={handleCreateOrOpenConversation} onNavigate={handleNavigate} currentPath={currentPath} />;
+            case 'chat': return <ChatPage currentUser={currentUser} users={users} conversations={conversations} onSendMessage={handleSendMessage} onDeleteMessage={handleDeleteMessage} onDeleteMultipleMessages={handleDeleteMultipleMessages} onDeleteConversations={handleDeleteConversations} onCreateOrOpenConversation={handleCreateOrOpenConversation} onNavigate={handleNavigate} currentPath={currentPath} />;
             case 'search': return <SearchPage currentUser={currentUser} users={allUsersList} posts={posts} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} {...postCardProps} />;
             case 'admin':
                 if (!currentUser.isAdmin) {
