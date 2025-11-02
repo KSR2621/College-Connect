@@ -451,39 +451,6 @@ const App: React.FC = () => {
         }
     };
 
-    const handleDeleteMessage = async (conversationId: string, messageId: string) => {
-        if (!currentUser) return;
-    
-        const conversationRef = db.collection('conversations').doc(conversationId);
-        try {
-            const doc = await conversationRef.get();
-            if (!doc.exists) {
-                console.error("Conversation not found.");
-                return;
-            }
-            const conversationData = doc.data() as Omit<Conversation, 'id'>;
-    
-            const messageToDelete = conversationData.messages.find(m => m.id === messageId);
-            if (!messageToDelete) {
-                console.warn(`Message ${messageId} not found in conversation ${conversationId}.`);
-                return;
-            }
-    
-            if (messageToDelete.senderId !== currentUser.id) {
-                alert("You can only delete your own messages.");
-                return;
-            }
-            
-            await conversationRef.update({
-                messages: FieldValue.arrayRemove(messageToDelete)
-            });
-    
-        } catch (error) {
-            console.error("Error deleting message:", error);
-            alert("Could not delete the message. Please try again.");
-        }
-    };
-
     const handleDeleteMultipleMessages = async (conversationId: string, messageIds: string[]) => {
         if (!currentUser || messageIds.length === 0) return;
     
@@ -893,7 +860,7 @@ const App: React.FC = () => {
             case 'confessions': return <ConfessionsPage currentUser={currentUser} users={users} posts={posts.filter(p => p.isConfession)} groups={groups} onNavigate={handleNavigate} onAddPost={handleAddPost} currentPath={currentPath} {...postCardProps} />;
             case 'events': return <EventsPage currentUser={currentUser} users={users} events={events} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} {...postCardProps} />;
             case 'opportunities': return <OpportunitiesPage currentUser={currentUser} users={users} posts={posts} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} postCardProps={postCardProps} />;
-            case 'chat': return <ChatPage currentUser={currentUser} users={users} conversations={conversations} onSendMessage={handleSendMessage} onDeleteMessage={handleDeleteMessage} onDeleteMultipleMessages={handleDeleteMultipleMessages} onDeleteConversations={handleDeleteConversations} onCreateOrOpenConversation={handleCreateOrOpenConversation} onNavigate={handleNavigate} currentPath={currentPath} />;
+            case 'chat': return <ChatPage currentUser={currentUser} users={users} conversations={conversations} onSendMessage={handleSendMessage} onDeleteMultipleMessages={handleDeleteMultipleMessages} onDeleteConversations={handleDeleteConversations} onCreateOrOpenConversation={handleCreateOrOpenConversation} onNavigate={handleNavigate} currentPath={currentPath} />;
             case 'search': return <SearchPage currentUser={currentUser} users={allUsersList} posts={posts} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} {...postCardProps} />;
             case 'admin':
                 if (!currentUser.isAdmin) {

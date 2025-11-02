@@ -29,12 +29,12 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, curr
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     return (
-        <header className="bg-card border-b border-border sticky top-0 z-40 shadow-sm">
+        <header className="bg-card/80 backdrop-blur-lg border-b border-border sticky top-0 z-40 shadow-sm">
             <div className="container mx-auto px-4">
                 <div className="flex justify-between items-center h-16">
                     {/* Logo */}
                     <div className="flex items-center space-x-4">
-                        <span className="font-bold text-xl text-primary cursor-pointer" onClick={() => onNavigate('#/home')}>CampusConnect</span>
+                        <span className="font-bold text-xl gradient-text cursor-pointer" onClick={() => onNavigate('#/home')}>CampusConnect</span>
                     </div>
 
                     {/* Center: Desktop Navigation */}
@@ -51,7 +51,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, curr
                                     }`}
                                     aria-label={label}
                                 >
-                                    <div className="flex flex-col items-center justify-center p-2 rounded-lg w-full hover:bg-slate-100">
+                                    <div className={`flex flex-col items-center justify-center p-2 rounded-lg w-full transition-colors ${isActive ? 'bg-primary/10' : 'hover:bg-slate-100'}`}>
                                       <IconComponent className="w-6 h-6 mb-1" />
                                       <span className="text-xs font-medium">{label}</span>
                                     </div>

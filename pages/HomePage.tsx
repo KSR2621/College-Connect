@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { User, Post, Group, ReactionType, Story, FeedPreferences } from '../types';
 import Header from '../components/Header';
 import CreatePostModal from '../components/CreatePostModal';
@@ -66,8 +66,8 @@ const HomePage: React.FC<HomePageProps> = (props) => {
             if (savedPrefs) {
                 setFeedPreferences(JSON.parse(savedPrefs));
             }
-        } catch (error) {
-            console.error("Could not load feed preferences:", error);
+        } catch (e) {
+            console.error("Could not load feed preferences:", e);
         }
 
         const bannerDismissed = sessionStorage.getItem('welcomeBannerDismissed');
@@ -85,8 +85,8 @@ const HomePage: React.FC<HomePageProps> = (props) => {
         setFeedPreferences(preferences);
         try {
             localStorage.setItem('feedPreferences', JSON.stringify(preferences));
-        } catch (error) {
-            console.error("Could not save feed preferences:", error);
+        } catch (e) {
+            console.error("Could not save feed preferences:", e);
         }
         setIsFeedModalOpen(false);
     };
@@ -97,79 +97,89 @@ const HomePage: React.FC<HomePageProps> = (props) => {
         onNavigate('#/');
     };
 
-    const feedPosts = useMemo(() => {
+    // --- START: Stable Feed Logic ---
+    const [feedToRender, setFeedToRender] = useState<Post[]>([]);
+    const prevFeedPreferencesRef = useRef<string>(JSON.stringify(feedPreferences));
+    const prevPostsCountRef = useRef<number>(posts.length);
+
+    const getPostScore = useCallback((post: Post): number => {
         const now = Date.now();
         const oneHour = 1000 * 60 * 60;
-
-        const getPostScore = (post: Post): number => {
-            let score = 0;
-
-            // 1. Recency Score (higher score for newer posts, decays over time)
-            const ageInHours = (now - post.timestamp) / oneHour;
-            score += 10 / (ageInHours + 1); // Heavily favors posts in the first few hours
-
-            // 2. Engagement Score (REMOVED TO PREVENT POSTS FROM MOVING ON INTERACTION)
-            // const reactionCount = Object.values(post.reactions || {}).reduce((sum, arr) => sum + (arr?.length || 0), 0);
-            // const commentCount = post.comments.length;
-            // score += (reactionCount * 0.5) + (commentCount * 1.0);
-
-            // 3. Author Relevance (if not current user)
-            const author = users[post.authorId];
-            if (author && author.department === currentUser.department && author.id !== currentUser.id) {
-                score += 5;
+        let score = 0;
+        const ageInHours = (now - post.timestamp) / oneHour;
+        score += 10 / (ageInHours + 1);
+        const author = users[post.authorId];
+        if (author && author.department === currentUser.department && author.id !== currentUser.id) {
+            score += 5;
+        }
+        if (post.groupId) {
+            const group = groups.find(g => g.id === post.groupId);
+            if (group && group.memberIds.includes(currentUser.id)) {
+                score += 8;
             }
-
-            // 4. Group Relevance (big boost for membership)
-            if (post.groupId) {
-                const group = groups.find(g => g.id === post.groupId);
-                if (group && group.memberIds.includes(currentUser.id)) {
-                    score += 8;
+        }
+        const userInterests = currentUser.interests || [];
+        if (userInterests.length > 0) {
+            const postText = [post.content, post.eventDetails?.title, post.opportunityDetails?.title, post.sharedPost?.originalContent].join(' ').toLowerCase();
+            for (const interest of userInterests) {
+                if (postText.includes(interest.toLowerCase())) {
+                    score += 3;
                 }
             }
+        }
+        return score;
+    }, [users, currentUser, groups]);
 
-            // 5. Interest Match
-            const userInterests = currentUser.interests || [];
-            if (userInterests.length > 0) {
-                const postText = [
-                    post.content,
-                    post.eventDetails?.title,
-                    post.opportunityDetails?.title,
-                    post.sharedPost?.originalContent
-                ].join(' ').toLowerCase();
-                
-                for (const interest of userInterests) {
-                    if (postText.includes(interest.toLowerCase())) {
-                        score += 3;
-                    }
+    const filterPost = useCallback((post: Post, prefs: FeedPreferences): boolean => {
+        const isRegularPost = !post.isEvent && !post.isOpportunity && !post.sharedPost;
+        if (!prefs.showRegularPosts && isRegularPost) return false;
+        if (!prefs.showEvents && post.isEvent) return false;
+        if (!prefs.showOpportunities && post.isOpportunity) return false;
+        if (!prefs.showSharedPosts && post.sharedPost) return false;
+        if (post.groupId && !(currentUser.followingGroups && currentUser.followingGroups.includes(post.groupId))) {
+            return false;
+        }
+        if (post.isConfession) {
+            return false;
+        }
+        return true;
+    }, [currentUser]);
+
+    useEffect(() => {
+        const currentPrefsString = JSON.stringify(feedPreferences);
+        const feedPreferencesChanged = prevFeedPreferencesRef.current !== currentPrefsString;
+        const hasNewPosts = posts.length > prevPostsCountRef.current;
+
+        if (feedToRender.length === 0 || feedPreferencesChanged) {
+            const sorted = posts
+                .filter(p => filterPost(p, feedPreferences))
+                .map(post => ({ post, score: getPostScore(post) }))
+                .sort((a, b) => b.score - a.score)
+                .map(item => item.post);
+            setFeedToRender(sorted);
+        } else {
+            const newPostsMap = new Map(posts.map(p => [p.id, p]));
+            const currentFeedIds = new Set(feedToRender.map(p => p.id));
+
+            let updatedFeed = feedToRender
+                .map(oldPost => newPostsMap.get(oldPost.id))
+                .filter((p): p is Post => !!p);
+
+            if (hasNewPosts) {
+                const newUnseenPosts = posts.filter(p => !currentFeedIds.has(p) && filterPost(p, feedPreferences));
+                if (newUnseenPosts.length > 0) {
+                    updatedFeed = [...newUnseenPosts, ...updatedFeed];
                 }
             }
+            
+            setFeedToRender(updatedFeed);
+        }
 
-            return score;
-        };
-        
-        return posts
-            .filter(post => {
-                // Apply feed preferences
-                const isRegularPost = !post.isEvent && !post.isOpportunity && !post.sharedPost;
-                if (!feedPreferences.showRegularPosts && isRegularPost) return false;
-                if (!feedPreferences.showEvents && post.isEvent) return false;
-                if (!feedPreferences.showOpportunities && post.isOpportunity) return false;
-                if (!feedPreferences.showSharedPosts && post.sharedPost) return false;
+        prevFeedPreferencesRef.current = currentPrefsString;
+        prevPostsCountRef.current = posts.length;
 
-                // Filter out posts from groups the user doesn't follow
-                if (post.groupId && !(currentUser.followingGroups && currentUser.followingGroups.includes(post.groupId))) {
-                    return false;
-                }
-                // Filter out confessions from the main feed
-                if (post.isConfession) {
-                    return false;
-                }
-                return true;
-            })
-            .map(post => ({ post, score: getPostScore(post) }))
-            .sort((a, b) => b.score - a.score)
-            .map(item => item.post);
-    }, [posts, currentUser, users, groups, feedPreferences]);
+    }, [posts, feedPreferences, getPostScore, filterPost, feedToRender.length]);
+    // --- END: Stable Feed Logic ---
 
     const adminOfGroups = groups.filter(g => g.creatorId === currentUser.id);
 
@@ -228,7 +238,7 @@ const HomePage: React.FC<HomePageProps> = (props) => {
 
 
                         <Feed 
-                            posts={feedPosts}
+                            posts={feedToRender}
                             users={users}
                             currentUser={currentUser}
                             onReaction={onReaction}

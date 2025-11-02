@@ -21,7 +21,7 @@ const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentUser, onNavigate, cu
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-t-lg md:hidden z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-lg border-t border-border md:hidden z-50">
       <div className="flex justify-around items-center h-16">
         {navItems.map(({ path, icon: Icon, activeIcon: ActiveIcon, label }) => {
           // Special check for profile page, as it can be /profile/some-other-id
@@ -34,12 +34,14 @@ const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentUser, onNavigate, cu
             <button
               key={path}
               onClick={() => onNavigate(path)}
-              className={`flex flex-col items-center justify-center w-16 transition-colors duration-200 ${
-                isActive ? 'text-foreground' : 'text-text-muted hover:text-foreground'
+              className={`flex flex-col items-center justify-center w-1/5 h-16 transition-colors duration-200 group focus:outline-none ${
+                isActive ? 'text-primary' : 'text-text-muted hover:text-primary'
               }`}
               aria-label={label}
             >
-              <IconComponent className="w-7 h-7" />
+              <div className={`p-3 rounded-full transition-colors duration-300 ${isActive ? 'bg-primary/10' : ''}`}>
+                <IconComponent className="w-7 h-7" />
+              </div>
             </button>
           );
         })}

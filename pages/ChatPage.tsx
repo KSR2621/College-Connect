@@ -13,7 +13,6 @@ interface ChatPageProps {
   users: { [key: string]: User };
   conversations: Conversation[];
   onSendMessage: (conversationId: string, text: string) => void;
-  onDeleteMessage: (conversationId: string, messageId: string) => void;
   onDeleteMultipleMessages: (conversationId: string, messageIds: string[]) => void;
   onDeleteConversations: (conversationIds: string[]) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
@@ -21,7 +20,7 @@ interface ChatPageProps {
   currentPath: string;
 }
 
-const formatTimestampForChat = (timestamp: number) => {
+const formatTimestampForChatList = (timestamp: number) => {
     const messageDate = new Date(timestamp);
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -32,12 +31,12 @@ const formatTimestampForChat = (timestamp: number) => {
     } else if (messageDate >= startOfYesterday) {
         return 'Yesterday';
     } else {
-        return messageDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        return messageDate.toLocaleDateString('en-US', { year: '2-digit', month: '2-digit', day: '2-digit' });
     }
 };
 
 const ChatPage: React.FC<ChatPageProps> = (props) => {
-    const { currentUser, users, conversations, onSendMessage, onDeleteMessage, onDeleteMultipleMessages, onDeleteConversations, onCreateOrOpenConversation, onNavigate, currentPath } = props;
+    const { currentUser, users, conversations, onSendMessage, onDeleteMultipleMessages, onDeleteConversations, onCreateOrOpenConversation, onNavigate, currentPath } = props;
 
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
     const [isNewConvoModalOpen, setIsNewConvoModalOpen] = useState(false);
@@ -111,14 +110,14 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
     const allUsersList = useMemo(() => Object.values(users), [users]);
 
     return (
-        <div className="bg-background min-h-screen">
+        <div className="bg-slate-50 min-h-screen">
             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
             <main className="container mx-auto h-[calc(100vh-64px)] md:h-[calc(100vh-64px)] pb-16 md:pb-0">
-                <div className="flex h-full border-t md:border-x border-border">
+                <div className="flex h-full border-t md:border-x border-border bg-card">
                     {/* Sidebar */}
-                    <div className={`w-full md:w-1/3 lg:w-1/4 border-r border-border flex-col ${(selectedConversationId && !isSelectionMode) ? 'hidden md:flex' : 'flex'}`}>
+                    <div className={`w-full md:w-1/3 lg:w-1/4 border-r border-border flex-col bg-slate-100 ${(selectedConversationId && !isSelectionMode) ? 'hidden md:flex' : 'flex'}`}>
                         {isSelectionMode ? (
-                            <div className="p-4 border-b border-border flex justify-between items-center bg-primary/5">
+                            <div className="p-4 border-b border-border flex justify-between items-center bg-card">
                                 <button onClick={() => setSelectedConversations([])} className="p-2 rounded-full hover:bg-muted text-foreground">
                                     <CloseIcon className="w-6 h-6" />
                                 </button>
@@ -128,8 +127,8 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                                 </button>
                             </div>
                         ) : (
-                            <div className="p-4 border-b border-border flex justify-between items-center">
-                                <h1 className="text-xl font-bold text-foreground">Messages</h1>
+                            <div className="p-4 border-b border-border flex justify-between items-center bg-card">
+                                <h1 className="text-2xl font-extrabold gradient-text">Messages</h1>
                                 <button onClick={() => setIsNewConvoModalOpen(true)} className="p-2 rounded-full hover:bg-muted text-primary">
                                     <PlusIcon className="w-6 h-6" />
                                 </button>
@@ -140,7 +139,8 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                                 const otherParticipantId = convo.participantIds.find(id => id !== currentUser.id);
                                 const otherUser = otherParticipantId ? users[otherParticipantId] : null;
                                 const lastMessage = convo.messages[convo.messages.length - 1];
-                                const isSelected = selectedConversations.includes(convo.id);
+                                const isSelectedForDeletion = selectedConversations.includes(convo.id);
+                                const isActiveChat = selectedConversationId === convo.id && !isSelectionMode;
 
                                 if (!otherUser) return null;
 
@@ -153,9 +153,9 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                                         onMouseLeave={handleLongPressEnd}
                                         onTouchStart={() => handleLongPressStart(convo.id)}
                                         onTouchEnd={handleLongPressEnd}
-                                        className={`p-3 flex items-start space-x-3 cursor-pointer border-l-4 transition-colors duration-200 ${
-                                            isSelected ? 'bg-primary/20 border-primary' : 
-                                            (selectedConversationId === convo.id && !isSelectionMode) ? 'bg-primary/10 border-primary' : 'border-transparent hover:bg-muted'
+                                        className={`p-3 flex items-start space-x-3 cursor-pointer border-l-4 transition-all duration-200 ${
+                                            isSelectedForDeletion ? 'bg-primary/20 border-primary' : 
+                                            isActiveChat ? 'bg-gradient-to-r from-primary/20 to-secondary/20 border-primary shadow-inner' : 'border-transparent hover:bg-white'
                                         }`}
                                     >
                                         <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="lg" />
@@ -164,7 +164,7 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                                                 <p className="font-semibold text-card-foreground truncate">{otherUser.name}</p>
                                                 {lastMessage && (
                                                     <p className="text-xs text-text-muted flex-shrink-0 ml-2">
-                                                        {formatTimestampForChat(lastMessage.timestamp)}
+                                                        {formatTimestampForChatList(lastMessage.timestamp)}
                                                     </p>
                                                 )}
                                             </div>
@@ -186,13 +186,12 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                                 currentUser={currentUser}
                                 users={users}
                                 onSendMessage={onSendMessage}
-                                onDeleteMessage={onDeleteMessage}
                                 onDeleteMultipleMessages={onDeleteMultipleMessages}
                                 onClose={() => setSelectedConversationId(null)}
                                 onNavigate={onNavigate}
                             />
                         ) : (
-                            <div className="flex-1 flex items-center justify-center text-center text-text-muted p-4">
+                            <div className="flex-1 flex items-center justify-center text-center text-text-muted p-4 bg-slate-50 chat-background-panel">
                                 <div>
                                     <h2 className="text-xl font-semibold">Select a conversation</h2>
                                     <p>Choose from your existing conversations or start a new one.</p>
