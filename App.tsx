@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { auth, db, storage, FieldValue } from './firebase';
-import type { User, Post, Group, Conversation, Message, Achievement, UserTag, SharedPostInfo, ReactionType, Story, ConfessionMood } from './types';
+import type { User, Post, Group, Conversation, Message, Achievement, UserTag, SharedPostInfo, ReactionType, Story, ConfessionMood, Course, Note, Assignment, AttendanceRecord, AttendanceStatus, Notice } from './types';
 
 // Pages
 import WelcomePage from './pages/WelcomePage';
@@ -17,6 +17,7 @@ import SearchPage from './pages/SearchPage';
 import ConfessionsPage from './pages/ConfessionsPage';
 import AdminPage from './pages/AdminPage';
 import AcademicsPage from './pages/AcademicsPage';
+import CourseDetailPage from './pages/CourseDetailPage';
 
 const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -29,6 +30,8 @@ const App: React.FC = () => {
     const [stories, setStories] = useState<Story[]>([]);
     const [groups, setGroups] = useState<Group[]>([]);
     const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [notices, setNotices] = useState<Notice[]>([]);
     const prevConversationsRef = useRef<Conversation[]>([]);
 
 
@@ -124,6 +127,8 @@ const App: React.FC = () => {
             setStories([]);
             setGroups([]);
             setConversations([]);
+            setCourses([]);
+            setNotices([]);
             return;
         };
 
@@ -196,6 +201,27 @@ const App: React.FC = () => {
                         }
                     }
                     return Array.from(convosMap.values());
+                });
+            }),
+            db.collection('notices').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+                const noticesData: Notice[] = [];
+                snapshot.forEach(doc => {
+                    noticesData.push({ id: doc.id, ...doc.data() } as Notice);
+                });
+                setNotices(noticesData);
+            }),
+            db.collection('courses').onSnapshot(snapshot => {
+                setCourses(prevCourses => {
+                    const coursesMap = new Map(prevCourses.map(c => [c.id, c]));
+                    for (const change of snapshot.docChanges()) {
+                        const course = { id: change.doc.id, ...change.doc.data() } as Course;
+                        if (change.type === "removed") {
+                            coursesMap.delete(course.id);
+                        } else { // added or modified
+                            coursesMap.set(course.id, course);
+                        }
+                    }
+                    return Array.from(coursesMap.values());
                 });
             }),
         ];
@@ -727,6 +753,58 @@ const App: React.FC = () => {
         }
     };
 
+    // FIX: Added handlers for group join requests to resolve errors in GroupDetailPage component.
+    const handleJoinGroupRequest = async (groupId: string) => {
+        if (!currentUser) return;
+        const groupRef = db.collection('groups').doc(groupId);
+        try {
+            await groupRef.update({
+                pendingMemberIds: FieldValue.arrayUnion(currentUser.id)
+            });
+        } catch (error) {
+            console.error("Error requesting to join group:", error);
+            alert("Could not send join request. Please try again.");
+        }
+    };
+
+    const handleApproveJoinRequest = async (groupId: string, userId: string) => {
+        if (!currentUser) return;
+        const groupRef = db.collection('groups').doc(groupId);
+        const group = groups.find(g => g.id === groupId);
+        if (group?.creatorId !== currentUser.id && !currentUser.isAdmin) {
+            alert("You don't have permission to approve requests.");
+            return;
+        }
+        try {
+            await groupRef.update({
+                pendingMemberIds: FieldValue.arrayRemove(userId),
+                memberIds: FieldValue.arrayUnion(userId)
+            });
+        } catch (error) {
+            console.error("Error approving join request:", error);
+            alert("Could not approve request. Please try again.");
+        }
+    };
+
+    const handleDeclineJoinRequest = async (groupId: string, userId: string) => {
+        if (!currentUser) return;
+        const groupRef = db.collection('groups').doc(groupId);
+        const group = groups.find(g => g.id === groupId);
+        if (group?.creatorId !== currentUser.id && !currentUser.isAdmin) {
+            alert("You don't have permission to decline requests.");
+            return;
+        }
+        try {
+            await groupRef.update({
+                pendingMemberIds: FieldValue.arrayRemove(userId)
+            });
+        } catch (error) {
+            console.error("Error declining join request:", error);
+            alert("Could not decline request. Please try again.");
+        }
+    };
+
+
     const handleAddAchievement = async (achievement: Achievement) => {
         if (!currentUser) return;
         await db.collection('users').doc(currentUser.id).update({
@@ -775,29 +853,133 @@ const App: React.FC = () => {
         }
     };
 
-    const handleJoinGroupRequest = async (groupId: string) => {
+    // --- ACADEMICS HANDLERS (Firestore Persistence) ---
+    const handleCreateCourse = async (newCourseData: Omit<Course, 'id' | 'facultyId'>) => {
         if (!currentUser) return;
-        await db.collection('groups').doc(groupId).update({
-            pendingMemberIds: FieldValue.arrayUnion(currentUser.id)
+        const newCourse: Omit<Course, 'id'> = {
+            ...newCourseData,
+            facultyId: currentUser.id,
+            students: [],
+            pendingStudents: [],
+            notes: [],
+            assignments: [],
+            attendanceRecords: [],
+            messages: [],
+            personalNote: '',
+        };
+        await db.collection('courses').add(newCourse);
+    };
+
+    const handleAddNote = async (courseId: string, noteData: Omit<Note, 'id'>) => {
+        const courseRef = db.collection('courses').doc(courseId);
+        const newNote: Note = { id: `note_${Date.now()}`, ...noteData };
+        await courseRef.update({
+            notes: FieldValue.arrayUnion(newNote)
         });
     };
 
-    const handleApproveJoinRequest = async (groupId: string, userId: string) => {
-        if (!currentUser) return;
-        const groupRef = db.collection('groups').doc(groupId);
-        await groupRef.update({
-            pendingMemberIds: FieldValue.arrayRemove(userId),
-            memberIds: FieldValue.arrayUnion(userId)
+    const handleAddAssignment = async (courseId: string, assignmentData: Omit<Assignment, 'id'>) => {
+        const courseRef = db.collection('courses').doc(courseId);
+        const newAssignment: Assignment = { id: `assignment_${Date.now()}`, ...assignmentData };
+        await courseRef.update({
+            assignments: FieldValue.arrayUnion(newAssignment)
+        });
+    };
+
+    const handleTakeAttendance = async (courseId: string, attendanceData: Omit<AttendanceRecord, 'date'>) => {
+        const courseRef = db.collection('courses').doc(courseId);
+        const newRecord: AttendanceRecord = { date: Date.now(), ...attendanceData };
+        await courseRef.update({
+            attendanceRecords: FieldValue.arrayUnion(newRecord)
         });
     };
     
-    const handleDeclineJoinRequest = async (groupId: string, userId: string) => {
+    const handleRequestToJoinCourse = async (courseId: string) => {
         if (!currentUser) return;
-        const groupRef = db.collection('groups').doc(groupId);
-        await groupRef.update({
-            pendingMemberIds: FieldValue.arrayRemove(userId)
+        const courseRef = db.collection('courses').doc(courseId);
+        await courseRef.update({
+            pendingStudents: FieldValue.arrayUnion(currentUser.id)
         });
     };
+
+    const handleManageCourseRequest = async (courseId: string, studentId: string, action: 'approve' | 'decline') => {
+        const courseRef = db.collection('courses').doc(courseId);
+        const batch = db.batch();
+        
+        batch.update(courseRef, {
+            pendingStudents: FieldValue.arrayRemove(studentId)
+        });
+        
+        if (action === 'approve') {
+            batch.update(courseRef, {
+                students: FieldValue.arrayUnion(studentId)
+            });
+        }
+        
+        await batch.commit();
+    };
+    
+    const handleAddStudentsToCourse = async (courseId: string, studentIds: string[]) => {
+        const courseRef = db.collection('courses').doc(courseId);
+        await courseRef.update({
+            students: FieldValue.arrayUnion(...studentIds)
+        });
+    };
+    
+    const handleRemoveStudentFromCourse = async (courseId: string, studentId: string) => {
+        const courseRef = db.collection('courses').doc(courseId);
+        await courseRef.update({
+            students: FieldValue.arrayRemove(studentId)
+        });
+    };
+
+    const handleSendCourseMessage = async (courseId: string, text: string) => {
+        if (!currentUser) return;
+        const courseRef = db.collection('courses').doc(courseId);
+        const newMessage: Message = {
+            id: `msg_course_${Date.now()}`,
+            senderId: currentUser.id,
+            text,
+            timestamp: Date.now(),
+        };
+        await courseRef.update({
+            messages: FieldValue.arrayUnion(newMessage)
+        });
+    };
+
+    const handleUpdateCoursePersonalNote = async (courseId: string, content: string) => {
+        const courseRef = db.collection('courses').doc(courseId);
+        await courseRef.update({
+            personalNote: content
+        });
+    };
+
+
+    // --- NOTICE BOARD HANDLERS ---
+    const handleCreateNotice = async (noticeData: Omit<Notice, 'id' | 'authorId' | 'timestamp'>) => {
+        if (!currentUser || currentUser.tag !== 'Faculty') return;
+        const newNotice: Omit<Notice, 'id'> = {
+            ...noticeData,
+            authorId: currentUser.id,
+            timestamp: Date.now(),
+        };
+        await db.collection('notices').add(newNotice);
+    };
+
+    const handleDeleteNotice = async (noticeId: string) => {
+        if (!currentUser) return;
+        const noticeRef = db.collection('notices').doc(noticeId);
+        const doc = await noticeRef.get();
+        if (!doc.exists) return;
+        const notice = doc.data() as Omit<Notice, 'id'>;
+
+        if (notice.authorId === currentUser.id || currentUser.isAdmin) {
+            await noticeRef.delete();
+        } else {
+            alert("You don't have permission to delete this notice.");
+        }
+    };
+
 
     // --- ADMIN HANDLERS ---
     const handleAdminDeleteUser = async (userId: string) => {
@@ -892,7 +1074,39 @@ const App: React.FC = () => {
             case 'opportunities': return <OpportunitiesPage currentUser={currentUser} users={users} posts={posts} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} postCardProps={postCardProps} />;
             case 'chat': return <ChatPage currentUser={currentUser} users={users} conversations={conversations} onSendMessage={handleSendMessage} onDeleteMultipleMessages={handleDeleteMultipleMessages} onDeleteConversations={handleDeleteConversations} onCreateOrOpenConversation={handleCreateOrOpenConversation} onNavigate={handleNavigate} currentPath={currentPath} />;
             case 'search': return <SearchPage currentUser={currentUser} users={allUsersList} posts={posts} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} {...postCardProps} />;
-            case 'academics': return <AcademicsPage currentUser={currentUser} onNavigate={handleNavigate} currentPath={currentPath} />;
+            case 'academics': 
+                 if (params[0]) { // We have a course ID
+                    const course = courses.find(c => c.id === params[0]);
+                    const studentsForCourse = allUsersList.filter(u => course?.students?.includes(u.id));
+                    return course ? <CourseDetailPage 
+                        course={course} 
+                        currentUser={currentUser} 
+                        allUsers={allUsersList}
+                        onNavigate={handleNavigate} 
+                        currentPath={currentPath}
+                        students={studentsForCourse}
+                        onAddNote={handleAddNote}
+                        onAddAssignment={handleAddAssignment}
+                        onTakeAttendance={handleTakeAttendance}
+                        onRequestToJoinCourse={handleRequestToJoinCourse}
+                        onManageCourseRequest={handleManageCourseRequest}
+                        onAddStudentsToCourse={handleAddStudentsToCourse}
+                        onRemoveStudentFromCourse={handleRemoveStudentFromCourse}
+                        onSendCourseMessage={handleSendCourseMessage}
+                        onUpdateCoursePersonalNote={handleUpdateCoursePersonalNote}
+                    /> : <div>Course not found</div>;
+                }
+                return <AcademicsPage 
+                    currentUser={currentUser} 
+                    onNavigate={handleNavigate} 
+                    currentPath={currentPath} 
+                    courses={courses}
+                    onCreateCourse={handleCreateCourse}
+                    notices={notices}
+                    users={users}
+                    onCreateNotice={handleCreateNotice}
+                    onDeleteNotice={handleDeleteNotice}
+                />;
             case 'admin':
                 if (!currentUser.isAdmin) {
                     handleNavigate('#/home');

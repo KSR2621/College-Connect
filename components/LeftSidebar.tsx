@@ -1,7 +1,7 @@
 import React from 'react';
 import type { User } from '../types';
 import Avatar from './Avatar';
-import { UserIcon, UsersIcon, GhostIcon, BookmarkIcon, CalendarIcon, BriefcaseIcon } from './Icons';
+import { UserIcon, UsersIcon, GhostIcon, BookmarkIcon, CalendarIcon, BriefcaseIcon, NotebookIcon, MegaphoneIcon } from './Icons';
 
 interface LeftSidebarProps {
   currentUser: User;

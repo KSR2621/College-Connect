@@ -1,4 +1,6 @@
-// FIX: Removed the import of `UserTag` from './components/EditProfileModal' to resolve a circular dependency. The type is correctly defined below.
+import React from 'react';
+
+// FIX: Replaced circular import with the actual type definition for UserTag, resolving the circular dependency.
 export type UserTag = 'Student' | 'Faculty' | 'Alumni';
 export type ConfessionMood = 'love' | 'funny' | 'sad' | 'chaos' | 'deep';
 
@@ -16,6 +18,16 @@ export type User = {
   followingGroups?: string[];
   isAdmin?: boolean;
   savedPosts?: string[];
+  // FIX: Added personalNotes property to User type to resolve error in PersonalNotesPage.
+  personalNotes?: PersonalNote[];
+}
+
+// FIX: Added PersonalNote type to resolve error in PersonalNotesPage.
+export type PersonalNote = {
+    id: string;
+    title: string;
+    content: string;
+    timestamp: number;
 }
 
 export type Achievement = {
@@ -121,4 +133,64 @@ export type FeedPreferences = {
   showEvents: boolean;
   showOpportunities: boolean;
   showSharedPosts: boolean;
+};
+
+// --- Academics Types ---
+
+export type Student = {
+    id: string;
+    name: string;
+    avatarUrl?: string;
+};
+
+export type AttendanceStatus = 'present' | 'absent' | 'late';
+
+export type AttendanceRecord = {
+    date: number; // timestamp for the day
+    records: Record<string, { status: AttendanceStatus; note?: string }>; // studentId -> { status, optional note }
+};
+
+export type Note = {
+    id: string;
+    title: string;
+    fileUrl: string;
+    fileName: string;
+    uploadedAt: number;
+};
+
+export type Assignment = {
+    id: string;
+    title: string;
+    fileUrl: string;
+    fileName: string;
+    postedAt: number;
+    dueDate: number;
+};
+
+export type Course = {
+    id: string;
+    subject: string;
+    department: string;
+    year: number;
+    facultyId: string; // Added to identify the instructor
+    description?: string;
+    notes?: Note[];
+    assignments?: Assignment[];
+    attendanceRecords?: AttendanceRecord[];
+    students?: string[]; // array of enrolled student IDs
+    pendingStudents?: string[]; // array of student IDs requesting to join
+    messages?: Message[]; // For in-course chat
+    personalNote?: string; // Private note for faculty
+};
+
+
+// --- Notice Board Types ---
+export type Notice = {
+  id: string;
+  authorId: string;
+  title: string;
+  content: string; // HTML content from editor
+  timestamp: number;
+  targetDepartments: string[];
+  targetYears: number[];
 };

@@ -3,7 +3,7 @@ import type { User } from '../types';
 import Avatar from './Avatar';
 import { 
     HomeIcon, UsersIcon, CalendarIcon, BriefcaseIcon, SearchIcon, MessageIcon, LogoutIcon, BookOpenIcon,
-    HomeIconSolid, UsersIconSolid, CalendarIconSolid, BriefcaseIconSolid, SearchIconSolid, MessageIconSolid, ChevronDownIcon, BookOpenIconSolid
+    HomeIconSolid, UsersIconSolid, CalendarIconSolid, BriefcaseIconSolid, SearchIconSolid, MessageIconSolid, ChevronDownIcon, BookOpenIconSolid, NotebookIcon
 } from './Icons';
 
 interface HeaderProps {
@@ -37,7 +37,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, curr
                     </div>
 
                     {/* Center: Desktop Navigation */}
-                    <nav className="hidden md:flex items-center space-x-1 h-full">
+                    <nav className="hidden md:flex items-center md:space-x-2 lg:space-x-1 h-full">
                        {navItems.map(({ path, icon: Icon, activeIcon: ActiveIcon, label }) => {
                            const isActive = currentPath.startsWith(path);
                            const IconComponent = isActive ? ActiveIcon : Icon;
@@ -45,14 +45,15 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, curr
                                 <button
                                     key={path}
                                     onClick={() => onNavigate(path)}
-                                    className={`flex items-center justify-center h-full w-24 px-1 transition-colors duration-200 relative ${
+                                    className={`flex items-center justify-center h-full px-1 transition-colors duration-200 relative ${
                                         isActive ? 'text-primary' : 'text-text-muted hover:text-primary'
                                     }`}
                                     aria-label={label}
+                                    title={label}
                                 >
-                                    <div className={`flex flex-col items-center justify-center p-2 rounded-lg w-full transition-colors ${isActive ? 'bg-primary/10' : 'hover:bg-slate-100'}`}>
-                                      <IconComponent className="w-6 h-6 mb-1" />
-                                      <span className="text-xs font-medium">{label}</span>
+                                    <div className={`flex flex-col items-center justify-center p-2 rounded-lg md:w-16 lg:w-24 transition-colors ${isActive ? 'bg-primary/10' : 'hover:bg-slate-100'}`}>
+                                      <IconComponent className="w-6 h-6 lg:mb-1" />
+                                      <span className="text-xs font-medium hidden lg:block">{label}</span>
                                     </div>
                                 </button>
                            )
@@ -61,10 +62,16 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, curr
 
                     {/* Right Side Actions */}
                     <div className="flex items-center space-x-2">
-                        {/* Messages Icon (mobile only) */}
-                        <button onClick={() => onNavigate('#/chat')} className="p-2 text-foreground hover:text-primary rounded-full md:hidden" aria-label="Messages">
-                            <MessageIcon className="w-6 h-6" />
-                        </button>
+                        {/* Mobile Icons - these are already correctly hidden on md+ */}
+                        <div className="flex items-center md:hidden">
+                            <button onClick={() => onNavigate('#/academics')} className="p-2 text-foreground hover:text-primary rounded-full" aria-label="Academics">
+                                <BookOpenIcon className="w-6 h-6" />
+                            </button>
+                            <button onClick={() => onNavigate('#/chat')} className="p-2 text-foreground hover:text-primary rounded-full" aria-label="Messages">
+                                <MessageIcon className="w-6 h-6" />
+                            </button>
+                        </div>
+
 
                         {/* Desktop Profile Dropdown */}
                         <div className="relative hidden md:block">

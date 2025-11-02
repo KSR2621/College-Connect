@@ -1,8 +1,8 @@
 import React from 'react';
 import { User } from '../types';
 import { 
-    HomeIcon, UsersIcon, SearchIcon, UserIcon, CalendarIcon,
-    HomeIconSolid, UsersIconSolid, SearchIconSolid, UserIconSolid, CalendarIconSolid
+    HomeIcon, UsersIcon, SearchIcon, UserIcon, CalendarIcon, BriefcaseIcon,
+    HomeIconSolid, UsersIconSolid, SearchIconSolid, UserIconSolid, CalendarIconSolid, BriefcaseIconSolid
 } from './Icons';
 
 interface BottomNavBarProps {
@@ -16,6 +16,7 @@ const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentUser, onNavigate, cu
     { path: '#/home', icon: HomeIcon, activeIcon: HomeIconSolid, label: 'Home' },
     { path: '#/search', icon: SearchIcon, activeIcon: SearchIconSolid, label: 'Search' },
     { path: '#/groups', icon: UsersIcon, activeIcon: UsersIconSolid, label: 'Groups' },
+    { path: '#/opportunities', icon: BriefcaseIcon, activeIcon: BriefcaseIconSolid, label: 'Opportunities' },
     { path: '#/events', icon: CalendarIcon, activeIcon: CalendarIconSolid, label: 'Events' },
     { path: `#/profile/${currentUser.id}`, icon: UserIcon, activeIcon: UserIconSolid, label: 'Profile' },
   ];
@@ -34,7 +35,7 @@ const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentUser, onNavigate, cu
             <button
               key={path}
               onClick={() => onNavigate(path)}
-              className={`flex flex-col items-center justify-center w-1/5 h-16 transition-colors duration-200 group focus:outline-none ${
+              className={`flex flex-col items-center justify-center flex-1 h-16 transition-colors duration-200 group focus:outline-none ${
                 isActive ? 'text-primary' : 'text-text-muted hover:text-primary'
               }`}
               aria-label={label}
