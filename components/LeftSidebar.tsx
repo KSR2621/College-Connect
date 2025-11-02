@@ -52,7 +52,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ currentUser, onNavigate }) =>
             <NavLink icon={UsersIcon} label="My Groups" path="#/groups" onNavigate={onNavigate} />
             <NavLink icon={CalendarIcon} label="Events" path="#/events" onNavigate={onNavigate} />
             <NavLink icon={BriefcaseIcon} label="Opportunities" path="#/opportunities" onNavigate={onNavigate} />
-            <NavLink icon={GhostIcon} label="Confessions" path="#/confessions" onNavigate={onNavigate} />
         </nav>
       </div>
     </div>

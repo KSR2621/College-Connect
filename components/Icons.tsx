@@ -132,3 +132,6 @@ export const FilterIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 export const SparkleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}><path d="M12 2.69l.94 2.88h3.03l-2.45 1.78.94 2.88-2.45-1.78-2.45 1.78.94-2.88-2.45-1.78h3.03L12 2.69zm-5.5 5.81l.94 2.88h3.03l-2.45 1.78.94 2.88-2.45-1.78-2.45 1.78.94-2.88-2.45-1.78h3.03L6.5 8.5zm11 0l.94 2.88h3.03l-2.45 1.78.94 2.88-2.45-1.78-2.45 1.78.94-2.88-2.45-1.78h3.03L17.5 8.5z"/></svg>
 );
+export const RepostIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+);

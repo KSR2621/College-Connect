@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { User, Post, Group, ReactionType, Story, FeedPreferences } from '../types';
+import type { User, Post, Group, ReactionType, Story, FeedPreferences, ConfessionMood } from '../types';
 import Header from '../components/Header';
 import CreatePostModal from '../components/CreatePostModal';
 import Feed from '../components/Feed';
@@ -10,10 +10,8 @@ import StoryViewerModal from '../components/StoryViewerModal';
 import LeftSidebar from '../components/LeftSidebar';
 import RightSidebar from '../components/RightSidebar';
 import InlineCreatePost from '../components/InlineCreatePost';
-import FeedCustomizationModal from '../components/FeedCustomizationModal';
 import { auth } from '../firebase';
-import { FilterIcon, SparkleIcon, CloseIcon } from '../components/Icons';
-
+import { BriefcaseIcon, CalendarIcon, CloseIcon, GhostIcon, PostIcon, PlusIcon, UsersIcon } from '../components/Icons';
 
 interface HomePageProps {
   currentUser: User;
@@ -23,7 +21,7 @@ interface HomePageProps {
   groups: Group[];
   events: Post[];
   onNavigate: (path: string) => void;
-  onAddPost: (postDetails: { content: string; mediaFile?: File | null; mediaType?: "image" | "video" | null; eventDetails?: { title: string; date: string; location: string; link?: string; }; }) => void;
+  onAddPost: (postDetails: { content: string; mediaFile?: File | null; mediaType?: "image" | "video" | null; eventDetails?: { title: string; date: string; location: string; link?: string; }; isConfession?: boolean, confessionMood?: ConfessionMood }) => void;
   onAddStory: (storyDetails: { 
     textContent: string; 
     backgroundColor: string;
@@ -46,177 +44,144 @@ interface HomePageProps {
 }
 
 const HomePage: React.FC<HomePageProps> = (props) => {
-    const { currentUser, users, posts, stories, groups, events, onNavigate, onAddPost, onAddStory, onMarkStoryAsViewed, onDeleteStory, onReplyToStory, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost, currentPath } = props;
+    const { 
+        currentUser, users, posts, stories, groups, events, onNavigate, onAddPost, 
+        onAddStory, onMarkStoryAsViewed, onDeleteStory, onReplyToStory, ...postCardProps 
+    } = props;
+
+    // === STATE MANAGEMENT ===
     const [createModalType, setCreateModalType] = useState<'post' | 'event' | null>(null);
     const [isStoryCreatorOpen, setIsStoryCreatorOpen] = useState(false);
     const [viewingStoryEntityId, setViewingStoryEntityId] = useState<string | null>(null);
-    const [isFeedModalOpen, setIsFeedModalOpen] = useState(false);
-    const [isWelcomeBannerVisible, setIsWelcomeBannerVisible] = useState(false);
+    const [sortOrder, setSortOrder] = useState<'forYou' | 'latest'>('forYou');
+    const [showNewPostsBanner, setShowNewPostsBanner] = useState(false);
     
-    const [feedPreferences, setFeedPreferences] = useState<FeedPreferences>({
-        showRegularPosts: true,
-        showEvents: true,
-        showOpportunities: true,
-        showSharedPosts: true,
-    });
-    
-    useEffect(() => {
-        try {
-            const savedPrefs = localStorage.getItem('feedPreferences');
-            if (savedPrefs) {
-                setFeedPreferences(JSON.parse(savedPrefs));
-            }
-        } catch (e) {
-            console.error("Could not load feed preferences:", e);
-        }
+    // === REFS & PERSISTENCE ===
+    const prevPostCountRef = useRef(posts.length);
+    const mainContentRef = useRef<HTMLDivElement>(null);
 
-        const bannerDismissed = sessionStorage.getItem('welcomeBannerDismissed');
-        if (!bannerDismissed) {
-            setIsWelcomeBannerVisible(true);
+    useEffect(() => {
+        // Load user's sort order from local storage on component mount
+        const savedSortOrder = localStorage.getItem('feedSortOrder') as 'forYou' | 'latest';
+        if (savedSortOrder) {
+            setSortOrder(savedSortOrder);
         }
     }, []);
-
-    const handleDismissBanner = () => {
-        sessionStorage.setItem('welcomeBannerDismissed', 'true');
-        setIsWelcomeBannerVisible(false);
-    };
-
-    const handleSavePreferences = (preferences: FeedPreferences) => {
-        setFeedPreferences(preferences);
-        try {
-            localStorage.setItem('feedPreferences', JSON.stringify(preferences));
-        } catch (e) {
-            console.error("Could not save feed preferences:", e);
+    
+    // Effect to detect new posts and show banner
+    useEffect(() => {
+        const isScrolled = (window.scrollY || document.documentElement.scrollTop) > 200;
+        if (posts.length > prevPostCountRef.current && isScrolled) {
+            setShowNewPostsBanner(true);
         }
-        setIsFeedModalOpen(false);
-    };
+        prevPostCountRef.current = posts.length;
+    }, [posts]);
+
+    // Effect to hide banner on scroll to top
+    useEffect(() => {
+        const handleScroll = () => {
+            if (window.scrollY < 200) {
+                setShowNewPostsBanner(false);
+            }
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
 
+    // === HANDLERS ===
     const handleLogout = async () => {
         await auth.signOut();
         onNavigate('#/');
     };
+    
+    const handleSortOrderChange = (order: 'forYou' | 'latest') => {
+        setSortOrder(order);
+        localStorage.setItem('feedSortOrder', order);
+    };
 
-    // --- START: Stable Feed Logic ---
-    const [feedToRender, setFeedToRender] = useState<Post[]>([]);
-    const prevFeedPreferencesRef = useRef<string>(JSON.stringify(feedPreferences));
-    const prevPostsCountRef = useRef<number>(posts.length);
+    const handleShowNewPosts = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setShowNewPostsBanner(false);
+    };
 
+    // === MEMOIZED FEED LOGIC ===
     const getPostScore = useCallback((post: Post): number => {
-        const now = Date.now();
-        const oneHour = 1000 * 60 * 60;
         let score = 0;
-        const ageInHours = (now - post.timestamp) / oneHour;
-        score += 10 / (ageInHours + 1);
         const author = users[post.authorId];
-        if (author && author.department === currentUser.department && author.id !== currentUser.id) {
-            score += 5;
-        }
+        if (author && author.department === currentUser.department && author.id !== currentUser.id) score += 5;
         if (post.groupId) {
             const group = groups.find(g => g.id === post.groupId);
-            if (group && group.memberIds.includes(currentUser.id)) {
-                score += 8;
-            }
+            if (group && group.memberIds.includes(currentUser.id)) score += 8;
         }
         const userInterests = currentUser.interests || [];
         if (userInterests.length > 0) {
             const postText = [post.content, post.eventDetails?.title, post.opportunityDetails?.title, post.sharedPost?.originalContent].join(' ').toLowerCase();
             for (const interest of userInterests) {
-                if (postText.includes(interest.toLowerCase())) {
-                    score += 3;
-                }
+                if (postText.includes(interest.toLowerCase())) score += 3;
             }
         }
         return score;
     }, [users, currentUser, groups]);
 
-    const filterPost = useCallback((post: Post, prefs: FeedPreferences): boolean => {
-        const isRegularPost = !post.isEvent && !post.isOpportunity && !post.sharedPost;
-        if (!prefs.showRegularPosts && isRegularPost) return false;
-        if (!prefs.showEvents && post.isEvent) return false;
-        if (!prefs.showOpportunities && post.isOpportunity) return false;
-        if (!prefs.showSharedPosts && post.sharedPost) return false;
-        if (post.groupId && !(currentUser.followingGroups && currentUser.followingGroups.includes(post.groupId))) {
-            return false;
-        }
-        if (post.isConfession) {
-            return false;
-        }
-        return true;
-    }, [currentUser]);
+    const feedToRender = useMemo(() => {
+        const userGroupIds = new Set([
+            ...(currentUser.followingGroups || []),
+            ...groups.filter(g => g.memberIds.includes(currentUser.id)).map(g => g.id)
+        ]);
 
-    useEffect(() => {
-        const currentPrefsString = JSON.stringify(feedPreferences);
-        const feedPreferencesChanged = prevFeedPreferencesRef.current !== currentPrefsString;
-        const hasNewPosts = posts.length > prevPostsCountRef.current;
-
-        if (feedToRender.length === 0 || feedPreferencesChanged) {
-            const sorted = posts
-                .filter(p => filterPost(p, feedPreferences))
-                .map(post => ({ post, score: getPostScore(post) }))
-                .sort((a, b) => b.score - a.score)
-                .map(item => item.post);
-            setFeedToRender(sorted);
-        } else {
-            const newPostsMap = new Map(posts.map(p => [p.id, p]));
-            const currentFeedIds = new Set(feedToRender.map(p => p.id));
-
-            let updatedFeed = feedToRender
-                .map(oldPost => newPostsMap.get(oldPost.id))
-                .filter((p): p is Post => !!p);
-
-            if (hasNewPosts) {
-                const newUnseenPosts = posts.filter(p => !currentFeedIds.has(p) && filterPost(p, feedPreferences));
-                if (newUnseenPosts.length > 0) {
-                    updatedFeed = [...newUnseenPosts, ...updatedFeed];
-                }
+        const filtered = posts.filter(post => {
+            // If it's a group post, only show it if the user is a member or follower of that group.
+            if (post.groupId && !userGroupIds.has(post.groupId)) {
+                return false;
             }
-            
-            setFeedToRender(updatedFeed);
+            // Otherwise, show the post (this now includes confessions)
+            return true;
+        });
+
+        if (sortOrder === 'latest') {
+            return filtered; // Already sorted by timestamp desc from source
         }
 
-        prevFeedPreferencesRef.current = currentPrefsString;
-        prevPostsCountRef.current = posts.length;
+        // "For You" sorting logic remains the same, but applied to the new unified feed.
+        return filtered
+            .map(post => ({ post, score: getPostScore(post) }))
+            .sort((a, b) => {
+                if (b.score !== a.score) return b.score - a.score;
+                return b.post.timestamp - a.post.timestamp;
+            })
+            .map(item => item.post);
+    }, [posts, sortOrder, currentUser, groups, getPostScore]);
 
-    }, [posts, feedPreferences, getPostScore, filterPost, feedToRender.length]);
-    // --- END: Stable Feed Logic ---
 
-    const adminOfGroups = groups.filter(g => g.creatorId === currentUser.id);
-
+    // === RENDER ===
     return (
         <div className="bg-slate-50 min-h-screen">
             <Header 
                 currentUser={currentUser} 
                 onLogout={handleLogout} 
                 onNavigate={onNavigate} 
-                currentPath={currentPath}
+                currentPath={props.currentPath}
                 onOpenCreateModal={() => setCreateModalType('post')}
             />
+            
+            {showNewPostsBanner && (
+                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 animate-fade-in">
+                    <button onClick={handleShowNewPosts} className="bg-primary text-primary-foreground font-bold py-2 px-5 rounded-full shadow-lg hover:bg-primary/90 transition-transform transform hover:scale-105">
+                        New Posts Available
+                    </button>
+                </div>
+            )}
 
-            <main className="container mx-auto pt-8 pb-20 md:pb-4">
+            <main className="container mx-auto pt-8 pb-20 md:pb-4" ref={mainContentRef}>
                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    {/* Left Sidebar */}
+                    {/* Left Sidebar (Desktop) */}
                     <aside className="hidden lg:block lg:col-span-3">
                        <LeftSidebar currentUser={currentUser} onNavigate={onNavigate} />
                     </aside>
 
                     {/* Main Content Feed */}
                     <div className="lg:col-span-6">
-                        {isWelcomeBannerVisible && (
-                            <div className="relative bg-gradient-to-r from-primary to-secondary text-white p-6 rounded-2xl shadow-lg mb-6 animate-fade-in flex items-center justify-between">
-                                <div className="flex items-center">
-                                    <SparkleIcon className="w-10 h-10 mr-4 flex-shrink-0" />
-                                    <div>
-                                        <h2 className="text-xl font-bold">Welcome back, {currentUser.name.split(' ')[0]}!</h2>
-                                        <p className="text-sm opacity-90 mt-1">Ready to connect and discover what's new on campus?</p>
-                                    </div>
-                                </div>
-                                <button onClick={handleDismissBanner} className="absolute top-3 right-3 p-1.5 bg-white/20 hover:bg-white/30 rounded-full">
-                                    <CloseIcon className="w-5 h-5" />
-                                </button>
-                            </div>
-                        )}
-
                         <StoriesReel
                             stories={stories}
                             users={users}
@@ -228,12 +193,13 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                         
                         <InlineCreatePost user={currentUser} onOpenCreateModal={setCreateModalType} />
 
-                        <div className="flex justify-between items-center mb-4 px-1">
-                             <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary text-transparent bg-clip-text">For You</h2>
-                             <button onClick={() => setIsFeedModalOpen(true)} className="flex items-center gap-2 text-sm font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-full transition-colors">
-                                <FilterIcon className="w-4 h-4" />
-                                Customize
-                             </button>
+                        {/* Feed sort options */}
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-foreground">Feed</h2>
+                            <div className="flex items-center space-x-1">
+                                <button onClick={() => handleSortOrderChange('forYou')} className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${sortOrder === 'forYou' ? 'bg-primary/10 text-primary' : 'text-text-muted hover:bg-muted'}`}>For You</button>
+                                <button onClick={() => handleSortOrderChange('latest')} className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${sortOrder === 'latest' ? 'bg-primary/10 text-primary' : 'text-text-muted hover:bg-muted'}`}>Latest</button>
+                            </div>
                         </div>
 
 
@@ -241,19 +207,13 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                             posts={feedToRender}
                             users={users}
                             currentUser={currentUser}
-                            onReaction={onReaction}
-                            onAddComment={onAddComment}
-                            onDeletePost={onDeletePost}
-                            onCreateOrOpenConversation={onCreateOrOpenConversation}
-                            onSharePostAsMessage={onSharePostAsMessage}
-                            onSharePost={onSharePost}
-                            onToggleSavePost={onToggleSavePost}
                             groups={groups}
                             onNavigate={onNavigate}
+                            {...postCardProps}
                         />
                     </div>
                     
-                    {/* Right Sidebar */}
+                    {/* Right Sidebar (Desktop) */}
                     <aside className="hidden lg:block lg:col-span-3">
                         <RightSidebar 
                             groups={groups}
@@ -263,12 +223,21 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                             users={Object.values(users)}
                         />
                     </aside>
-
                  </div>
             </main>
 
-            <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
+            <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={props.currentPath}/>
+            
+            <button
+                onClick={() => setCreateModalType('post')}
+                className="fixed bottom-20 right-5 md:bottom-8 md:right-8 bg-primary text-primary-foreground rounded-full p-4 shadow-lg hover:bg-primary/90 transition-transform transform hover:scale-110 z-40"
+                aria-label="Create new post"
+            >
+                <PlusIcon className="w-7 h-7"/>
+            </button>
 
+
+            {/* Modals */}
             <CreatePostModal 
                 isOpen={!!createModalType}
                 onClose={() => setCreateModalType(null)}
@@ -280,7 +249,7 @@ const HomePage: React.FC<HomePageProps> = (props) => {
             {isStoryCreatorOpen && (
                 <StoryCreatorModal
                     currentUser={currentUser}
-                    adminOfGroups={adminOfGroups}
+                    adminOfGroups={groups.filter(g => g.creatorId === currentUser.id)}
                     onClose={() => setIsStoryCreatorOpen(false)}
                     onAddStory={onAddStory}
                 />
@@ -299,13 +268,6 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                     onReplyToStory={onReplyToStory}
                 />
             )}
-
-            <FeedCustomizationModal
-                isOpen={isFeedModalOpen}
-                onClose={() => setIsFeedModalOpen(false)}
-                onSave={handleSavePreferences}
-                currentPreferences={feedPreferences}
-            />
         </div>
     );
 };

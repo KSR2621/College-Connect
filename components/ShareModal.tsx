@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { User, Group, Post } from '../types';
 import Avatar from './Avatar';
-import { SendIcon, PostIcon, MessageIcon } from './Icons';
+import { SendIcon, RepostIcon, MessageIcon } from './Icons';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -62,7 +62,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, currentUser, u
         {/* Tab Navigation */}
         <div className="flex border-b border-border">
           <button onClick={() => setActiveTab('share')} className={`flex-1 flex justify-center items-center space-x-2 py-3 text-sm font-medium ${activeTab === 'share' ? 'border-b-2 border-primary text-primary' : 'text-text-muted hover:text-primary'}`}>
-            <PostIcon className="w-5 h-5"/> <span>Share as Post</span>
+            <RepostIcon className="w-5 h-5"/> <span>Share Post</span>
           </button>
           <button onClick={() => setActiveTab('message')} className={`flex-1 flex justify-center items-center space-x-2 py-3 text-sm font-medium ${activeTab === 'message' ? 'border-b-2 border-primary text-primary' : 'text-text-muted hover:text-primary'}`}>
             <MessageIcon className="w-5 h-5"/> <span>Send as Message</span>
@@ -97,7 +97,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, currentUser, u
                 onClick={handleShareSubmit}
                 className="w-full bg-primary text-primary-foreground font-bold py-2 px-6 rounded-lg hover:bg-primary/90 transition-colors"
             >
-                Share Post
+                Post
             </button>
           </div>
         )}

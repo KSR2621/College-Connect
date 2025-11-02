@@ -130,23 +130,38 @@ const App: React.FC = () => {
 
         const unsubscribers = [
             db.collection('users').onSnapshot(snapshot => {
-                const usersData: { [key: string]: User } = {};
-                snapshot.forEach(doc => {
-                    usersData[doc.id] = { id: doc.id, ...doc.data() } as User;
+                setUsers(prevUsers => {
+                    const newUsers = { ...prevUsers };
+                    for (const change of snapshot.docChanges()) {
+                        const user = { id: change.doc.id, ...change.doc.data() } as User;
+                        if (change.type === 'removed') {
+                            delete newUsers[user.id];
+                        } else { // added or modified
+                            newUsers[user.id] = user;
+                        }
+                    }
+                    return newUsers;
                 });
-                setUsers(usersData);
             }),
             db.collection('posts').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
-                const postsData: Post[] = [];
-                snapshot.forEach(doc => {
-                    postsData.push({ id: doc.id, ...doc.data() } as Post);
+                setPosts(prevPosts => {
+                    const postsMap = new Map(prevPosts.map(p => [p.id, p]));
+                    for (const change of snapshot.docChanges()) {
+                        const data = { id: change.doc.id, ...change.doc.data() } as Post;
+                        if (change.type === "removed") {
+                            postsMap.delete(data.id);
+                        } else { // added or modified
+                            postsMap.set(data.id, data);
+                        }
+                    }
+                    return Array.from(postsMap.values()).sort((a, b) => b.timestamp - a.timestamp);
                 });
-                setPosts(postsData);
             }),
             db.collection('stories')
                 .where('timestamp', '>', twentyFourHoursAgo)
                 .orderBy('timestamp', 'desc')
                 .onSnapshot(snapshot => {
+                    // For stories, which are temporary and less frequently updated, a full replace is simpler and acceptable.
                     const storiesData: Story[] = [];
                     snapshot.forEach(doc => {
                         storiesData.push({ id: doc.id, ...doc.data() } as Story);
@@ -154,18 +169,33 @@ const App: React.FC = () => {
                     setStories(storiesData);
             }),
             db.collection('groups').onSnapshot(snapshot => {
-                const groupsData: Group[] = [];
-                snapshot.forEach(doc => {
-                    groupsData.push({ id: doc.id, ...doc.data() } as Group);
+                 setGroups(prevGroups => {
+                    const groupsMap = new Map(prevGroups.map(g => [g.id, g]));
+                    for (const change of snapshot.docChanges()) {
+                        const group = { id: change.doc.id, ...change.doc.data() } as Group;
+                        if (change.type === "removed") {
+                            groupsMap.delete(group.id);
+                        } else { // added or modified
+                            groupsMap.set(group.id, group);
+                        }
+                    }
+                    // Sort by name for a consistent order in lists
+                    return Array.from(groupsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
                 });
-                setGroups(groupsData);
             }),
             db.collection('conversations').where('participantIds', 'array-contains', currentUser.id).onSnapshot(snapshot => {
-                const conversationsData: Conversation[] = [];
-                snapshot.forEach(doc => {
-                    conversationsData.push({ id: doc.id, ...doc.data() } as Conversation);
+                setConversations(prevConvos => {
+                    const convosMap = new Map(prevConvos.map(c => [c.id, c]));
+                    for (const change of snapshot.docChanges()) {
+                        const convo = { id: change.doc.id, ...change.doc.data() } as Conversation;
+                        if (change.type === "removed") {
+                            convosMap.delete(convo.id);
+                        } else { // added or modified
+                            convosMap.set(convo.id, convo);
+                        }
+                    }
+                    return Array.from(convosMap.values());
                 });
-                setConversations(conversationsData);
             }),
         ];
 
@@ -857,7 +887,6 @@ const App: React.FC = () => {
                     return group ? <GroupDetailPage group={group} currentUser={currentUser} users={users} posts={posts.filter(p => p.groupId === params[0])} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} onAddStory={handleAddStory} onJoinGroupRequest={handleJoinGroupRequest} onApproveJoinRequest={handleApproveJoinRequest} onDeclineJoinRequest={handleDeclineJoinRequest} onDeleteGroup={handleDeleteGroup} onRemoveGroupMember={handleRemoveGroupMember} onSendGroupMessage={handleSendGroupMessage} onToggleFollowGroup={handleToggleFollowGroup} {...postCardProps} /> : <div>Group not found</div>;
                 }
                 return <GroupsPage currentUser={currentUser} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onCreateGroup={handleCreateGroup} />;
-            case 'confessions': return <ConfessionsPage currentUser={currentUser} users={users} posts={posts.filter(p => p.isConfession)} groups={groups} onNavigate={handleNavigate} onAddPost={handleAddPost} currentPath={currentPath} {...postCardProps} />;
             case 'events': return <EventsPage currentUser={currentUser} users={users} events={events} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} {...postCardProps} />;
             case 'opportunities': return <OpportunitiesPage currentUser={currentUser} users={users} posts={posts} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} postCardProps={postCardProps} />;
             case 'chat': return <ChatPage currentUser={currentUser} users={users} conversations={conversations} onSendMessage={handleSendMessage} onDeleteMultipleMessages={handleDeleteMultipleMessages} onDeleteConversations={handleDeleteConversations} onCreateOrOpenConversation={handleCreateOrOpenConversation} onNavigate={handleNavigate} currentPath={currentPath} />;

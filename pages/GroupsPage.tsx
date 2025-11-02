@@ -57,26 +57,6 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ currentUser, groups, onNavigate
             </div>
         </div>
 
-        {/* Confessions Card */}
-        <div 
-            className="group relative bg-gradient-to-r from-purple-600 to-indigo-700 p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer mb-12 flex items-center justify-between" 
-            onClick={() => onNavigate('#/confessions')}
-        >
-            <div className="relative z-10">
-                <div className="flex items-center gap-4">
-                     <div className="flex-shrink-0 h-14 w-14 bg-white/20 text-white rounded-xl flex items-center justify-center">
-                        <GhostIcon className="h-8 w-8"/>
-                    </div>
-                    <div>
-                        <h3 className="text-xl font-bold text-white">Campus Confessions</h3>
-                        <p className="text-sm text-white/80">Share your thoughts anonymously.</p>
-                    </div>
-                </div>
-            </div>
-             <ArrowRightIcon className="w-6 h-6 text-white/70 group-hover:text-white group-hover:translate-x-1 transition-transform duration-300 relative z-10" />
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
-        </div>
-
         {/* My Groups Section */}
         {myGroups.length > 0 && (
             <div className="mb-12">
