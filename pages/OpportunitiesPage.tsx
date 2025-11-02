@@ -13,7 +13,7 @@ interface OpportunitiesPageProps {
   posts: Post[];
   onNavigate: (path: string) => void;
   currentPath: string;
-  onAddPost: (postDetails: any) => void; // Using 'any' for simplicity due to merged post types
+  onAddPost: (postDetails: { content: string; isOpportunity?: boolean; opportunityDetails?: { title: string; organization: string; applyLink?: string; }; eventDetails?: { title: string; date: string; location: string; link?: string; }; }) => void;
   postCardProps: {
     onReaction: (postId: string, reaction: ReactionType) => void;
     onAddComment: (postId: string, text: string) => void;

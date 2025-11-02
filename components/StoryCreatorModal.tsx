@@ -26,12 +26,14 @@ type Poster = {
 }
 
 const backgroundOptions = [
-    'bg-gradient-to-br from-indigo-500 to-purple-600',
-    'bg-gradient-to-br from-green-400 to-blue-500',
-    'bg-gradient-to-br from-red-500 to-orange-500',
-    'bg-gradient-to-br from-pink-500 to-rose-500',
-    'bg-gradient-to-br from-gray-700 to-gray-900',
-    'bg-gradient-to-br from-sky-400 to-cyan-300',
+    'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500',
+    'bg-gradient-to-br from-green-400 to-cyan-500',
+    'bg-gradient-to-br from-yellow-400 via-red-500 to-pink-500',
+    'bg-gradient-to-br from-rose-400 via-fuchsia-500 to-indigo-500',
+    'bg-gradient-to-br from-sky-400 to-blue-600',
+    'bg-gradient-to-br from-lime-400 via-emerald-500 to-teal-600',
+    'bg-gradient-to-br from-orange-400 via-amber-500 to-yellow-500',
+    'bg-gradient-to-br from-gray-700 via-gray-900 to-black',
 ];
 
 const fontFamilies = [
@@ -120,7 +122,7 @@ const StoryCreatorModal: React.FC<StoryCreatorModalProps> = ({ currentUser, admi
                         <button 
                             key={bg} 
                             onClick={() => setBackgroundColor(bg)}
-                            className={`w-8 h-8 rounded-full ${bg} border-2 ${backgroundColor === bg ? 'border-white' : 'border-transparent'}`}
+                            className={`w-8 h-8 rounded-full ${bg} border-2 transition-all duration-200 ${backgroundColor === bg ? 'border-white scale-110' : 'border-transparent'}`}
                             aria-label={`Select background ${bg}`}
                         />
                     ))}
@@ -169,7 +171,7 @@ const StoryCreatorModal: React.FC<StoryCreatorModalProps> = ({ currentUser, admi
                 <button 
                     onClick={handleSubmit}
                     disabled={!textContent.trim()}
-                    className="flex items-center space-x-2 bg-white text-black font-bold py-3 px-6 rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center space-x-2 bg-white text-black font-bold py-3 px-6 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-transform hover:scale-105 hover:shadow-lg"
                 >
                     <SendIcon className="w-5 h-5"/>
                     <span>Share Story</span>

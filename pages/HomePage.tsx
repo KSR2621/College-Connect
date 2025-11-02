@@ -23,7 +23,7 @@ interface HomePageProps {
   groups: Group[];
   events: Post[];
   onNavigate: (path: string) => void;
-  onAddPost: (postDetails: { content: string; mediaFile?: File | null; mediaType?: "image" | "video" | null; eventDetails?: { title: string; date: string; location: string; }; }) => void;
+  onAddPost: (postDetails: { content: string; mediaFile?: File | null; mediaType?: "image" | "video" | null; eventDetails?: { title: string; date: string; location: string; link?: string; }; }) => void;
   onAddStory: (storyDetails: { 
     textContent: string; 
     backgroundColor: string;
@@ -142,13 +142,6 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                         score += 3;
                     }
                 }
-            }
-
-            // 6. Deprioritize posts the user has already interacted with
-            const hasReacted = Object.values(post.reactions || {}).some(arr => arr?.includes(currentUser.id));
-            const hasCommented = post.comments.some(c => c.authorId === currentUser.id);
-            if (hasReacted || hasCommented) {
-                score *= 0.2;
             }
 
             return score;

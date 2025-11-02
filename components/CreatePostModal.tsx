@@ -10,7 +10,7 @@ interface CreatePostModalProps {
     content: string;
     mediaFile?: File | null;
     mediaType?: 'image' | 'video' | null;
-    eventDetails?: { title: string; date: string; location: string; };
+    eventDetails?: { title: string; date: string; location: string; link?: string; };
     groupId?: string;
     isConfession?: boolean;
   }) => void;

@@ -74,6 +74,10 @@
               '0%': { transform: 'rotate(0deg)' },
               '100%': { transform: 'rotate(360deg)' },
             },
+            shimmer: {
+              '0%': { transform: 'translateX(-100%)' },
+              '100%': { transform: 'translateX(100%)' },
+            }
           },
           animation: {
             progress: 'progress 5s linear forwards',
@@ -159,8 +163,24 @@
       }
       .add-story-ring {
         border-radius: 9999px;
-        border: 2px dashed #d1d5db; /* gray-300 */
+        border: 2px solid #93c5fd; /* blue-300 */
+        background-color: #eff6ff; /* blue-50 */
         padding: 2px;
+        transition: all 0.2s ease-in-out;
+      }
+       .add-story-ring:hover {
+        border-color: #3b82f6; /* primary */
+        transform: scale(1.05);
+      }
+      .progress-bar-shimmer::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+        animation: shimmer 2s infinite linear;
       }
     </style>
 

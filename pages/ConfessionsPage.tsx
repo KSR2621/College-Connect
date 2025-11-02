@@ -19,6 +19,7 @@ interface ConfessionsPageProps {
     mediaType?: "image" | "video" | null; 
     isConfession?: boolean;
     confessionMood?: ConfessionMood;
+    eventDetails?: { title: string; date: string; location: string; link?: string; };
   }) => void;
   onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;

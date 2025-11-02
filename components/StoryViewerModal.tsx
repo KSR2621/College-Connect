@@ -25,7 +25,7 @@ const StoryProgressBar: React.FC<{ count: number; currentIndex: number; isPaused
                     {index === currentIndex && (
                         <div
                             key={`${currentEntityId}-${currentIndex}`} // Force re-render/restart animation
-                            className={`h-full bg-white ${!isPaused ? 'animate-progress' : ''}`}
+                            className={`relative h-full bg-white progress-bar-shimmer ${!isPaused ? 'animate-progress' : ''}`}
                             style={{ 
                                 transformOrigin: 'left',
                                 animationPlayState: isPaused ? 'paused' : 'running'
@@ -288,9 +288,9 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
                                 value={replyText}
                                 onChange={(e) => setReplyText(e.target.value)}
                                 placeholder={`Reply to ${activeEntity.name}...`}
-                                className="flex-1 bg-black/20 border border-white/30 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-white text-white placeholder:text-white/70 text-sm"
+                                className="flex-1 bg-white/20 border border-white/30 rounded-full px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-white text-white placeholder:text-white/70 text-sm backdrop-blur-sm"
                             />
-                            <button type="submit" className="p-2 rounded-full text-white hover:bg-white/20 disabled:opacity-50" disabled={!replyText.trim()}>
+                            <button type="submit" className="p-2.5 rounded-full text-white bg-white/20 hover:bg-white/30 disabled:opacity-50" disabled={!replyText.trim()}>
                                 <SendIcon className="w-6 h-6" />
                             </button>
                         </form>

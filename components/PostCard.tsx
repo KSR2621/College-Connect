@@ -437,6 +437,13 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                     )}
                     
                     {post.content && <p className="mt-3 text-card-foreground text-sm whitespace-pre-wrap line-clamp-2 flex-grow" dangerouslySetInnerHTML={{ __html: post.content }}></p>}
+                    
+                    {post.eventDetails.link && (
+                        <a href={post.eventDetails.link} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center justify-center w-full bg-secondary text-secondary-foreground font-bold py-2 px-4 rounded-lg text-sm hover:bg-secondary/90 transition-transform transform group-hover:scale-105">
+                           <LinkIcon className="w-4 h-4 mr-2"/>
+                           Join Event / Learn More
+                        </a>
+                    )}
                 </div>
 
                 <div className="mt-auto border-t border-border">

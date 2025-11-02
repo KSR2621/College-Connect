@@ -42,6 +42,7 @@ export type SharedPostInfo = {
       title: string;
       date: string;
       location: string;
+      link?: string;
   };
   originalIsConfession?: boolean;
 }
@@ -65,6 +66,7 @@ export type Post = {
         title: string;
         date: string;
         location: string;
+        link?: string;
     };
     isConfession?: boolean;
     confessionMood?: ConfessionMood;
