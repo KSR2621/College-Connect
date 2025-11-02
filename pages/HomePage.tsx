@@ -162,7 +162,6 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                 onLogout={handleLogout} 
                 onNavigate={onNavigate} 
                 currentPath={props.currentPath}
-                onOpenCreateModal={() => setCreateModalType('post')}
             />
             
             {showNewPostsBanner && (

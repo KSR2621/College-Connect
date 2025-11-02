@@ -16,6 +16,7 @@ import ChatPage from './pages/ChatPage';
 import SearchPage from './pages/SearchPage';
 import ConfessionsPage from './pages/ConfessionsPage';
 import AdminPage from './pages/AdminPage';
+import AcademicsPage from './pages/AcademicsPage';
 
 const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -891,6 +892,7 @@ const App: React.FC = () => {
             case 'opportunities': return <OpportunitiesPage currentUser={currentUser} users={users} posts={posts} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} postCardProps={postCardProps} />;
             case 'chat': return <ChatPage currentUser={currentUser} users={users} conversations={conversations} onSendMessage={handleSendMessage} onDeleteMultipleMessages={handleDeleteMultipleMessages} onDeleteConversations={handleDeleteConversations} onCreateOrOpenConversation={handleCreateOrOpenConversation} onNavigate={handleNavigate} currentPath={currentPath} />;
             case 'search': return <SearchPage currentUser={currentUser} users={allUsersList} posts={posts} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} {...postCardProps} />;
+            case 'academics': return <AcademicsPage currentUser={currentUser} onNavigate={handleNavigate} currentPath={currentPath} />;
             case 'admin':
                 if (!currentUser.isAdmin) {
                     handleNavigate('#/home');

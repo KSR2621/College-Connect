@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import type { User } from '../types';
 import Avatar from './Avatar';
 import { 
-    HomeIcon, UsersIcon, CalendarIcon, BriefcaseIcon, SearchIcon, MessageIcon, LogoutIcon, PlusSquareIcon,
-    HomeIconSolid, UsersIconSolid, CalendarIconSolid, BriefcaseIconSolid, SearchIconSolid, MessageIconSolid, ChevronDownIcon
+    HomeIcon, UsersIcon, CalendarIcon, BriefcaseIcon, SearchIcon, MessageIcon, LogoutIcon, BookOpenIcon,
+    HomeIconSolid, UsersIconSolid, CalendarIconSolid, BriefcaseIconSolid, SearchIconSolid, MessageIconSolid, ChevronDownIcon, BookOpenIconSolid
 } from './Icons';
 
 interface HeaderProps {
@@ -11,13 +11,12 @@ interface HeaderProps {
     onLogout: () => void;
     onNavigate: (path: string) => void;
     currentPath: string;
-    // FIX: Made onOpenCreateModal optional to accommodate pages that don't have this feature.
-    onOpenCreateModal?: () => void;
 }
 
 const navItems = [
     { path: '#/home', icon: HomeIcon, activeIcon: HomeIconSolid, label: 'Home' },
     { path: '#/search', icon: SearchIcon, activeIcon: SearchIconSolid, label: 'Search' },
+    { path: '#/academics', icon: BookOpenIcon, activeIcon: BookOpenIconSolid, label: 'Academics' },
     { path: '#/groups', icon: UsersIcon, activeIcon: UsersIconSolid, label: 'Groups' },
     { path: '#/events', icon: CalendarIcon, activeIcon: CalendarIconSolid, label: 'Events' },
     { path: '#/opportunities', icon: BriefcaseIcon, activeIcon: BriefcaseIconSolid, label: 'Opportunities' },
@@ -25,7 +24,7 @@ const navItems = [
 ];
 
 
-const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, currentPath, onOpenCreateModal }) => {
+const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, currentPath }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     return (
@@ -38,7 +37,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, curr
                     </div>
 
                     {/* Center: Desktop Navigation */}
-                    <nav className="hidden md:flex items-center space-x-2 h-full">
+                    <nav className="hidden md:flex items-center space-x-1 h-full">
                        {navItems.map(({ path, icon: Icon, activeIcon: ActiveIcon, label }) => {
                            const isActive = currentPath.startsWith(path);
                            const IconComponent = isActive ? ActiveIcon : Icon;
@@ -46,7 +45,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, curr
                                 <button
                                     key={path}
                                     onClick={() => onNavigate(path)}
-                                    className={`flex items-center justify-center h-full w-24 px-2 transition-colors duration-200 relative ${
+                                    className={`flex items-center justify-center h-full w-24 px-1 transition-colors duration-200 relative ${
                                         isActive ? 'text-primary' : 'text-text-muted hover:text-primary'
                                     }`}
                                     aria-label={label}
@@ -62,14 +61,6 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, curr
 
                     {/* Right Side Actions */}
                     <div className="flex items-center space-x-2">
-                         {/* Create Post Icon (all screens) */}
-                        {/* FIX: Conditionally render the create post button only if the handler is provided. */}
-                        {onOpenCreateModal && (
-                            <button onClick={onOpenCreateModal} className="p-2 text-foreground hover:text-primary rounded-full hover:bg-slate-100" aria-label="Create Post">
-                                <PlusSquareIcon className="w-6 h-6" />
-                            </button>
-                        )}
-                        
                         {/* Messages Icon (mobile only) */}
                         <button onClick={() => onNavigate('#/chat')} className="p-2 text-foreground hover:text-primary rounded-full md:hidden" aria-label="Messages">
                             <MessageIcon className="w-6 h-6" />
