@@ -28,7 +28,7 @@ const Feed: React.FC<FeedProps> = (props) => {
   
   return (
     <div className="space-y-4">
-      {posts.map(post => {
+      {posts.map((post, index) => {
           const author = users[post.authorId];
           // Don't render post if author data is not yet available (unless it's a confession)
           if (!author && !post.isConfession) return null;
@@ -48,6 +48,7 @@ const Feed: React.FC<FeedProps> = (props) => {
               onToggleSavePost={onToggleSavePost}
               groups={groups}
               onNavigate={onNavigate}
+              animationIndex={index}
             />
           );
       })}

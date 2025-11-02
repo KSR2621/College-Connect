@@ -24,8 +24,8 @@ type StoryEntity = {
 // "Add Story" component - a permanent first item in the reel
 const AddStoryCircle: React.FC<{ user: User; onClick: () => void; }> = ({ user, onClick }) => (
     <div className="text-center flex-shrink-0 w-16 cursor-pointer" onClick={onClick}>
-        <div className="relative group w-14 h-14 mx-auto">
-            <Avatar src={user.avatarUrl} name={user.name} size="lg" className="w-14 h-14"/>
+        <div className="relative group w-14 h-14 mx-auto add-story-ring">
+            <Avatar src={user.avatarUrl} name={user.name} size="lg" className="w-full h-full"/>
             <div className="absolute bottom-0 right-0">
                 <PlusCircleIcon className="w-5 h-5 text-primary bg-white rounded-full border-2 border-white" />
             </div>
@@ -37,12 +37,12 @@ const AddStoryCircle: React.FC<{ user: User; onClick: () => void; }> = ({ user, 
 // A circle representing a user or group's story
 const StoryCircle: React.FC<{ entity: StoryEntity; onClick: () => void }> = ({ entity, onClick }) => {
     const ringClass = entity.hasUnviewed 
-        ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-pink-500' 
-        : 'bg-slate-200';
+        ? 'story-ring-unviewed' 
+        : 'story-ring-viewed';
 
     return (
         <div className="text-center flex-shrink-0 w-16 cursor-pointer" onClick={onClick}>
-            <div className={`p-0.5 rounded-full ${ringClass} transition-all`}>
+            <div className={ringClass}>
                 <div className="bg-white p-0.5 rounded-full">
                     {entity.type === 'user' ? (
                          <Avatar src={entity.avatarUrl} name={entity.name} size="lg" className="w-14 h-14"/>
@@ -116,7 +116,7 @@ const StoriesReel: React.FC<StoriesReelProps> = ({ stories, users, groups, curre
     }, [stories, users, groups, currentUser.id, currentUser.followingGroups]);
     
     return (
-        <div className="bg-card rounded-lg shadow-sm border border-border p-4 mb-6">
+        <div className="glassmorphic-card rounded-lg shadow-sm p-4 mb-6">
             <div className="flex items-center space-x-2 overflow-x-auto pb-2 no-scrollbar">
                 <AddStoryCircle user={currentUser} onClick={onAddStoryClick} />
                 {storyEntities.map(entity => (

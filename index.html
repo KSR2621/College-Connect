@@ -54,6 +54,7 @@
           boxShadow: {
             'card': '0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07)',
             'card-hover': '0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07)',
+            'xl': '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
           },
           keyframes: {
             progress: {
@@ -63,11 +64,22 @@
             fadeIn: {
                 '0%': { opacity: 0, transform: 'translateY(10px)' },
                 '100%': { opacity: 1, transform: 'translateY(0)' },
-            }
+            },
+            'animated-gradient': {
+                '0%': { backgroundPosition: '0% 50%' },
+                '50%': { backgroundPosition: '100% 50%' },
+                '100%': { backgroundPosition: '0% 50%' },
+            },
+            'rotate-gradient': {
+              '0%': { transform: 'rotate(0deg)' },
+              '100%': { transform: 'rotate(360deg)' },
+            },
           },
           animation: {
             progress: 'progress 5s linear forwards',
             'fade-in': 'fadeIn 0.5s ease-out forwards',
+            'animated-gradient': 'animated-gradient 4s ease infinite',
+            'rotate-gradient': 'rotate-gradient 6s linear infinite',
           },
         }
       }
@@ -97,6 +109,59 @@
       button, a {
         transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
       }
+      /* Add a subtle global background pattern */
+      body {
+        background-color: #f8fafc; /* bg-slate-50 */
+        background-image: radial-gradient(circle at 1px 1px, #e2e8f0 1px, transparent 0); /* slate-200 dots */
+        background-size: 20px 20px;
+      }
+      
+      @keyframes animated-gradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+
+      .animated-border {
+        background: linear-gradient(60deg, #3B82F6, #EC4899, #FBBF24, #3B82F6);
+        background-size: 300% 300%;
+        animation: animated-gradient 4s ease infinite;
+      }
+
+      /* Glassmorphism Card Style */
+      .glassmorphic-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+      }
+
+      /* Story Ring Styles */
+      .story-ring-unviewed {
+        position: relative;
+        padding: 2px;
+        border-radius: 9999px;
+      }
+      .story-ring-unviewed::before {
+        content: '';
+        position: absolute;
+        top: 0; right: 0; bottom: 0; left: 0;
+        z-index: -1;
+        margin: -2px;
+        border-radius: inherit;
+        background: linear-gradient(to right, #FBBF24, #EC4899, #3B82F6);
+        animation: rotate-gradient 6s linear infinite;
+      }
+      .story-ring-viewed {
+        padding: 2px;
+        border-radius: 9999px;
+        background-color: #e2e8f0; /* slate-200 */
+      }
+      .add-story-ring {
+        border-radius: 9999px;
+        border: 2px dashed #d1d5db; /* gray-300 */
+        padding: 2px;
+      }
     </style>
 
     <!--
@@ -110,7 +175,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 
 </head>
-<body class="bg-slate-50 text-foreground">
+<body class="text-foreground">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
 </body>

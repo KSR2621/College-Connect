@@ -20,6 +20,7 @@ interface PostCardProps {
   onToggleSavePost: (postId: string) => void;
   groups: Group[];
   onNavigate: (path: string) => void;
+  animationIndex?: number;
 }
 
 const reactionsList: { type: ReactionType; emoji: string; color: string; label: string }[] = [
@@ -44,20 +45,20 @@ const formatTimestamp = (timestamp: number) => {
     const postDate = new Date(timestamp);
     const diffInSeconds = Math.floor((now.getTime() - postDate.getTime()) / 1000);
 
-    if (diffInSeconds < 60) return `${diffInSeconds}s`;
+    if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
     const diffInMinutes = Math.floor(diffInSeconds / 60);
-    if (diffInMinutes < 60) return `${diffInMinutes}m`;
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `${diffInHours}h`;
+    if (diffInHours < 24) return `${diffInHours}h ago`;
     const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays}d`;
+    if (diffInDays < 7) return `${diffInDays}d ago`;
     
     return postDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
 
 const PostCard: React.FC<PostCardProps> = (props) => {
-  const { post, author, currentUser, users, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost, groups, onNavigate } = props;
+  const { post, author, currentUser, users, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost, groups, onNavigate, animationIndex } = props;
   const [showComments, setShowComments] = useState(false);
   const [shareModalState, setShareModalState] = useState<{isOpen: boolean, defaultTab: 'share' | 'message'}>({isOpen: false, defaultTab: 'share'});
   const [isReactionsModalOpen, setIsReactionsModalOpen] = useState(false);
@@ -227,12 +228,18 @@ const PostCard: React.FC<PostCardProps> = (props) => {
         setPickerVisible(false);
     };
 
+    const animationStyle = animationIndex !== undefined ? { animationDelay: `${animationIndex * 100}ms` } : {};
+    const animationClass = animationIndex !== undefined ? 'animate-fade-in opacity-0' : '';
+
     // RENDER CONFESSION CARD
   if (post.isConfession) {
     const mood = post.confessionMood ? confessionMoods[post.confessionMood] : confessionMoods.deep;
 
     return (
-      <div className="flex flex-col">
+      <div 
+        className={`flex flex-col ${animationClass}`}
+        style={animationStyle}
+      >
         <div className={`relative bg-gradient-to-br ${mood.gradient} rounded-lg shadow-card text-white p-8 flex flex-col justify-center items-center transition-transform transform hover:scale-[1.02] min-h-[180px] overflow-hidden`}>
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/subtle-prism.png')] opacity-10"></div>
           <span className="absolute top-3 left-3 text-3xl opacity-80">{mood.emoji}</span>
@@ -366,168 +373,175 @@ const PostCard: React.FC<PostCardProps> = (props) => {
     const isPast = now.getTime() - eventDate.getTime() >= fourHours;
 
     return (
-        <div className="bg-card rounded-xl shadow-card hover:shadow-card-hover border border-border flex flex-col overflow-hidden transition-shadow duration-300 group">
-            {post.mediaUrl && post.mediaType === 'image' && (
-                <div className="relative h-48 overflow-hidden">
-                    <img src={post.mediaUrl} alt={post.eventDetails.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                    {isLive && (
-                        <span className="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse z-10">LIVE</span>
-                    )}
-                     <div className="absolute bottom-4 left-4 z-10">
-                        <h3 className="text-xl font-bold text-white shadow-2xl line-clamp-2">{post.eventDetails.title}</h3>
-                        <p className="text-sm font-medium text-white/90 mt-1">by {author.name}</p>
-                     </div>
-                </div>
-            )}
-            <div className="p-4 flex flex-col flex-1">
-                 {!post.mediaUrl && (
-                    <div className="relative flex-1">
-                        {canDelete && (
-                            <button
-                                onClick={handleDelete}
-                                className="absolute -top-1 -right-1 z-10 text-text-muted hover:text-destructive p-2 rounded-full hover:bg-destructive/10 transition-colors"
-                                aria-label="Delete event"
-                            >
-                                <TrashIcon className="w-5 h-5" />
-                            </button>
+        <div
+            className={`p-0.5 rounded-xl animated-border ${animationClass}`}
+            style={animationStyle}
+        >
+            <div 
+                className="bg-card rounded-[10px] shadow-card hover:shadow-card-hover flex flex-col overflow-hidden transition-shadow duration-300 group"
+            >
+                {post.mediaUrl && post.mediaType === 'image' && (
+                    <div className="relative h-48 overflow-hidden">
+                        <img src={post.mediaUrl} alt={post.eventDetails.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                        {isLive && (
+                            <span className="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse z-10">LIVE</span>
                         )}
-                        <h3 className="text-lg font-bold text-foreground line-clamp-2 pr-8">{post.eventDetails.title}</h3>
-                        <p className="text-xs text-text-muted mt-1">By {author.name}</p>
-                    </div>
-                 )}
-                 
-                <div className="flex items-center gap-4 mt-3">
-                    <div className="flex-shrink-0 bg-card rounded-lg shadow-md w-16 text-center border border-border">
-                        <div className="bg-secondary text-secondary-foreground text-xs font-bold uppercase py-1 rounded-t-md">
-                            {eventDate.toLocaleString('default', { month: 'short' })}
-                        </div>
-                        <div className="text-2xl font-bold text-foreground py-1">
-                            {eventDate.getDate()}
-                        </div>
-                    </div>
-                    <div className="flex-1">
-                        <p className={`text-sm font-semibold ${isPast ? 'text-text-muted' : 'text-primary'}`}>
-                            {eventDate.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit'})}
-                        </p>
-                        <p className="text-sm text-text-muted font-medium mt-1 flex items-center gap-1.5">
-                            <CalendarIcon className="w-4 h-4" /> 
-                            {post.eventDetails.location}
-                        </p>
-                    </div>
-                </div>
-                
-                {countdown && !isPast && (
-                    <div className="mt-3 bg-accent/20 text-accent-foreground text-xs font-bold px-2.5 py-1 rounded-full self-start">
-                        {countdown}
+                         <div className="absolute bottom-4 left-4 z-10">
+                            <h3 className="text-xl font-bold text-white shadow-2xl line-clamp-2">{post.eventDetails.title}</h3>
+                            <p className="text-sm font-medium text-white/90 mt-1">by {author.name}</p>
+                         </div>
                     </div>
                 )}
-                
-                {post.content && <p className="mt-3 text-card-foreground text-sm whitespace-pre-wrap line-clamp-2 flex-grow" dangerouslySetInnerHTML={{ __html: post.content }}></p>}
-            </div>
+                <div className="p-4 flex flex-col flex-1">
+                     {!post.mediaUrl && (
+                        <div className="relative flex-1">
+                            {canDelete && (
+                                <button
+                                    onClick={handleDelete}
+                                    className="absolute -top-1 -right-1 z-10 text-text-muted hover:text-destructive p-2 rounded-full hover:bg-destructive/10 transition-colors"
+                                    aria-label="Delete event"
+                                >
+                                    <TrashIcon className="w-5 h-5" />
+                                </button>
+                            )}
+                            <h3 className="text-lg font-bold text-foreground line-clamp-2 pr-8">{post.eventDetails.title}</h3>
+                            <p className="text-xs text-text-muted mt-1">By {author.name}</p>
+                        </div>
+                     )}
+                     
+                    <div className="flex items-center gap-4 mt-3">
+                        <div className="flex-shrink-0 bg-card rounded-lg shadow-md w-16 text-center border border-border">
+                            <div className="bg-secondary text-secondary-foreground text-xs font-bold uppercase py-1 rounded-t-md">
+                                {eventDate.toLocaleString('default', { month: 'short' })}
+                            </div>
+                            <div className="text-2xl font-bold text-foreground py-1">
+                                {eventDate.getDate()}
+                            </div>
+                        </div>
+                        <div className="flex-1">
+                            <p className={`text-sm font-semibold ${isPast ? 'text-text-muted' : 'text-primary'}`}>
+                                {eventDate.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit'})}
+                            </p>
+                            <p className="text-sm text-text-muted font-medium mt-1 flex items-center gap-1.5">
+                                <CalendarIcon className="w-4 h-4" /> 
+                                {post.eventDetails.location}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    {countdown && !isPast && (
+                        <div className="mt-3 bg-accent/20 text-accent-foreground text-xs font-bold px-2.5 py-1 rounded-full self-start">
+                            {countdown}
+                        </div>
+                    )}
+                    
+                    {post.content && <p className="mt-3 text-card-foreground text-sm whitespace-pre-wrap line-clamp-2 flex-grow" dangerouslySetInnerHTML={{ __html: post.content }}></p>}
+                </div>
 
-            <div className="mt-auto border-t border-border">
-                {/* Reactions and Comments Info */}
-                <div className="flex flex-wrap items-center justify-between gap-y-1 gap-x-4 text-sm text-text-muted px-4 py-2">
-                    <div className="flex items-center space-x-2">
-                        {reactionSummary.total > 0 && (
-                            <button onClick={() => setIsReactionsModalOpen(true)} className="flex items-center hover:underline">
-                                <div className="flex items-center">
-                                    {reactionSummary.topEmojis.map(({ emoji, type }) => (
-                                        <span key={type} className="text-lg -ml-1 drop-shadow-sm first:ml-0">{emoji}</span>
-                                    ))}
-                                </div>
-                                <span className="ml-2">{reactionSummary.total}</span>
+                <div className="mt-auto border-t border-border">
+                    {/* Reactions and Comments Info */}
+                    <div className="flex flex-wrap items-center justify-between gap-y-1 gap-x-4 text-sm text-text-muted px-4 py-2">
+                        <div className="flex items-center space-x-2">
+                            {reactionSummary.total > 0 && (
+                                <button onClick={() => setIsReactionsModalOpen(true)} className="flex items-center hover:underline">
+                                    <div className="flex items-center">
+                                        {reactionSummary.topEmojis.map(({ emoji, type }) => (
+                                            <span key={type} className="text-lg -ml-1 drop-shadow-sm first:ml-0">{emoji}</span>
+                                        ))}
+                                    </div>
+                                    <span className="ml-2">{reactionSummary.total}</span>
+                                </button>
+                            )}
+                        </div>
+                        {post.comments.length > 0 && (
+                            <button onClick={() => setShowComments(!showComments)} className="hover:underline">
+                                {post.comments.length} {post.comments.length === 1 ? 'comment' : 'comments'}
                             </button>
                         )}
                     </div>
-                    {post.comments.length > 0 && (
-                        <button onClick={() => setShowComments(!showComments)} className="hover:underline">
-                            {post.comments.length} {post.comments.length === 1 ? 'comment' : 'comments'}
-                        </button>
-                    )}
-                </div>
-            
-                {/* Actions Bar */}
-                <div className="border-t border-border flex justify-around items-center">
-                    <div 
-                        className="relative flex-1"
-                        onMouseEnter={handleMouseEnter}
-                        onMouseLeave={handleMouseLeave}
-                    >
-                        {isPickerVisible && (
-                            <div className="absolute bottom-full mb-2 left-4 right-4 sm:w-auto sm:left-1/2 sm:-translate-x-1/2 flex flex-wrap items-center justify-center gap-2 bg-card p-2 rounded-2xl border border-border shadow-lg transition-opacity duration-200">
-                                {reactionsList.map(reaction => (
-                                    <button 
-                                        key={reaction.type} 
-                                        onClick={() => handleReactionSelect(reaction.type)}
-                                        className="p-1 rounded-full transition-transform duration-150 ease-in-out hover:scale-125 hover:-translate-y-1"
-                                        title={reaction.label}
-                                    >
-                                        <span className="text-3xl drop-shadow-md">{reaction.emoji}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                        
-                        <button 
-                            onClick={handleLikeClick}
-                            onTouchStart={handleTouchStart}
-                            onTouchEnd={handleTouchEnd}
-                            className={`w-full flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted transition-colors ${
-                                currentUserReaction ? currentUserReaction.color + ' font-bold' : 'text-text-muted'
-                            }`}
+                
+                    {/* Actions Bar */}
+                    <div className="border-t border-border flex justify-around items-center">
+                        <div 
+                            className="relative flex-1"
+                            onMouseEnter={handleMouseEnter}
+                            onMouseLeave={handleMouseLeave}
                         >
-                            {currentUserReaction ? (
-                                <span className="text-xl" role="img" aria-label={currentUserReaction.label}>{currentUserReaction.emoji}</span>
-                            ) : (
-                                <LikeIcon className="w-6 h-6" fill="none" stroke="currentColor"/>
+                            {isPickerVisible && (
+                                <div className="absolute bottom-full mb-2 left-4 right-4 sm:w-auto sm:left-1/2 sm:-translate-x-1/2 flex flex-wrap items-center justify-center gap-2 bg-card p-2 rounded-2xl border border-border shadow-lg transition-opacity duration-200">
+                                    {reactionsList.map(reaction => (
+                                        <button 
+                                            key={reaction.type} 
+                                            onClick={() => handleReactionSelect(reaction.type)}
+                                            className="p-1 rounded-full transition-transform duration-150 ease-in-out hover:scale-125 hover:-translate-y-1"
+                                            title={reaction.label}
+                                        >
+                                            <span className="text-3xl drop-shadow-md">{reaction.emoji}</span>
+                                        </button>
+                                    ))}
+                                </div>
                             )}
-                            <span className="text-sm font-semibold">{currentUserReaction ? currentUserReaction.label : 'Like'}</span>
+                            
+                            <button 
+                                onClick={handleLikeClick}
+                                onTouchStart={handleTouchStart}
+                                onTouchEnd={handleTouchEnd}
+                                className={`w-full flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted transition-colors ${
+                                    currentUserReaction ? currentUserReaction.color + ' font-bold' : 'text-text-muted'
+                                }`}
+                            >
+                                {currentUserReaction ? (
+                                    <span className="text-xl" role="img" aria-label={currentUserReaction.label}>{currentUserReaction.emoji}</span>
+                                ) : (
+                                    <LikeIcon className="w-6 h-6" fill="none" stroke="currentColor"/>
+                                )}
+                                <span className="text-sm font-semibold">{currentUserReaction ? currentUserReaction.label : 'Like'}</span>
+                            </button>
+                        </div>
+                        <button onClick={() => setShowComments(!showComments)} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors">
+                            <CommentIcon className="w-6 h-6" />
+                            <span className="text-sm font-semibold">Comment</span>
+                        </button>
+                        <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'share'})} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors">
+                            <ShareIcon className="w-6 h-6" />
+                            <span className="text-sm font-semibold">Share</span>
                         </button>
                     </div>
-                    <button onClick={() => setShowComments(!showComments)} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors">
-                        <CommentIcon className="w-6 h-6" />
-                        <span className="text-sm font-semibold">Comment</span>
-                    </button>
-                    <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'share'})} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors">
-                        <ShareIcon className="w-6 h-6" />
-                        <span className="text-sm font-semibold">Share</span>
-                    </button>
                 </div>
-            </div>
 
-            {showComments && (
-                <div className="p-4 border-t border-border">
-                <CommentSection 
-                    comments={post.comments}
-                    users={users}
+                {showComments && (
+                    <div className="p-4 border-t border-border">
+                    <CommentSection 
+                        comments={post.comments}
+                        users={users}
+                        currentUser={currentUser}
+                        onAddComment={handleAddCommentForPost}
+                    />
+                    </div>
+                )}
+
+                <ShareModal
+                    isOpen={shareModalState.isOpen}
+                    onClose={() => setShareModalState({isOpen: false, defaultTab: 'share'})}
                     currentUser={currentUser}
-                    onAddComment={handleAddCommentForPost}
+                    users={Object.values(users)}
+                    onShareToUser={handleShareToUser}
+                    postToShare={post}
+                    onSharePost={onSharePost}
+                    groups={groups}
+                    defaultTab={shareModalState.defaultTab}
                 />
-                </div>
-            )}
-
-            <ShareModal
-                isOpen={shareModalState.isOpen}
-                onClose={() => setShareModalState({isOpen: false, defaultTab: 'share'})}
-                currentUser={currentUser}
-                users={Object.values(users)}
-                onShareToUser={handleShareToUser}
-                postToShare={post}
-                onSharePost={onSharePost}
-                groups={groups}
-                defaultTab={shareModalState.defaultTab}
-            />
-            {isReactionsModalOpen && (
-                <ReactionsModal
-                    isOpen={isReactionsModalOpen}
-                    onClose={() => setIsReactionsModalOpen(false)}
-                    reactions={post.reactions}
-                    users={users}
-                    onNavigate={onNavigate}
-                />
-            )}
+                {isReactionsModalOpen && (
+                    <ReactionsModal
+                        isOpen={isReactionsModalOpen}
+                        onClose={() => setIsReactionsModalOpen(false)}
+                        reactions={post.reactions}
+                        users={users}
+                        onNavigate={onNavigate}
+                    />
+                )}
+            </div>
         </div>
     );
   }
@@ -537,126 +551,328 @@ const PostCard: React.FC<PostCardProps> = (props) => {
   if (post.isOpportunity && post.opportunityDetails) {
     const { title, organization, applyLink } = post.opportunityDetails;
     return (
-        <div className="bg-card rounded-xl shadow-card hover:shadow-card-hover border border-border flex flex-col transition-shadow duration-300 group overflow-hidden">
-            <div className="p-5 flex-1 flex flex-col relative">
-                <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-primary rounded-l-xl"></div>
-                <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3">
-                        <div className="flex-shrink-0 h-12 w-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
-                            <BriefcaseIcon className="h-6 w-6"/>
+        <div
+            className={`p-0.5 rounded-xl animated-border ${animationClass}`}
+            style={animationStyle}
+        >
+            <div 
+                className="bg-card rounded-[10px] shadow-card hover:shadow-card-hover flex flex-col transition-shadow duration-300 group overflow-hidden"
+            >
+                <div className="p-5 flex-1 flex flex-col relative">
+                    <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-primary rounded-l-xl"></div>
+                    <div className="flex items-start justify-between">
+                        <div className="flex items-center space-x-3">
+                            <div className="flex-shrink-0 h-12 w-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
+                                <BriefcaseIcon className="h-6 w-6"/>
+                            </div>
+                            <div>
+                                <p className="font-bold text-card-foreground text-base">{organization}</p>
+                                <p className="text-xs text-text-muted">Posted by {author.name}</p>
+                            </div>
                         </div>
-                        <div>
-                            <p className="font-bold text-card-foreground text-base">{organization}</p>
-                            <p className="text-xs text-text-muted">Posted by {author.name}</p>
-                        </div>
-                    </div>
-                    {canDelete && (
-                        <button 
-                            onClick={handleDelete} 
-                            className="text-text-muted hover:text-destructive p-2 rounded-full hover:bg-destructive/10 transition-colors"
-                            aria-label="Delete opportunity"
-                        >
-                            <TrashIcon className="w-5 h-5" />
-                        </button>
-                    )}
-                </div>
-
-                <div className="mt-4 flex-1">
-                    <h3 className="text-lg font-bold text-foreground leading-tight">{title}</h3>
-                    <p className="mt-2 text-card-foreground text-sm whitespace-pre-wrap line-clamp-3" dangerouslySetInnerHTML={{ __html: post.content }}></p>
-                </div>
-                
-                {applyLink && (
-                     <div className="mt-5">
-                        <a href={applyLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center w-full bg-primary text-primary-foreground font-bold py-2.5 px-4 rounded-lg text-sm hover:bg-primary/90 transition-transform transform group-hover:scale-105">
-                           <LinkIcon className="w-4 h-4 mr-2"/>
-                           Apply or Learn More
-                        </a>
-                    </div>
-                )}
-            </div>
-            
-            <div className="border-t border-border mt-auto">
-                {/* Reactions and Comments Info */}
-                <div className="flex flex-wrap items-center justify-between gap-y-1 gap-x-4 text-sm text-text-muted px-4 py-2">
-                    <div className="flex items-center space-x-2">
-                        {reactionSummary.total > 0 && (
-                             <button onClick={() => setIsReactionsModalOpen(true)} className="flex items-center hover:underline">
-                                <div className="flex items-center">
-                                    {reactionSummary.topEmojis.map(({ emoji, type }) => (
-                                        <span key={type} className="text-lg -ml-1 drop-shadow-sm first:ml-0">{emoji}</span>
-                                    ))}
-                                </div>
-                                <span className="ml-2">{reactionSummary.total}</span>
+                        {canDelete && (
+                            <button 
+                                onClick={handleDelete} 
+                                className="text-text-muted hover:text-destructive p-2 rounded-full hover:bg-destructive/10 transition-colors"
+                                aria-label="Delete opportunity"
+                            >
+                                <TrashIcon className="w-5 h-5" />
                             </button>
                         )}
                     </div>
-                    {post.comments.length > 0 && (
+
+                    <div className="mt-4 flex-1">
+                        <h3 className="text-lg font-bold text-foreground leading-tight">{title}</h3>
+                        <p className="mt-2 text-card-foreground text-sm whitespace-pre-wrap line-clamp-3" dangerouslySetInnerHTML={{ __html: post.content }}></p>
+                    </div>
+                    
+                    {applyLink && (
+                         <div className="mt-5">
+                            <a href={applyLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center w-full bg-primary text-primary-foreground font-bold py-2.5 px-4 rounded-lg text-sm hover:bg-primary/90 transition-transform transform group-hover:scale-105">
+                               <LinkIcon className="w-4 h-4 mr-2"/>
+                               Apply or Learn More
+                            </a>
+                        </div>
+                    )}
+                </div>
+                
+                <div className="border-t border-border mt-auto">
+                    {/* Reactions and Comments Info */}
+                    <div className="flex flex-wrap items-center justify-between gap-y-1 gap-x-4 text-sm text-text-muted px-4 py-2">
+                        <div className="flex items-center space-x-2">
+                            {reactionSummary.total > 0 && (
+                                 <button onClick={() => setIsReactionsModalOpen(true)} className="flex items-center hover:underline">
+                                    <div className="flex items-center">
+                                        {reactionSummary.topEmojis.map(({ emoji, type }) => (
+                                            <span key={type} className="text-lg -ml-1 drop-shadow-sm first:ml-0">{emoji}</span>
+                                        ))}
+                                    </div>
+                                    <span className="ml-2">{reactionSummary.total}</span>
+                                </button>
+                            )}
+                        </div>
+                        {post.comments.length > 0 && (
+                            <button onClick={() => setShowComments(!showComments)} className="hover:underline">
+                                {post.comments.length} {post.comments.length === 1 ? 'comment' : 'comments'}
+                            </button>
+                        )}
+                    </div>
+                
+                    {/* Actions Bar */}
+                    <div className="border-t border-border flex justify-around items-center">
+                      <div 
+                        className="relative flex-1"
+                        onMouseEnter={handleMouseEnter}
+                        onMouseLeave={handleMouseLeave}
+                      >
+                          {isPickerVisible && (
+                              <div className="absolute bottom-full mb-2 left-4 right-4 sm:w-auto sm:left-1/2 sm:-translate-x-1/2 flex flex-wrap items-center justify-center gap-2 bg-card p-2 rounded-2xl border border-border shadow-lg transition-opacity duration-200">
+                                  {reactionsList.map(reaction => (
+                                      <button 
+                                        key={reaction.type} 
+                                        onClick={() => handleReactionSelect(reaction.type)}
+                                        className="p-1 rounded-full transition-transform duration-150 ease-in-out hover:scale-125 hover:-translate-y-1"
+                                        title={reaction.label}
+                                      >
+                                          <span className="text-3xl drop-shadow-md">{reaction.emoji}</span>
+                                      </button>
+                                  ))}
+                              </div>
+                          )}
+                          
+                          <button 
+                              onClick={handleLikeClick}
+                              onTouchStart={handleTouchStart}
+                              onTouchEnd={handleTouchEnd}
+                              className={`w-full flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted transition-colors ${
+                                  currentUserReaction ? currentUserReaction.color + ' font-bold' : 'text-text-muted'
+                              }`}
+                          >
+                              {currentUserReaction ? (
+                                <span className="text-xl" role="img" aria-label={currentUserReaction.label}>{currentUserReaction.emoji}</span>
+                              ) : (
+                                <LikeIcon className="w-6 h-6" fill="none" stroke="currentColor"/>
+                              )}
+                              <span className="text-sm font-semibold">{currentUserReaction ? currentUserReaction.label : 'Like'}</span>
+                          </button>
+                      </div>
+                      <button onClick={() => setShowComments(!showComments)} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors">
+                          <CommentIcon className="w-6 h-6" />
+                          <span className="text-sm font-semibold">Comment</span>
+                      </button>
+                      <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'share'})} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors">
+                          <ShareIcon className="w-6 h-6" />
+                          <span className="text-sm font-semibold">Share</span>
+                      </button>
+                    </div>
+                </div>
+
+                {showComments && (
+                    <div className="p-4 border-t border-border">
+                    <CommentSection 
+                        comments={post.comments}
+                        users={users}
+                        currentUser={currentUser}
+                        onAddComment={handleAddCommentForPost}
+                    />
+                    </div>
+                )}
+
+                <ShareModal
+                    isOpen={shareModalState.isOpen}
+                    onClose={() => setShareModalState({isOpen: false, defaultTab: 'share'})}
+                    currentUser={currentUser}
+                    users={Object.values(users)}
+                    onShareToUser={handleShareToUser}
+                    postToShare={post}
+                    onSharePost={onSharePost}
+                    groups={groups}
+                    defaultTab={shareModalState.defaultTab}
+                />
+                {isReactionsModalOpen && (
+                    <ReactionsModal
+                        isOpen={isReactionsModalOpen}
+                        onClose={() => setIsReactionsModalOpen(false)}
+                        reactions={post.reactions}
+                        users={users}
+                        onNavigate={onNavigate}
+                    />
+                )}
+            </div>
+        </div>
+    );
+  }
+
+  // RENDER REGULAR/SHARED POST
+  const isSaved = currentUser.savedPosts?.includes(post.id);
+  return (
+    <div
+        className={`p-0.5 rounded-xl animated-border ${animationClass}`}
+        style={animationStyle}
+    >
+        <div 
+            className="bg-card rounded-[10px] shadow-card transition-shadow duration-300"
+        >
+          {/* Post Header */}
+          <div className="p-4 flex items-start space-x-3">
+            <div onClick={() => onNavigate(`#/profile/${author.id}`)} className="cursor-pointer">
+                <Avatar src={author.avatarUrl} name={author.name} size="lg" />
+            </div>
+            <div className="flex-1">
+                <p onClick={() => onNavigate(`#/profile/${author.id}`)} className="font-bold text-card-foreground leading-tight cursor-pointer hover:underline">{author.name}</p>
+                <p className="text-xs text-text-muted">{formatTimestamp(post.timestamp)}</p>
+            </div>
+            {canDelete && (
+                <button 
+                    onClick={handleDelete} 
+                    className="text-text-muted hover:text-destructive p-2 rounded-full hover:bg-destructive/10 transition-colors"
+                    aria-label="Delete post"
+                >
+                    <TrashIcon className="w-5 h-5" />
+                </button>
+            )}
+          </div>
+
+          {/* Content */}
+          <div className="px-4 pb-2">
+              {post.content && (
+                <p className="text-card-foreground whitespace-pre-wrap leading-relaxed" dangerouslySetInnerHTML={{ __html: post.content }}>
+                </p>
+              )}
+          </div>
+
+           {/* Media */}
+          {post.mediaUrl && !post.sharedPost && (
+            <div className="bg-muted mt-2">
+              {post.mediaType === 'image' ? (
+                <img src={post.mediaUrl} alt="Post content" className="w-full max-h-[500px] object-cover" />
+              ) : (
+                <video src={post.mediaUrl} controls className="w-full max-h-[500px]" />
+              )}
+            </div>
+          )}
+
+          {/* Render Embedded Shared Post */}
+          {post.sharedPost && (
+              <div className="px-4 pb-2 mt-2">
+                  <div className="border bg-muted/50 rounded-lg overflow-hidden">
+                    <div className="p-3">
+                        <div className="flex items-center space-x-3 mb-3">
+                            {post.sharedPost.originalIsConfession ? (
+                                <>
+                                    <div className="flex-shrink-0 h-10 w-10 bg-muted text-foreground rounded-full flex items-center justify-center">
+                                        <GhostIcon className="h-5 w-5"/>
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-card-foreground text-sm">Anonymous</p>
+                                        <p className="text-xs text-text-muted">{formatTimestamp(post.sharedPost.originalTimestamp)}</p>
+                                    </div>
+                                </>
+                            ) : (
+                                sharedPostAuthor ? (
+                                    <>
+                                        <Avatar src={sharedPostAuthor.avatarUrl} name={sharedPostAuthor.name} size="md" onClick={() => onNavigate(`#/profile/${sharedPostAuthor.id}`)} className="cursor-pointer" />
+                                        <div onClick={() => onNavigate(`#/profile/${sharedPostAuthor.id}`)} className="cursor-pointer">
+                                            <p className="font-bold text-card-foreground text-sm hover:underline">{sharedPostAuthor.name}</p>
+                                            <p className="text-xs text-text-muted">{formatTimestamp(post.sharedPost.originalTimestamp)}</p>
+                                        </div>
+                                    </>
+                                ) : null
+                            )}
+                        </div>
+                        <p className="text-card-foreground text-sm whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: post.sharedPost.originalContent }}></p>
+                    </div>
+                    {post.sharedPost.originalMediaUrl && (
+                        <div className="bg-muted">
+                        {post.sharedPost.originalMediaType === 'image' ? (
+                            <img src={post.sharedPost.originalMediaUrl} alt="Shared content" className="w-full max-h-64 object-cover" />
+                        ) : (
+                            <video src={post.sharedPost.originalMediaUrl} controls className="w-full max-h-64" />
+                        )}
+                        </div>
+                    )}
+                  </div>
+              </div>
+          )}
+
+          {/* Social Proof Section */}
+            {(reactionSummary.total > 0 || post.comments.length > 0) && (
+                <div className="flex items-center justify-between text-sm text-text-muted mx-4 mt-2 pb-2">
+                    {reactionSummary.total > 0 ? (
+                        <button onClick={() => setIsReactionsModalOpen(true)} className="flex items-center space-x-1 hover:underline">
+                            <div className="flex items-center">
+                                {reactionSummary.topEmojis.slice(0, 3).map(({ emoji, type }) => (
+                                    <span key={type} className="text-base -ml-1 first:ml-0">{emoji}</span>
+                                ))}
+                            </div>
+                            <span>{reactionSummary.total}</span>
+                        </button>
+                    ) : <div></div>}
+                     {post.comments.length > 0 && (
                         <button onClick={() => setShowComments(!showComments)} className="hover:underline">
                             {post.comments.length} {post.comments.length === 1 ? 'comment' : 'comments'}
                         </button>
                     )}
                 </div>
-            
-                {/* Actions Bar */}
-                <div className="border-t border-border flex justify-around items-center">
-                  <div 
-                    className="relative flex-1"
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
-                  >
-                      {isPickerVisible && (
-                          <div className="absolute bottom-full mb-2 left-4 right-4 sm:w-auto sm:left-1/2 sm:-translate-x-1/2 flex flex-wrap items-center justify-center gap-2 bg-card p-2 rounded-2xl border border-border shadow-lg transition-opacity duration-200">
-                              {reactionsList.map(reaction => (
-                                  <button 
-                                    key={reaction.type} 
-                                    onClick={() => handleReactionSelect(reaction.type)}
-                                    className="p-1 rounded-full transition-transform duration-150 ease-in-out hover:scale-125 hover:-translate-y-1"
-                                    title={reaction.label}
-                                  >
-                                      <span className="text-3xl drop-shadow-md">{reaction.emoji}</span>
-                                  </button>
-                              ))}
-                          </div>
-                      )}
-                      
-                      <button 
-                          onClick={handleLikeClick}
-                          onTouchStart={handleTouchStart}
-                          onTouchEnd={handleTouchEnd}
-                          className={`w-full flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted transition-colors ${
-                              currentUserReaction ? currentUserReaction.color + ' font-bold' : 'text-text-muted'
-                          }`}
-                      >
-                          {currentUserReaction ? (
-                            <span className="text-xl" role="img" aria-label={currentUserReaction.label}>{currentUserReaction.emoji}</span>
-                          ) : (
-                            <LikeIcon className="w-6 h-6" fill="none" stroke="currentColor"/>
-                          )}
-                          <span className="text-sm font-semibold">{currentUserReaction ? currentUserReaction.label : 'Like'}</span>
-                      </button>
-                  </div>
-                  <button onClick={() => setShowComments(!showComments)} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors">
-                      <CommentIcon className="w-6 h-6" />
-                      <span className="text-sm font-semibold">Comment</span>
-                  </button>
-                  <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'share'})} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors">
-                      <ShareIcon className="w-6 h-6" />
-                      <span className="text-sm font-semibold">Share</span>
-                  </button>
-                </div>
-            </div>
-
-            {showComments && (
-                <div className="p-4 border-t border-border">
-                <CommentSection 
-                    comments={post.comments}
-                    users={users}
-                    currentUser={currentUser}
-                    onAddComment={handleAddCommentForPost}
-                />
-                </div>
             )}
+          
+          {/* Actions Bar */}
+          <div className="border-t border-border flex justify-around items-center mx-4">
+              <div 
+                className="relative flex-1"
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+              >
+                  {isPickerVisible && (
+                      <div className="absolute bottom-full mb-2 left-4 right-4 sm:w-auto sm:left-1/2 sm:-translate-x-1/2 flex flex-wrap items-center justify-center gap-2 bg-card p-2 rounded-2xl border border-border shadow-lg transition-opacity duration-200">
+                          {reactionsList.map(reaction => (
+                              <button 
+                                key={reaction.type} 
+                                onClick={() => handleReactionSelect(reaction.type)}
+                                className="p-1 rounded-full transition-transform duration-150 ease-in-out hover:scale-125 hover:-translate-y-1"
+                                title={reaction.label}
+                              >
+                                  <span className="text-3xl drop-shadow-md">{reaction.emoji}</span>
+                              </button>
+                          ))}
+                      </div>
+                  )}
+                  <button 
+                      onClick={handleLikeClick}
+                      onTouchStart={handleTouchStart}
+                      onTouchEnd={handleTouchEnd}
+                      className={`w-full flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted transition-colors ${
+                          currentUserReaction ? currentUserReaction.color + ' font-bold' : 'text-text-muted'
+                      }`}
+                  >
+                      {currentUserReaction ? <LikeIcon className="w-6 h-6"/> : <LikeIcon className="w-6 h-6" fill="none" stroke="currentColor"/>}
+                      <span className="text-sm font-semibold">{currentUserReaction ? currentUserReaction.label : 'Like'}</span>
+                  </button>
+              </div>
+              <button onClick={() => setShowComments(!showComments)} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors">
+                  <CommentIcon className="w-6 h-6" />
+                  <span className="text-sm font-semibold">Comment</span>
+              </button>
+              <button onClick={() => onToggleSavePost(post.id)} className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted transition-colors ${isSaved ? 'text-primary font-bold' : 'text-text-muted'}`}>
+                {isSaved ? <BookmarkIconSolid className="w-6 h-6" /> : <BookmarkIcon className="w-6 h-6" />}
+                <span className="text-sm font-semibold">Save</span>
+              </button>
+              <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'message'})} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors">
+                  <SendIcon className="w-6 h-6" />
+                  <span className="text-sm font-semibold">Send</span>
+              </button>
+          </div>
+
+          {showComments && (
+            <div className="p-4 border-t border-border">
+              <CommentSection 
+                comments={post.comments}
+                users={users}
+                currentUser={currentUser}
+                onAddComment={handleAddCommentForPost}
+              />
+            </div>
+          )}
 
             <ShareModal
                 isOpen={shareModalState.isOpen}
@@ -679,195 +895,6 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                 />
             )}
         </div>
-    );
-  }
-
-  // RENDER REGULAR/SHARED POST
-  const isSaved = currentUser.savedPosts?.includes(post.id);
-  return (
-    <div className="bg-card rounded-xl shadow-card border border-border transition-shadow duration-300">
-      {/* Post Header */}
-      <div className="p-4 flex items-start space-x-3">
-        <div onClick={() => onNavigate(`#/profile/${author.id}`)} className="cursor-pointer">
-            <Avatar src={author.avatarUrl} name={author.name} size="lg" />
-        </div>
-        <div className="flex-1">
-            <p onClick={() => onNavigate(`#/profile/${author.id}`)} className="font-bold text-card-foreground leading-tight cursor-pointer hover:underline">{author.name}</p>
-            <p className="text-xs text-text-muted">{author.tag} &bull; {author.department}</p>
-            <p className="text-xs text-text-muted">{formatTimestamp(post.timestamp)}</p>
-        </div>
-        {canDelete && (
-            <button 
-                onClick={handleDelete} 
-                className="text-text-muted hover:text-destructive p-2 rounded-full hover:bg-destructive/10 transition-colors"
-                aria-label="Delete post"
-            >
-                <TrashIcon className="w-5 h-5" />
-            </button>
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="px-4 pb-2">
-          {post.content && (
-            <p className="text-card-foreground whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: post.content }}>
-            </p>
-          )}
-      </div>
-
-       {/* Media */}
-      {post.mediaUrl && !post.sharedPost && (
-        <div className="bg-muted mt-2">
-          {post.mediaType === 'image' ? (
-            <img src={post.mediaUrl} alt="Post content" className="w-full max-h-[500px] object-cover" />
-          ) : (
-            <video src={post.mediaUrl} controls className="w-full max-h-[500px]" />
-          )}
-        </div>
-      )}
-
-      {/* Render Embedded Shared Post */}
-      {post.sharedPost && (
-          <div className="px-4 pb-2 mt-2">
-              <div className="border rounded-lg overflow-hidden">
-                <div className="p-3">
-                    <div className="flex items-center space-x-3 mb-3">
-                        {post.sharedPost.originalIsConfession ? (
-                            <>
-                                <div className="flex-shrink-0 h-10 w-10 bg-muted text-foreground rounded-full flex items-center justify-center">
-                                    <GhostIcon className="h-5 w-5"/>
-                                </div>
-                                <div>
-                                    <p className="font-bold text-card-foreground text-sm">Anonymous</p>
-                                    <p className="text-xs text-text-muted">{formatTimestamp(post.sharedPost.originalTimestamp)}</p>
-                                </div>
-                            </>
-                        ) : (
-                            sharedPostAuthor ? (
-                                <>
-                                    <Avatar src={sharedPostAuthor.avatarUrl} name={sharedPostAuthor.name} size="md" onClick={() => onNavigate(`#/profile/${sharedPostAuthor.id}`)} className="cursor-pointer" />
-                                    <div onClick={() => onNavigate(`#/profile/${sharedPostAuthor.id}`)} className="cursor-pointer">
-                                        <p className="font-bold text-card-foreground text-sm hover:underline">{sharedPostAuthor.name}</p>
-                                        <p className="text-xs text-text-muted">{formatTimestamp(post.sharedPost.originalTimestamp)}</p>
-                                    </div>
-                                </>
-                            ) : null
-                        )}
-                    </div>
-                    <p className="text-card-foreground text-sm whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: post.sharedPost.originalContent }}></p>
-                </div>
-                {post.sharedPost.originalMediaUrl && (
-                    <div className="bg-muted">
-                    {post.sharedPost.originalMediaType === 'image' ? (
-                        <img src={post.sharedPost.originalMediaUrl} alt="Shared content" className="w-full max-h-64 object-cover" />
-                    ) : (
-                        <video src={post.sharedPost.originalMediaUrl} controls className="w-full max-h-64" />
-                    )}
-                    </div>
-                )}
-              </div>
-          </div>
-      )}
-
-      {/* Social Proof Section */}
-        {(reactionSummary.total > 0 || post.comments.length > 0) && (
-            <div className="flex items-center justify-between text-sm text-text-muted mx-4 mt-2 pb-2">
-                {reactionSummary.total > 0 ? (
-                    <button onClick={() => setIsReactionsModalOpen(true)} className="flex items-center space-x-1 hover:underline">
-                        <div className="flex items-center">
-                            {reactionSummary.topEmojis.slice(0, 3).map(({ emoji, type }) => (
-                                <span key={type} className="text-base -ml-1 first:ml-0">{emoji}</span>
-                            ))}
-                        </div>
-                        <span>{reactionSummary.total}</span>
-                    </button>
-                ) : <div></div>}
-                 {post.comments.length > 0 && (
-                    <button onClick={() => setShowComments(!showComments)} className="hover:underline">
-                        {post.comments.length} {post.comments.length === 1 ? 'comment' : 'comments'}
-                    </button>
-                )}
-            </div>
-        )}
-      
-      {/* Actions Bar */}
-      <div className="border-t border-border flex justify-around items-center mx-4">
-          <div 
-            className="relative flex-1"
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-          >
-              {isPickerVisible && (
-                  <div className="absolute bottom-full mb-2 left-4 right-4 sm:w-auto sm:left-1/2 sm:-translate-x-1/2 flex flex-wrap items-center justify-center gap-2 bg-card p-2 rounded-2xl border border-border shadow-lg transition-opacity duration-200">
-                      {reactionsList.map(reaction => (
-                          <button 
-                            key={reaction.type} 
-                            onClick={() => handleReactionSelect(reaction.type)}
-                            className="p-1 rounded-full transition-transform duration-150 ease-in-out hover:scale-125 hover:-translate-y-1"
-                            title={reaction.label}
-                          >
-                              <span className="text-3xl drop-shadow-md">{reaction.emoji}</span>
-                          </button>
-                      ))}
-                  </div>
-              )}
-              <button 
-                  onClick={handleLikeClick}
-                  onTouchStart={handleTouchStart}
-                  onTouchEnd={handleTouchEnd}
-                  className={`w-full flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted transition-colors ${
-                      currentUserReaction ? currentUserReaction.color + ' font-bold' : 'text-text-muted'
-                  }`}
-              >
-                  {currentUserReaction ? <LikeIcon className="w-6 h-6"/> : <LikeIcon className="w-6 h-6" fill="none" stroke="currentColor"/>}
-                  <span className="text-sm font-semibold">{currentUserReaction ? currentUserReaction.label : 'Like'}</span>
-              </button>
-          </div>
-          <button onClick={() => setShowComments(!showComments)} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors">
-              <CommentIcon className="w-6 h-6" />
-              <span className="text-sm font-semibold">Comment</span>
-          </button>
-          <button onClick={() => onToggleSavePost(post.id)} className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted transition-colors ${isSaved ? 'text-primary font-bold' : 'text-text-muted'}`}>
-            {isSaved ? <BookmarkIconSolid className="w-6 h-6" /> : <BookmarkIcon className="w-6 h-6" />}
-            <span className="text-sm font-semibold">Save</span>
-          </button>
-          <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'message'})} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors">
-              <SendIcon className="w-6 h-6" />
-              <span className="text-sm font-semibold">Send</span>
-          </button>
-      </div>
-
-      {showComments && (
-        <div className="p-4 border-t border-border">
-          <CommentSection 
-            comments={post.comments}
-            users={users}
-            currentUser={currentUser}
-            onAddComment={handleAddCommentForPost}
-          />
-        </div>
-      )}
-
-        <ShareModal
-            isOpen={shareModalState.isOpen}
-            onClose={() => setShareModalState({isOpen: false, defaultTab: 'share'})}
-            currentUser={currentUser}
-            users={Object.values(users)}
-            onShareToUser={handleShareToUser}
-            postToShare={post}
-            onSharePost={onSharePost}
-            groups={groups}
-            defaultTab={shareModalState.defaultTab}
-        />
-        {isReactionsModalOpen && (
-            <ReactionsModal
-                isOpen={isReactionsModalOpen}
-                onClose={() => setIsReactionsModalOpen(false)}
-                reactions={post.reactions}
-                users={users}
-                onNavigate={onNavigate}
-            />
-        )}
     </div>
   );
 };

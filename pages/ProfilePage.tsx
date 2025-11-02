@@ -194,19 +194,19 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
                 {/* Tab Navigation */}
                 <div className="container mx-auto px-4">
                      <div className="border-b border-border flex justify-center mb-6">
-                        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                        <nav className="-mb-px flex space-x-6 sm:space-x-8" aria-label="Tabs">
                             <button onClick={() => setActiveTab('posts')} className={`flex items-center space-x-2 transition-colors duration-200 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'posts' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'}`}>
-                                <PostIcon className="w-5 h-5"/><span>Posts</span>
+                                <PostIcon className="w-5 h-5"/><span className="hidden sm:inline">Posts</span>
                             </button>
                             <button onClick={() => setActiveTab('about')} className={`flex items-center space-x-2 transition-colors duration-200 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'about' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'}`}>
-                                <UsersIcon className="w-5 h-5"/><span>About</span>
+                                <UsersIcon className="w-5 h-5"/><span className="hidden sm:inline">About</span>
                             </button>
                              <button onClick={() => setActiveTab('groups')} className={`flex items-center space-x-2 transition-colors duration-200 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'groups' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'}`}>
-                                <StarIcon className="w-5 h-5"/><span>Groups</span>
+                                <StarIcon className="w-5 h-5"/><span className="hidden sm:inline">Groups</span>
                             </button>
                              {isOwnProfile && (
                                 <button onClick={() => setActiveTab('saved')} className={`flex items-center space-x-2 transition-colors duration-200 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'saved' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'}`}>
-                                    <BookmarkIcon className="w-5 h-5"/><span>Saved</span>
+                                    <BookmarkIcon className="w-5 h-5"/><span className="hidden sm:inline">Saved</span>
                                 </button>
                             )}
                         </nav>

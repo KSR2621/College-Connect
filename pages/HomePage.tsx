@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import type { User, Post, Group, ReactionType, Story } from '../types';
+import type { User, Post, Group, ReactionType, Story, FeedPreferences } from '../types';
 import Header from '../components/Header';
 import CreatePostModal from '../components/CreatePostModal';
 import Feed from '../components/Feed';
@@ -10,7 +10,9 @@ import StoryViewerModal from '../components/StoryViewerModal';
 import LeftSidebar from '../components/LeftSidebar';
 import RightSidebar from '../components/RightSidebar';
 import InlineCreatePost from '../components/InlineCreatePost';
+import FeedCustomizationModal from '../components/FeedCustomizationModal';
 import { auth } from '../firebase';
+import { FilterIcon, SparkleIcon, CloseIcon } from '../components/Icons';
 
 
 interface HomePageProps {
@@ -48,6 +50,47 @@ const HomePage: React.FC<HomePageProps> = (props) => {
     const [createModalType, setCreateModalType] = useState<'post' | 'event' | null>(null);
     const [isStoryCreatorOpen, setIsStoryCreatorOpen] = useState(false);
     const [viewingStoryEntityId, setViewingStoryEntityId] = useState<string | null>(null);
+    const [isFeedModalOpen, setIsFeedModalOpen] = useState(false);
+    const [isWelcomeBannerVisible, setIsWelcomeBannerVisible] = useState(false);
+    
+    const [feedPreferences, setFeedPreferences] = useState<FeedPreferences>({
+        showRegularPosts: true,
+        showEvents: true,
+        showOpportunities: true,
+        showSharedPosts: true,
+    });
+    
+    useEffect(() => {
+        try {
+            const savedPrefs = localStorage.getItem('feedPreferences');
+            if (savedPrefs) {
+                setFeedPreferences(JSON.parse(savedPrefs));
+            }
+        } catch (error) {
+            console.error("Could not load feed preferences:", error);
+        }
+
+        const bannerDismissed = sessionStorage.getItem('welcomeBannerDismissed');
+        if (!bannerDismissed) {
+            setIsWelcomeBannerVisible(true);
+        }
+    }, []);
+
+    const handleDismissBanner = () => {
+        sessionStorage.setItem('welcomeBannerDismissed', 'true');
+        setIsWelcomeBannerVisible(false);
+    };
+
+    const handleSavePreferences = (preferences: FeedPreferences) => {
+        setFeedPreferences(preferences);
+        try {
+            localStorage.setItem('feedPreferences', JSON.stringify(preferences));
+        } catch (error) {
+            console.error("Could not save feed preferences:", error);
+        }
+        setIsFeedModalOpen(false);
+    };
+
 
     const handleLogout = async () => {
         await auth.signOut();
@@ -113,6 +156,13 @@ const HomePage: React.FC<HomePageProps> = (props) => {
         
         return posts
             .filter(post => {
+                // Apply feed preferences
+                const isRegularPost = !post.isEvent && !post.isOpportunity && !post.sharedPost;
+                if (!feedPreferences.showRegularPosts && isRegularPost) return false;
+                if (!feedPreferences.showEvents && post.isEvent) return false;
+                if (!feedPreferences.showOpportunities && post.isOpportunity) return false;
+                if (!feedPreferences.showSharedPosts && post.sharedPost) return false;
+
                 // Filter out posts from groups the user doesn't follow
                 if (post.groupId && !(currentUser.followingGroups && currentUser.followingGroups.includes(post.groupId))) {
                     return false;
@@ -126,7 +176,7 @@ const HomePage: React.FC<HomePageProps> = (props) => {
             .map(post => ({ post, score: getPostScore(post) }))
             .sort((a, b) => b.score - a.score)
             .map(item => item.post);
-    }, [posts, currentUser, users, groups]);
+    }, [posts, currentUser, users, groups, feedPreferences]);
 
     const adminOfGroups = groups.filter(g => g.creatorId === currentUser.id);
 
@@ -149,6 +199,21 @@ const HomePage: React.FC<HomePageProps> = (props) => {
 
                     {/* Main Content Feed */}
                     <div className="lg:col-span-6">
+                        {isWelcomeBannerVisible && (
+                            <div className="relative bg-gradient-to-r from-primary to-secondary text-white p-6 rounded-2xl shadow-lg mb-6 animate-fade-in flex items-center justify-between">
+                                <div className="flex items-center">
+                                    <SparkleIcon className="w-10 h-10 mr-4 flex-shrink-0" />
+                                    <div>
+                                        <h2 className="text-xl font-bold">Welcome back, {currentUser.name.split(' ')[0]}!</h2>
+                                        <p className="text-sm opacity-90 mt-1">Ready to connect and discover what's new on campus?</p>
+                                    </div>
+                                </div>
+                                <button onClick={handleDismissBanner} className="absolute top-3 right-3 p-1.5 bg-white/20 hover:bg-white/30 rounded-full">
+                                    <CloseIcon className="w-5 h-5" />
+                                </button>
+                            </div>
+                        )}
+
                         <StoriesReel
                             stories={stories}
                             users={users}
@@ -159,6 +224,15 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                         />
                         
                         <InlineCreatePost user={currentUser} onOpenCreateModal={setCreateModalType} />
+
+                        <div className="flex justify-between items-center mb-4 px-1">
+                             <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary text-transparent bg-clip-text">For You</h2>
+                             <button onClick={() => setIsFeedModalOpen(true)} className="flex items-center gap-2 text-sm font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-full transition-colors">
+                                <FilterIcon className="w-4 h-4" />
+                                Customize
+                             </button>
+                        </div>
+
 
                         <Feed 
                             posts={feedPosts}
@@ -222,6 +296,13 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                     onReplyToStory={onReplyToStory}
                 />
             )}
+
+            <FeedCustomizationModal
+                isOpen={isFeedModalOpen}
+                onClose={() => setIsFeedModalOpen(false)}
+                onSave={handleSavePreferences}
+                currentPreferences={feedPreferences}
+            />
         </div>
     );
 };
