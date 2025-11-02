@@ -865,7 +865,7 @@ const App: React.FC = () => {
             assignments: [],
             attendanceRecords: [],
             messages: [],
-            personalNote: '',
+            personalNotes: {},
         };
         await db.collection('courses').add(newCourse);
     };
@@ -947,10 +947,10 @@ const App: React.FC = () => {
         });
     };
 
-    const handleUpdateCoursePersonalNote = async (courseId: string, content: string) => {
+    const handleUpdateCoursePersonalNote = async (courseId: string, userId: string, content: string) => {
         const courseRef = db.collection('courses').doc(courseId);
         await courseRef.update({
-            personalNote: content
+            [`personalNotes.${userId}`]: content
         });
     };
 

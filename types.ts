@@ -180,7 +180,7 @@ export type Course = {
     students?: string[]; // array of enrolled student IDs
     pendingStudents?: string[]; // array of student IDs requesting to join
     messages?: Message[]; // For in-course chat
-    personalNote?: string; // Private note for faculty
+    personalNotes?: { [userId: string]: string; }; // Private notes for faculty and students
 };
 
 
@@ -191,6 +191,7 @@ export type Notice = {
   title: string;
   content: string; // HTML content from editor
   timestamp: number;
-  targetDepartments: string[];
-  targetYears: number[];
+  // FIX: Add optional properties for targeted notices to resolve type errors.
+  targetDepartments?: string[];
+  targetYears?: number[];
 };

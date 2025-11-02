@@ -128,10 +128,11 @@ const NoticeCard: React.FC<{
                 )}
                 <div className="prose prose-sm max-w-none mt-4 text-card-foreground" dangerouslySetInnerHTML={{ __html: notice.content }} />
             </div>
-            {(notice.targetDepartments.length > 0 || notice.targetYears.length > 0) && (
+            {/* FIX: Add safe access to optional properties `targetDepartments` and `targetYears` to prevent runtime errors. */}
+            {(notice.targetDepartments && notice.targetDepartments.length > 0 || notice.targetYears && notice.targetYears.length > 0) && (
                 <div className="bg-muted/50 px-5 py-2 border-t border-border flex flex-wrap gap-2 text-xs">
-                    {notice.targetDepartments.map(d => <span key={d} className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">{d}</span>)}
-                    {notice.targetYears.map(y => <span key={y} className="bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-medium">{yearOptions.find(yo => yo.val === y)?.label}</span>)}
+                    {notice.targetDepartments?.map(d => <span key={d} className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">{d}</span>)}
+                    {notice.targetYears?.map(y => <span key={y} className="bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-medium">{yearOptions.find(yo => yo.val === y)?.label}</span>)}
                 </div>
             )}
         </div>
@@ -153,8 +154,11 @@ const NoticeBoardPage: React.FC<NoticeBoardPageProps> = (props) => {
 
     const filteredNotices = useMemo(() => {
         return notices.filter(notice => {
-            const deptMatch = selectedDepartments.length === 0 || notice.targetDepartments.length === 0 || notice.targetDepartments.some(d => selectedDepartments.includes(d));
-            const yearMatch = selectedYears.length === 0 || notice.targetYears.length === 0 || notice.targetYears.some(y => selectedYears.includes(y));
+            // FIX: Safely access optional properties by providing default empty arrays.
+            const noticeDepts = notice.targetDepartments || [];
+            const noticeYears = notice.targetYears || [];
+            const deptMatch = selectedDepartments.length === 0 || noticeDepts.length === 0 || noticeDepts.some(d => selectedDepartments.includes(d));
+            const yearMatch = selectedYears.length === 0 || noticeYears.length === 0 || noticeYears.some(y => selectedYears.includes(y));
             return deptMatch && yearMatch;
         });
     }, [notices, selectedDepartments, selectedYears]);

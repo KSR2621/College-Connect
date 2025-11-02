@@ -18,7 +18,7 @@ interface AcademicsPageProps {
   onCreateCourse: (course: Omit<Course, 'id' | 'facultyId'>) => void;
   notices: Notice[];
   users: { [key: string]: User };
-  onCreateNotice: (noticeData: Omit<Notice, 'id' | 'authorId' | 'timestamp'>) => void;
+  onCreateNotice: (noticeData: { title: string; content: string }) => void;
   onDeleteNotice: (noticeId: string) => void;
 }
 
@@ -80,11 +80,9 @@ const CreateCourseModal: React.FC<{ onClose: () => void; onAddCourse: (course: O
     );
 };
 
-const CreateNoticeModal: React.FC<{ onClose: () => void; onCreateNotice: (noticeData: Omit<Notice, 'id' | 'authorId' | 'timestamp'>) => void; }> = ({ onClose, onCreateNotice }) => {
+const CreateNoticeModal: React.FC<{ onClose: () => void; onCreateNotice: (noticeData: { title: string; content: string }) => void; }> = ({ onClose, onCreateNotice }) => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
-    const [targetDepartments, setTargetDepartments] = useState<string[]>([]);
-    const [targetYears, setTargetYears] = useState<number[]>([]);
     const editorRef = useRef<HTMLDivElement>(null);
 
     const handleInput = () => setContent(editorRef.current?.innerHTML || '');
@@ -93,15 +91,12 @@ const CreateNoticeModal: React.FC<{ onClose: () => void; onCreateNotice: (notice
         editorRef.current?.focus();
     };
 
-    const handleDeptToggle = (dept: string) => setTargetDepartments(prev => prev.includes(dept) ? prev.filter(d => d !== dept) : [...prev, dept]);
-    const handleYearToggle = (year: number) => setTargetYears(prev => prev.includes(year) ? prev.filter(y => y !== year) : [...prev, year]);
-
     const handleSubmit = () => {
         if (!title.trim() || !editorRef.current?.innerText.trim()) {
             alert("Title and content cannot be empty.");
             return;
         }
-        onCreateNotice({ title, content, targetDepartments, targetYears });
+        onCreateNotice({ title, content });
         onClose();
     };
 
@@ -120,25 +115,7 @@ const CreateNoticeModal: React.FC<{ onClose: () => void; onCreateNotice: (notice
                              <button onMouseDown={e => { e.preventDefault(); applyStyle('italic'); }} className="italic w-8 h-8 rounded hover:bg-muted">I</button>
                              <button onMouseDown={e => { e.preventDefault(); applyStyle('insertUnorderedList'); }} className="w-8 h-8 rounded hover:bg-muted">UL</button>
                         </div>
-                        <div ref={editorRef} contentEditable onInput={handleInput} data-placeholder="Write your notice here..." className="w-full min-h-[150px] p-3 text-foreground bg-input focus:outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-text-muted"/>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <h4 className="font-semibold text-text-muted mb-2">Target Departments (optional)</h4>
-                            <div className="space-y-2 p-3 bg-input rounded-lg border border-border max-h-40 overflow-y-auto">
-                                {departmentOptions.map(dept => (
-                                    <label key={dept} className="flex items-center space-x-2 cursor-pointer"><input type="checkbox" checked={targetDepartments.includes(dept)} onChange={() => handleDeptToggle(dept)} className="h-4 w-4 rounded text-primary focus:ring-primary"/><span>{dept}</span></label>
-                                ))}
-                            </div>
-                        </div>
-                        <div>
-                            <h4 className="font-semibold text-text-muted mb-2">Target Years (optional)</h4>
-                             <div className="space-y-2 p-3 bg-input rounded-lg border border-border max-h-40 overflow-y-auto">
-                                {yearOptions.map(year => (
-                                    <label key={year.val} className="flex items-center space-x-2 cursor-pointer"><input type="checkbox" checked={targetYears.includes(year.val)} onChange={() => handleYearToggle(year.val)} className="h-4 w-4 rounded text-primary focus:ring-primary"/><span>{year.label}</span></label>
-                                ))}
-                            </div>
-                        </div>
+                        <div ref={editorRef} contentEditable onInput={handleInput} data-placeholder="Write your notice here..." className="w-full min-h-[250px] p-3 text-foreground bg-input focus:outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-text-muted"/>
                     </div>
                 </div>
                  <div className="p-4 bg-muted/50 border-t border-border flex justify-end">
@@ -181,9 +158,16 @@ const NoticeBoard: React.FC<Pick<AcademicsPageProps, 'currentUser' | 'notices' |
     const clearFilters = () => { setSelectedDepartments([]); setSelectedYears([]); };
 
     const filteredNotices = useMemo(() => {
+        const selectedYearLabels = yearOptions
+            .filter(yo => selectedYears.includes(yo.val))
+            .map(yo => yo.label.toLowerCase());
+
         return notices.filter(notice => {
-            const deptMatch = selectedDepartments.length === 0 || notice.targetDepartments.length === 0 || notice.targetDepartments.some(d => selectedDepartments.includes(d));
-            const yearMatch = selectedYears.length === 0 || notice.targetYears.length === 0 || notice.targetYears.some(y => selectedYears.includes(y));
+            const combinedText = (notice.title + ' ' + notice.content).toLowerCase();
+
+            const deptMatch = selectedDepartments.length === 0 || selectedDepartments.some(d => combinedText.includes(d.toLowerCase()));
+            const yearMatch = selectedYearLabels.length === 0 || selectedYearLabels.some(label => combinedText.includes(label));
+            
             return deptMatch && yearMatch;
         });
     }, [notices, selectedDepartments, selectedYears]);
@@ -243,12 +227,6 @@ const NoticeCard: React.FC<{ notice: Notice; author: User | undefined; currentUs
                 )}
                 <div className="prose prose-sm max-w-none mt-4 text-card-foreground" dangerouslySetInnerHTML={{ __html: notice.content }} />
             </div>
-            {(notice.targetDepartments.length > 0 || notice.targetYears.length > 0) && (
-                <div className="bg-muted/50 px-5 py-2 border-t border-border flex flex-wrap gap-2 text-xs">
-                    {notice.targetDepartments.map(d => <span key={d} className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">{d}</span>)}
-                    {notice.targetYears.map(y => <span key={y} className="bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-medium">{yearOptions.find(yo => yo.val === y)?.label}</span>)}
-                </div>
-            )}
         </div>
     );
 };

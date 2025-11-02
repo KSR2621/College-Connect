@@ -22,7 +22,7 @@ interface CourseDetailPageProps {
   onAddStudentsToCourse: (courseId: string, studentIds: string[]) => void;
   onRemoveStudentFromCourse: (courseId: string, studentId: string) => void;
   onSendCourseMessage: (courseId: string, text: string) => void;
-  onUpdateCoursePersonalNote: (courseId: string, content: string) => void;
+  onUpdateCoursePersonalNote: (courseId: string, userId: string, content: string) => void;
 }
 
 // --- MODALS --- (Scoped to this page for simplicity)
@@ -260,7 +260,7 @@ const AddStudentModal: React.FC<{
 
 // --- TABS CONTENT ---
 
-const NotesTab: React.FC<{ course: Course; isFaculty: boolean; onUpload: () => void; }> = ({ course, isFaculty, onUpload }) => {
+const NotesTab: React.FC<{ course: Course; canUpload: boolean; onUpload: () => void; }> = ({ course, canUpload, onUpload }) => {
     const [searchTerm, setSearchTerm] = useState('');
 
     const filteredNotes = useMemo(() => {
@@ -284,7 +284,7 @@ const NotesTab: React.FC<{ course: Course; isFaculty: boolean; onUpload: () => v
                     className="w-full bg-card border border-border rounded-full pl-10 pr-4 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
             </div>
-            {isFaculty && <button onClick={onUpload} className="w-full bg-primary/10 text-primary font-bold py-3 px-4 rounded-lg hover:bg-primary/20 transition-colors flex items-center justify-center gap-2"><UploadIcon className="w-5 h-5"/>Upload Note</button>}
+            {canUpload && <button onClick={onUpload} className="w-full bg-primary/10 text-primary font-bold py-3 px-4 rounded-lg hover:bg-primary/20 transition-colors flex items-center justify-center gap-2"><UploadIcon className="w-5 h-5"/>Upload Note</button>}
             {filteredNotes.length > 0 ? (
                 filteredNotes.map(note => (
                     <div key={note.id} className="bg-card p-4 rounded-lg shadow-sm border border-border">
@@ -608,12 +608,16 @@ const CourseChatTab: React.FC<{
 };
 
 const PersonalNoteTab: React.FC<{
-    course: Course;
+    noteContent: string;
     onSave: (content: string) => void;
-}> = ({ course, onSave }) => {
-    const [note, setNote] = useState(course.personalNote || '');
+}> = ({ noteContent, onSave }) => {
+    const [note, setNote] = useState(noteContent);
     const [isSaving, setIsSaving] = useState(false);
     const [feedbackText, setFeedbackText] = useState('Save Note');
+
+    useEffect(() => {
+        setNote(noteContent);
+    }, [noteContent]);
 
     const handleSave = () => {
         setIsSaving(true);
@@ -628,7 +632,7 @@ const PersonalNoteTab: React.FC<{
 
     return (
         <div className="bg-card p-6 rounded-lg shadow-sm border border-border animate-fade-in">
-            <h3 className="text-xl font-bold text-foreground mb-3">Private Faculty Note</h3>
+            <h3 className="text-xl font-bold text-foreground mb-3">Private Note</h3>
             <p className="text-sm text-text-muted mb-4">This note is only visible to you. Use it to keep track of reminders, student progress, or ideas for this course.</p>
             <textarea
                 value={note}
@@ -658,6 +662,7 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = (props) => {
     const isEnrolledStudent = course.students?.includes(currentUser.id) ?? false;
     const isPendingStudent = course.pendingStudents?.includes(currentUser.id) ?? false;
     const canViewContent = isFacultyOwner || isEnrolledStudent;
+    const canUploadContent = isFacultyOwner || isEnrolledStudent;
 
     const tabs = useMemo(() => {
         const baseTabs: { id: string, label: string }[] = [
@@ -668,15 +673,30 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = (props) => {
         ];
         if (isFacultyOwner) {
             baseTabs.push({ id: 'roster', label: 'Roster' });
+        }
+        if (isFacultyOwner || isEnrolledStudent) {
             baseTabs.push({ id: 'personal-note', label: 'Personal Note' });
         }
         return baseTabs;
-    }, [isFacultyOwner]);
+    }, [isFacultyOwner, isEnrolledStudent]);
 
     const [activeTab, setActiveTab] = useState(tabs[0].id);
     const [modal, setModal] = useState<'note' | 'assignment' | 'attendance' | 'addStudent' | null>(null);
     const [sliderStyle, setSliderStyle] = useState({});
     const tabsRef = useRef<(HTMLButtonElement | null)[]>([]);
+
+    const handleTabClick = (tabId: string) => {
+        setActiveTab(tabId);
+        const tabIndex = tabs.findIndex(tab => tab.id === tabId);
+        const tabElement = tabsRef.current[tabIndex];
+        if (tabElement) {
+            tabElement.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest',
+                inline: 'center'
+            });
+        }
+    };
 
     useEffect(() => {
         const activeTabIndex = tabs.findIndex(tab => tab.id === activeTab);
@@ -754,34 +774,34 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = (props) => {
                         <>
                             {/* Sliding Tabs */}
                             <div className="mb-6">
-                                <div className="relative border-b border-border">
-                                    <nav className="flex space-x-6" aria-label="Tabs">
+                                <div className="border-b border-border">
+                                    <nav className="relative flex space-x-6 overflow-x-auto no-scrollbar" aria-label="Tabs">
                                         {tabs.map((tab, index) => (
                                              <button 
                                                 key={tab.id}
                                                 ref={el => { tabsRef.current[index] = el; }}
-                                                onClick={() => setActiveTab(tab.id)} 
+                                                onClick={() => handleTabClick(tab.id)} 
                                                 className={`transition-colors duration-200 whitespace-nowrap py-4 px-2 font-medium text-sm z-10 ${activeTab === tab.id ? 'text-primary' : 'text-text-muted hover:text-foreground'}`}
                                             >
                                                 {tab.label}
                                             </button>
                                         ))}
+                                        <div 
+                                            className="absolute bottom-0 h-0.5 bg-primary transition-all duration-300 ease-in-out"
+                                            style={sliderStyle}
+                                        />
                                     </nav>
-                                    <div 
-                                        className="absolute bottom-0 h-0.5 bg-primary transition-all duration-300 ease-in-out"
-                                        style={sliderStyle}
-                                    />
                                 </div>
                             </div>
                             
                             {/* Content */}
                             <div className="mt-6">
-                                {activeTab === 'notes' && <NotesTab course={course} isFaculty={isFacultyOwner} onUpload={() => setModal('note')} />}
+                                {activeTab === 'notes' && <NotesTab course={course} canUpload={canUploadContent} onUpload={() => setModal('note')} />}
                                 {activeTab === 'assignments' && <AssignmentsTab course={course} isFaculty={isFacultyOwner} onUpload={() => setModal('assignment')} />}
                                 {activeTab === 'attendance' && <AttendanceTab course={course} isFaculty={isFacultyOwner} currentUser={currentUser} students={students} onTakeAttendance={() => setModal('attendance')} />}
                                 {activeTab === 'chat' && <CourseChatTab course={course} currentUser={currentUser} allUsers={allUsers} onSendCourseMessage={onSendCourseMessage} />}
                                 {activeTab === 'roster' && isFacultyOwner && <RosterTab course={course} allUsers={allUsers} onManageRequest={(studentId, action) => onManageCourseRequest(course.id, studentId, action)} onAddStudents={() => setModal('addStudent')} onRemoveStudent={handleRemoveStudent} />}
-                                {activeTab === 'personal-note' && isFacultyOwner && <PersonalNoteTab course={course} onSave={(content) => onUpdateCoursePersonalNote(course.id, content)} />}
+                                {activeTab === 'personal-note' && (isFacultyOwner || isEnrolledStudent) && <PersonalNoteTab noteContent={course.personalNotes?.[currentUser.id] || ''} onSave={(content) => onUpdateCoursePersonalNote(course.id, currentUser.id, content)} />}
                             </div>
                         </>
                     ) : (
@@ -793,7 +813,7 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = (props) => {
                 </div>
             </main>
 
-            {isFacultyOwner && modal === 'note' && <UploadResourceModal course={course} onClose={() => setModal(null)} resourceType="Note" onSave={handleSaveNote} />}
+            {modal === 'note' && canUploadContent && <UploadResourceModal course={course} onClose={() => setModal(null)} resourceType="Note" onSave={handleSaveNote} />}
             {isFacultyOwner && modal === 'assignment' && <UploadResourceModal course={course} onClose={() => setModal(null)} resourceType="Assignment" onSave={handleSaveAssignment} />}
             {isFacultyOwner && modal === 'attendance' && <TakeAttendanceModal course={course} students={students} onClose={() => setModal(null)} onSave={handleSaveAttendance} />}
             {isFacultyOwner && modal === 'addStudent' && <AddStudentModal allUsers={allUsers} course={course} onClose={() => setModal(null)} onAddStudents={handleAddStudents} />}
