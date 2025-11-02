@@ -108,10 +108,10 @@ const HomePage: React.FC<HomePageProps> = (props) => {
             const ageInHours = (now - post.timestamp) / oneHour;
             score += 10 / (ageInHours + 1); // Heavily favors posts in the first few hours
 
-            // 2. Engagement Score
-            const reactionCount = Object.values(post.reactions || {}).reduce((sum, arr) => sum + (arr?.length || 0), 0);
-            const commentCount = post.comments.length;
-            score += (reactionCount * 0.5) + (commentCount * 1.0);
+            // 2. Engagement Score (REMOVED TO PREVENT POSTS FROM MOVING ON INTERACTION)
+            // const reactionCount = Object.values(post.reactions || {}).reduce((sum, arr) => sum + (arr?.length || 0), 0);
+            // const commentCount = post.comments.length;
+            // score += (reactionCount * 0.5) + (commentCount * 1.0);
 
             // 3. Author Relevance (if not current user)
             const author = users[post.authorId];
