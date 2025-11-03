@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import type { User, Post, Group, ReactionType, ConfessionMood } from '../types';
 import Header from '../components/Header';
-import Feed from '../components/Feed';
+import PostCard from '../components/PostCard';
 import BottomNavBar from '../components/BottomNavBar';
 import CreateConfessionModal from '../components/CreateConfessionModal';
 import { auth } from '../firebase';
@@ -60,7 +60,7 @@ const ConfessionsPage: React.FC<ConfessionsPageProps> = (props) => {
             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={props.currentPath} />
 
             <main className="container mx-auto px-2 sm:px-4 lg:px-8 pt-8 pb-20 md:pb-4">
-                <div className="max-w-3xl mx-auto">
+                <div className="max-w-5xl mx-auto">
                     <div className="text-center mb-6 p-6 rounded-lg bg-gradient-to-r from-blue-500 to-teal-400 text-white shadow-lg">
                         <h1 className="text-4xl font-extrabold">Confessions 💬</h1>
                         <p className="text-md mt-2 opacity-90">Share your thoughts, crushes, or secrets — 100% anonymous.</p>
@@ -68,7 +68,7 @@ const ConfessionsPage: React.FC<ConfessionsPageProps> = (props) => {
 
                     {/* Category Tabs */}
                     <div className="py-2 mb-6">
-                        <div className="flex items-center space-x-2 overflow-x-auto pb-2 no-scrollbar">
+                        <div className="flex items-center space-x-2 overflow-x-auto pb-2 no-scrollbar justify-start sm:justify-center">
                             {confessionCategories.map(cat => (
                                 <button
                                     key={cat.id}
@@ -86,14 +86,26 @@ const ConfessionsPage: React.FC<ConfessionsPageProps> = (props) => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                       <Feed 
-                            posts={filteredPosts}
-                            users={users}
-                            currentUser={currentUser}
-                            groups={groups}
-                            {...postCardProps}
-                            onNavigate={onNavigate}
-                        />
+                       {filteredPosts.length > 0 ? (
+                            filteredPosts.map((post, index) => (
+                                <PostCard
+                                    key={post.id}
+                                    post={post}
+                                    author={users[post.authorId]} // Will be undefined for confessions, PostCard handles this
+                                    currentUser={currentUser}
+                                    users={users}
+                                    groups={groups}
+                                    onNavigate={onNavigate}
+                                    animationIndex={index}
+                                    {...postCardProps}
+                                />
+                            ))
+                       ) : (
+                            <div className="md:col-span-2 text-center py-16 text-text-muted bg-card rounded-lg border border-border">
+                                <p className="font-semibold text-lg text-foreground">Nothing here yet!</p>
+                                <p>No confessions found in this category. Be the first to share one!</p>
+                            </div>
+                       )}
                     </div>
                 </div>
             </main>

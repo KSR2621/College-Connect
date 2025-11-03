@@ -127,7 +127,7 @@ const OpportunitiesPage: React.FC<OpportunitiesPageProps> = (props) => {
             </div>
             {/* Category Tabs */}
             <div className="mt-6">
-                <div className="flex items-center space-x-2 overflow-x-auto pb-2 no-scrollbar justify-center">
+                <div className="flex items-center space-x-2 overflow-x-auto pb-2 no-scrollbar justify-start sm:justify-center">
                     {opportunityCategories.map(cat => (
                         <button
                             key={cat.id}

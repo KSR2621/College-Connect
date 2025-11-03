@@ -8,6 +8,20 @@ import { BookOpenIcon, CloseIcon, PlusIcon, ArrowRightIcon, SearchIcon, Megaphon
 // FIX: Centralize constants by importing from constants.ts to remove local definitions.
 import { departmentOptions, yearOptions } from '../constants';
 
+// --- PROPS ---
+// FIX: Added missing AcademicsPageProps interface definition.
+interface AcademicsPageProps {
+  currentUser: User;
+  onNavigate: (path: string) => void;
+  currentPath: string;
+  courses: Course[];
+  onCreateCourse: (courseData: Omit<Course, 'id' | 'facultyId'>) => void;
+  notices: Notice[];
+  users: { [key: string]: User };
+  onCreateNotice: (noticeData: Omit<Notice, 'id' | 'authorId' | 'timestamp'>) => void;
+  onDeleteNotice: (noticeId: string) => void;
+}
+
 // --- MODALS & SUB-COMPONENTS ---
 const CreateCourseModal: React.FC<{ onClose: () => void; onAddCourse: (course: Omit<Course, 'id' | 'facultyId'>) => void; }> = ({ onClose, onAddCourse }) => {
     const [year, setYear] = useState(yearOptions[0].val);

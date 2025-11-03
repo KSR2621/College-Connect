@@ -255,8 +255,8 @@ const PostCard: React.FC<PostCardProps> = (props) => {
         className={`p-0.5 rounded-xl animated-border ${animationClass} ${isPickerVisible ? 'relative z-10' : ''}`}
         style={animationStyle}
       >
-        <div className="flex flex-col">
-            <div className={`relative bg-gradient-to-br ${mood.gradient} text-white p-8 flex flex-col justify-center items-center transition-transform transform hover:scale-[1.02] min-h-[180px] overflow-hidden rounded-t-[10px]`}>
+        <div className="bg-card rounded-[10px] overflow-hidden flex flex-col">
+            <div className={`relative bg-gradient-to-br ${mood.gradient} text-white p-8 flex flex-col justify-center items-center transition-transform transform hover:scale-[1.02] min-h-[180px]`}>
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/subtle-prism.png')] opacity-10"></div>
             <span className="absolute top-3 left-3 text-3xl opacity-80">{mood.emoji}</span>
             {canDelete && (
@@ -290,7 +290,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
             </div>
             </div>
             
-            <div className={`bg-card px-4 pt-2 pb-1 ${!showComments ? 'rounded-b-[10px]' : ''}`}>
+            <div className={`px-4 pt-2 pb-1`}>
                 {/* Reactions and Comments Info */}
                 <div className="flex flex-wrap items-center justify-between gap-y-1 gap-x-4 text-sm text-text-muted">
                     <div className="flex items-center space-x-2">
@@ -366,7 +366,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
             </div>
 
             {showComments && (
-                <div className="bg-card p-4 border-t border-border rounded-b-[10px]">
+                <div className="p-4 border-t border-border">
                 <CommentSection 
                     comments={post.comments}
                     users={users}

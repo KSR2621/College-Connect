@@ -166,7 +166,7 @@ const SearchPage: React.FC<SearchPageProps> = (props) => {
         {/* Filter Tabs */}
         {query && (
             <div className="mb-8">
-                <div className="flex items-center space-x-2 overflow-x-auto pb-2 no-scrollbar justify-center">
+                <div className="flex items-center space-x-2 overflow-x-auto pb-2 no-scrollbar justify-start sm:justify-center">
                     {filterTabs.map(tab => (
                         <button
                             key={tab.id}
