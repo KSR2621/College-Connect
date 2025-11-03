@@ -184,19 +184,6 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
         }
     };
 
-    const handleInteractionStart = (e: React.MouseEvent | React.TouchEvent) => {
-        const target = e.target as HTMLElement;
-        // Do not pause if the user is interacting with a button, input, or form
-        if (target.closest('button, input, form, a')) {
-            return;
-        }
-        setIsPaused(true);
-    };
-
-    const handleInteractionEnd = () => {
-        setIsPaused(false);
-    };
-    
     if (!activeEntity || !activeStory) {
         if (orderedEntities.length === 0) onClose();
         return null;
@@ -206,24 +193,35 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
     const postingAdmin = isGroupStory ? users[activeStory.authorId] : null;
 
     return (
-        <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center" role="dialog" aria-modal="true">
-            <div className={`absolute inset-0 transition-colors duration-300 ${activeStory.backgroundColor}`}></div>
-            <div className="absolute inset-0 bg-black/10"></div>
-
+        <div className="fixed inset-0 bg-black z-50 flex justify-center items-center" role="dialog" aria-modal="true">
             <div 
-                className="relative z-10 w-full h-full max-w-md max-h-[95vh] sm:max-h-[90vh] rounded-lg overflow-hidden flex flex-col"
-                onMouseDown={handleInteractionStart} onMouseUp={handleInteractionEnd} onMouseLeave={handleInteractionEnd}
-                onTouchStart={handleInteractionStart} onTouchEnd={handleInteractionEnd}
+                className="relative z-10 w-full h-full sm:w-auto sm:h-[95vh] sm:aspect-[9/16] bg-gray-900 sm:rounded-lg overflow-hidden flex flex-col"
+                onMouseDown={() => setIsPaused(true)} onMouseUp={() => setIsPaused(false)} onMouseLeave={() => setIsPaused(false)}
+                onTouchStart={() => setIsPaused(true)} onTouchEnd={() => setIsPaused(false)}
             >
-                {/* SAFE ZONE for click-through navigation */}
-                <div className="absolute top-20 bottom-24 left-0 right-0 flex z-20">
-                    <div className="w-1/3 h-full cursor-pointer" onClick={() => { if (!isPaused) goToPrevStory(); }} />
+                 {/* Background */}
+                <div className={`absolute inset-0 transition-colors duration-300 ${activeStory.backgroundColor}`}></div>
+                <div className="absolute inset-0 bg-black/10"></div>
+                
+                {/* Navigation Overlay */}
+                <div className="absolute inset-0 flex z-20">
+                    <div 
+                        className="w-1/3 h-full" 
+                        onMouseDown={e => e.stopPropagation()} 
+                        onMouseUp={e => e.stopPropagation()} 
+                        onClick={goToPrevStory} 
+                    />
                     <div className="flex-1 h-full" />
-                    <div className="w-1/3 h-full cursor-pointer" onClick={() => { if (!isPaused) goToNextStory(); }} />
+                    <div 
+                        className="w-1/3 h-full"
+                        onMouseDown={e => e.stopPropagation()} 
+                        onMouseUp={e => e.stopPropagation()} 
+                        onClick={goToNextStory} 
+                    />
                 </div>
 
-                {/* Header - z-30 to be above navigation zone */}
-                <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/40 to-transparent z-30">
+                {/* Header */}
+                <div className="absolute top-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-b from-black/40 to-transparent z-30">
                      <StoryProgressBar count={activeEntityStories.length} currentIndex={currentStoryIndex} isPaused={isPaused} currentEntityId={activeEntityId}/>
                      <div className="flex items-center justify-between mt-3">
                         <div className="flex items-center space-x-3">
@@ -271,11 +269,12 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
                     </div>
                 </div>
 
-                <div className="flex-1 flex items-center justify-center p-6 pointer-events-none">
+                 {/* Content */}
+                <div className="flex-1 flex items-center justify-center p-6 pointer-events-none z-10">
                     <p className={`text-white text-center shadow-2xl ${textClasses}`}>{activeStory.textContent}</p>
                 </div>
                 
-                 {/* Footer - z-30 to be above navigation zone */}
+                 {/* Footer */}
                  <div className="absolute bottom-0 left-0 right-0 p-4 z-30 bg-gradient-to-t from-black/40 to-transparent">
                     {canDelete ? (
                         <button onClick={() => { setIsViewersListOpen(true); setIsPaused(true); }} className="text-white text-sm font-semibold flex items-center bg-black/20 backdrop-blur-sm px-3 py-1.5 rounded-lg">

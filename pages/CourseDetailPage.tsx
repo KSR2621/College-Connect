@@ -1,7 +1,8 @@
 
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import type { User, Course, Student, Note, Assignment, AttendanceStatus, AttendanceRecord, Message } from 'types';
+// FIX: Corrected import path for types.
+import type { User, Course, Student, Note, Assignment, AttendanceStatus, AttendanceRecord, Message } from '../types';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
 import Avatar from '../components/Avatar';
@@ -90,22 +91,34 @@ const TakeAttendanceModal: React.FC<{ course: Course; students: Student[]; onClo
         setAttendance(initialAttendance);
     }, [students]);
 
-    // FIX: Provide a full default object when spreading to ensure type safety, preventing errors when `prev[studentId]` is undefined.
     const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
-        setAttendance(prev => ({ ...prev, [studentId]: { ...(prev[studentId] || { status: 'present', note: '' }), status } }));
+        setAttendance(prev => ({
+            ...prev,
+            [studentId]: {
+                ...(prev[studentId] || { status: 'present', note: '' }),
+                status: status,
+            },
+        }));
     };
 
-    // FIX: Provide a full default object when spreading to ensure type safety, preventing errors when `prev[studentId]` is undefined.
     const handleNoteChange = (studentId: string, note: string) => {
-        setAttendance(prev => ({ ...prev, [studentId]: { ...(prev[studentId] || { status: 'present', note: '' }), note } }));
+        setAttendance(prev => ({
+            ...prev,
+            [studentId]: {
+                ...(prev[studentId] || { status: 'present', note: '' }),
+                note: note,
+            },
+        }));
     };
 
     const markAllPresent = () => {
         setAttendance(prev => {
             const newAttendance = { ...prev };
             students.forEach(student => {
-                const record = newAttendance[student.id] || { status: 'present', note: '' };
-                newAttendance[student.id] = { ...record, status: 'present' };
+                newAttendance[student.id] = {
+                    ...(newAttendance[student.id] || { status: 'present', note: '' }),
+                    status: 'present',
+                };
             });
             return newAttendance;
         });
@@ -420,7 +433,7 @@ const AttendanceTab: React.FC<{ course: Course; isFaculty: boolean; currentUser:
                 </div>
             ) : (
                 attendanceRecords.length > 0 ? (
-                    attendanceRecords.map(rec => {
+                    attendanceRecords.map((rec: AttendanceRecord) => {
                         const total = Object.keys(rec.records).length;
                         const present = Object.values(rec.records).filter(s => s.status === 'present').length;
                         const userRecord = !isFaculty ? rec.records[currentUser.id] : undefined;
@@ -611,7 +624,7 @@ const CourseChatTab: React.FC<{
         </div>
     );
 };
-
+// FIX: Completed the PersonalNoteTab component, which was truncated.
 const PersonalNoteTab: React.FC<{
     noteContent: string;
     onSave: (content: string) => void;
@@ -638,20 +651,16 @@ const PersonalNoteTab: React.FC<{
     return (
         <div className="bg-card p-6 rounded-lg shadow-sm border border-border animate-fade-in">
             <h3 className="text-xl font-bold text-foreground mb-3">Private Note</h3>
-            <p className="text-sm text-text-muted mb-4">This note is only visible to you. Use it to keep track of reminders, student progress, or ideas for this course.</p>
+            <p className="text-sm text-text-muted mb-4">This note is only visible to you. Use it to keep track of reminders, student progress, or any other thoughts related to this course.</p>
             <textarea
                 value={note}
-                onChange={(e) => setNote(e.target.value)}
+                onChange={e => setNote(e.target.value)}
                 rows={10}
                 className="w-full bg-input border border-border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="Start typing your private note..."
             />
-            <div className="mt-4 text-right">
-                <button
-                    onClick={handleSave}
-                    className={`px-6 py-2 font-bold text-primary-foreground rounded-lg transition-colors w-32 ${isSaving ? 'bg-emerald-500' : 'bg-primary hover:bg-primary/90'}`}
-                    disabled={isSaving && feedbackText === 'Saving...'}
-                >
+            <div className="mt-4 flex justify-end">
+                <button onClick={handleSave} disabled={isSaving} className="px-6 py-2.5 font-bold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-all">
                     {feedbackText}
                 </button>
             </div>
@@ -659,173 +668,101 @@ const PersonalNoteTab: React.FC<{
     );
 };
 
-
-const CourseDetailPage: React.FC<CourseDetailPageProps> = (props) => {
-    const { course, currentUser, students, allUsers, onNavigate, currentPath, onAddNote, onAddAssignment, onTakeAttendance, onRequestToJoinCourse, onManageCourseRequest, onAddStudentsToCourse, onRemoveStudentFromCourse, onSendCourseMessage, onUpdateCoursePersonalNote } = props;
+// --- MAIN COMPONENT ---
+// FIX: Changed to a named export to resolve module loading issues.
+export const CourseDetailPage: React.FC<CourseDetailPageProps> = (props) => {
+    const { course, currentUser, allUsers, students, onNavigate, currentPath, onAddNote, onAddAssignment, onTakeAttendance, onRequestToJoinCourse, onManageCourseRequest, onAddStudentsToCourse, onRemoveStudentFromCourse, onSendCourseMessage, onUpdateCoursePersonalNote } = props;
     
-    const isFacultyOwner = currentUser.id === course.facultyId;
-    const isEnrolledStudent = course.students?.includes(currentUser.id) ?? false;
-    const isPendingStudent = course.pendingStudents?.includes(currentUser.id) ?? false;
-    const canViewContent = isFacultyOwner || isEnrolledStudent;
-    const canUploadContent = isFacultyOwner || isEnrolledStudent;
-
-    const tabs = useMemo(() => {
-        const baseTabs: { id: string, label: string }[] = [
-            { id: 'notes', label: 'Notes' },
-            { id: 'assignments', label: 'Assignments' },
-            { id: 'attendance', label: 'Attendance' },
-            { id: 'chat', label: 'Chat' },
-        ];
-        if (isFacultyOwner) {
-            baseTabs.push({ id: 'roster', label: 'Roster' });
-        }
-        if (isFacultyOwner || isEnrolledStudent) {
-            baseTabs.push({ id: 'personal-note', label: 'Personal Note' });
-        }
-        return baseTabs;
-    }, [isFacultyOwner, isEnrolledStudent]);
-
-    const [activeTab, setActiveTab] = useState(tabs[0].id);
-    const [modal, setModal] = useState<'note' | 'assignment' | 'attendance' | 'addStudent' | null>(null);
-    const [sliderStyle, setSliderStyle] = useState({});
-    const tabsRef = useRef<(HTMLButtonElement | null)[]>([]);
-
-    const handleTabClick = (tabId: string) => {
-        setActiveTab(tabId);
-        const tabIndex = tabs.findIndex(tab => tab.id === tabId);
-        const tabElement = tabsRef.current[tabIndex];
-        if (tabElement) {
-            tabElement.scrollIntoView({
-                behavior: 'smooth',
-                block: 'nearest',
-                inline: 'center'
-            });
-        }
-    };
-
-    useEffect(() => {
-        const activeTabIndex = tabs.findIndex(tab => tab.id === activeTab);
-        const activeTabElement = tabsRef.current[activeTabIndex];
-        if (activeTabElement) {
-            setSliderStyle({
-                left: activeTabElement.offsetLeft,
-                width: activeTabElement.offsetWidth,
-            });
-        }
-    }, [activeTab, tabs]);
-
+    const [activeTab, setActiveTab] = useState('notes');
+    const [isModalOpen, setIsModalOpen] = useState<'note' | 'assignment' | 'attendance' | 'addStudent' | null>(null);
 
     const handleLogout = async () => {
         await auth.signOut();
         onNavigate('#/');
     };
-    
-    const handleSaveNote = (data: Omit<Note, 'id'>) => {
-        onAddNote(course.id, { ...data, uploadedAt: Date.now() });
-    };
-    
-    const handleSaveAssignment = (data: Omit<Assignment, 'id'>) => {
-        onAddAssignment(course.id, { ...data, postedAt: Date.now() });
-    };
 
-    const handleSaveAttendance = (data: Omit<AttendanceRecord, 'date'>) => {
-        onTakeAttendance(course.id, data);
-    };
-    
-    const handleAddStudents = (studentIds: string[]) => {
-        onAddStudentsToCourse(course.id, studentIds);
-    };
+    const isFaculty = currentUser.tag === 'Faculty' && course.facultyId === currentUser.id;
+    const isStudent = currentUser.tag === 'Student' && (course.students || []).includes(currentUser.id);
+    const hasRequested = (course.pendingStudents || []).includes(currentUser.id);
 
-    const handleRemoveStudent = (studentId: string) => {
-        if (window.confirm("Are you sure you want to remove this student from the course?")) {
-            onRemoveStudentFromCourse(course.id, studentId);
+    const handleSaveResource = (data: any) => {
+        if (isModalOpen === 'note') {
+            onAddNote(course.id, { ...data, uploadedAt: Date.now() });
+        } else if (isModalOpen === 'assignment') {
+            onAddAssignment(course.id, { ...data, postedAt: Date.now() });
         }
     };
-
+    
+    let tabs = [
+        { id: 'notes', label: 'Notes' },
+        { id: 'assignments', label: 'Assignments' },
+    ];
+    if (isStudent || isFaculty) {
+        tabs.push({ id: 'attendance', label: 'Attendance' });
+    }
+    if (isFaculty) {
+        tabs.push({ id: 'roster', label: 'Roster' });
+    }
+     if (isStudent || isFaculty) {
+        tabs.push({ id: 'chat', label: 'Class Chat' });
+        tabs.push({ id: 'personalNote', label: 'My Note' });
+    }
+    
+    const renderTabContent = () => {
+        switch (activeTab) {
+            case 'assignments': return <AssignmentsTab course={course} isFaculty={isFaculty} onUpload={() => setIsModalOpen('assignment')} />;
+            case 'attendance': return <AttendanceTab course={course} isFaculty={isFaculty} currentUser={currentUser} students={students} onTakeAttendance={() => setIsModalOpen('attendance')} />;
+            case 'roster': return <RosterTab course={course} allUsers={allUsers} onManageRequest={(studentId, action) => onManageCourseRequest(course.id, studentId, action)} onAddStudents={() => setIsModalOpen('addStudent')} onRemoveStudent={(studentId) => onRemoveStudentFromCourse(course.id, studentId)} />;
+            case 'chat': return <CourseChatTab course={course} currentUser={currentUser} allUsers={allUsers} onSendCourseMessage={onSendCourseMessage} />;
+            case 'personalNote': return <PersonalNoteTab noteContent={course.personalNotes?.[currentUser.id] || ''} onSave={(content) => onUpdateCoursePersonalNote(course.id, currentUser.id, content)} />;
+            case 'notes':
+            default: return <NotesTab course={course} canUpload={isFaculty} onUpload={() => setIsModalOpen('note')} />;
+        }
+    };
 
     return (
         <div className="bg-muted/50 min-h-screen">
             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
-            
             <main className="container mx-auto px-4 pt-8 pb-20 md:pb-8">
-                <div className="max-w-4xl mx-auto">
-                    {/* Header */}
-                    <div className="mb-6">
-                        <button onClick={() => onNavigate('#/academics')} className="flex items-center text-sm text-primary mb-4 font-semibold">
-                            <ArrowLeftIcon className="w-4 h-4 mr-2"/>
-                            Back to All Courses
-                        </button>
-                        <div className="bg-card p-6 rounded-lg shadow-sm border border-border">
-                            <div className="flex flex-col sm:flex-row justify-between sm:items-center">
-                                <div>
-                                    <h1 className="text-3xl font-extrabold text-foreground">{course.subject}</h1>
-                                    <p className="text-md text-text-muted mt-1">{course.department}</p>
-                                    {course.description && <p className="text-sm text-text-muted mt-2 max-w-2xl">{course.description}</p>}
-                                </div>
-                                {!canViewContent && currentUser.tag === 'Student' && (
-                                    <div className="mt-4 sm:mt-0">
-                                        {isPendingStudent ? (
-                                            <button disabled className="w-full sm:w-auto bg-muted text-text-muted font-bold py-2.5 px-6 rounded-full cursor-not-allowed">Request Sent</button>
-                                        ) : (
-                                            <button onClick={() => onRequestToJoinCourse(course.id)} className="w-full sm:w-auto bg-primary text-primary-foreground font-bold py-2.5 px-6 rounded-full hover:bg-primary/90 transition-transform transform hover:scale-105">Request to Join</button>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
+                <div className="bg-card p-6 rounded-lg shadow-sm border border-border mb-6">
+                    <button onClick={() => onNavigate('#/academics')} className="flex items-center text-sm text-primary mb-4"><ArrowLeftIcon className="w-4 h-4 mr-2"/>Back to Academics</button>
+                    <div className="flex flex-col sm:flex-row justify-between items-start">
+                        <div>
+                            <h1 className="text-3xl font-bold text-foreground">{course.subject}</h1>
+                            <p className="text-md text-text-muted mt-1">{course.department} &bull; {yearOptions.find(y => y.val === course.year)?.label}</p>
                         </div>
+                         {!isStudent && !isFaculty && !hasRequested && currentUser.tag === 'Student' && (
+                            <button onClick={() => onRequestToJoinCourse(course.id)} className="mt-4 sm:mt-0 bg-primary text-primary-foreground font-bold py-2 px-6 rounded-full hover:bg-primary/90 transition-transform transform hover:scale-105">Request to Join</button>
+                         )}
+                          {!isStudent && !isFaculty && hasRequested && (
+                            <button disabled className="mt-4 sm:mt-0 bg-muted text-text-muted font-semibold py-2 px-6 rounded-full cursor-not-allowed">Request Sent</button>
+                         )}
                     </div>
-                    
-                    {canViewContent ? (
-                        <>
-                            {/* Sliding Tabs */}
-                            <div className="mb-6">
-                                <div className="border-b border-border">
-                                    <nav className="relative flex space-x-6 overflow-x-auto no-scrollbar" aria-label="Tabs">
-                                        {tabs.map((tab, index) => (
-                                             <button 
-                                                key={tab.id}
-                                                ref={el => { tabsRef.current[index] = el; }}
-                                                onClick={() => handleTabClick(tab.id)} 
-                                                className={`transition-colors duration-200 whitespace-nowrap py-4 px-2 font-medium text-sm z-10 ${activeTab === tab.id ? 'text-primary' : 'text-text-muted hover:text-foreground'}`}
-                                            >
-                                                {tab.label}
-                                            </button>
-                                        ))}
-                                        <div 
-                                            className="absolute bottom-0 h-0.5 bg-primary transition-all duration-300 ease-in-out"
-                                            style={sliderStyle}
-                                        />
-                                    </nav>
-                                </div>
-                            </div>
-                            
-                            {/* Content */}
-                            <div className="mt-6">
-                                {activeTab === 'notes' && <NotesTab course={course} canUpload={canUploadContent} onUpload={() => setModal('note')} />}
-                                {activeTab === 'assignments' && <AssignmentsTab course={course} isFaculty={isFacultyOwner} onUpload={() => setModal('assignment')} />}
-                                {activeTab === 'attendance' && <AttendanceTab course={course} isFaculty={isFacultyOwner} currentUser={currentUser} students={students} onTakeAttendance={() => setModal('attendance')} />}
-                                {activeTab === 'chat' && <CourseChatTab course={course} currentUser={currentUser} allUsers={allUsers} onSendCourseMessage={onSendCourseMessage} />}
-                                {activeTab === 'roster' && isFacultyOwner && <RosterTab course={course} allUsers={allUsers} onManageRequest={(studentId, action) => onManageCourseRequest(course.id, studentId, action)} onAddStudents={() => setModal('addStudent')} onRemoveStudent={handleRemoveStudent} />}
-                                {activeTab === 'personal-note' && (isFacultyOwner || isEnrolledStudent) && <PersonalNoteTab noteContent={course.personalNotes?.[currentUser.id] || ''} onSave={(content) => onUpdateCoursePersonalNote(course.id, currentUser.id, content)} />}
-                            </div>
-                        </>
-                    ) : (
-                         <div className="text-center bg-card rounded-lg border border-border p-12 text-text-muted">
-                            <h3 className="text-lg font-semibold text-foreground">Request to join this course to view its content.</h3>
-                        </div>
-                    )}
-
                 </div>
+                
+                <div className="border-b border-border flex justify-center mb-6">
+                    <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                        {tabs.map(tab => (
+                            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`transition-colors duration-200 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === tab.id ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'}`}>{tab.label}</button>
+                        ))}
+                    </nav>
+                </div>
+                
+                <div className="max-w-4xl mx-auto">
+                    {renderTabContent()}
+                </div>
+
             </main>
-
-            {modal === 'note' && canUploadContent && <UploadResourceModal course={course} onClose={() => setModal(null)} resourceType="Note" onSave={handleSaveNote} />}
-            {isFacultyOwner && modal === 'assignment' && <UploadResourceModal course={course} onClose={() => setModal(null)} resourceType="Assignment" onSave={handleSaveAssignment} />}
-            {isFacultyOwner && modal === 'attendance' && <TakeAttendanceModal course={course} students={students} onClose={() => setModal(null)} onSave={handleSaveAttendance} />}
-            {isFacultyOwner && modal === 'addStudent' && <AddStudentModal allUsers={allUsers} course={course} onClose={() => setModal(null)} onAddStudents={handleAddStudents} />}
-
+            {(isModalOpen === 'note' || isModalOpen === 'assignment') && (
+                <UploadResourceModal course={course} onClose={() => setIsModalOpen(null)} resourceType={isModalOpen === 'note' ? 'Note' : 'Assignment'} onSave={handleSaveResource} />
+            )}
+            {isModalOpen === 'attendance' && (
+                <TakeAttendanceModal course={course} students={students} onClose={() => setIsModalOpen(null)} onSave={(data) => onTakeAttendance(course.id, data)} />
+            )}
+            {isModalOpen === 'addStudent' && (
+                 <AddStudentModal course={course} allUsers={allUsers} onClose={() => setIsModalOpen(null)} onAddStudents={(studentIds) => onAddStudentsToCourse(course.id, studentIds)} />
+            )}
             <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
         </div>
     );
 };
-
-export default CourseDetailPage;

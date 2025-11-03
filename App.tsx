@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { auth, db, storage, FieldValue } from './firebase';
 import type { User, Post, Group, Conversation, Message, Achievement, UserTag, SharedPostInfo, ReactionType, Story, ConfessionMood, Course, Note, Assignment, AttendanceRecord, AttendanceStatus, Notice } from './types';
@@ -18,7 +19,8 @@ import SearchPage from './pages/SearchPage';
 import ConfessionsPage from './pages/ConfessionsPage';
 import AdminPage from './pages/AdminPage';
 import AcademicsPage from './pages/AcademicsPage';
-import CourseDetailPage from './pages/CourseDetailPage';
+// FIX: Changed to named import for CourseDetailPage.
+import { CourseDetailPage } from './pages/CourseDetailPage';
 
 const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);

@@ -31,9 +31,6 @@ const backgroundOptions = [
     'bg-gradient-to-br from-yellow-400 via-red-500 to-pink-500',
     'bg-gradient-to-br from-rose-400 via-fuchsia-500 to-indigo-500',
     'bg-gradient-to-br from-sky-400 to-blue-600',
-    'bg-gradient-to-br from-lime-400 via-emerald-500 to-teal-600',
-    'bg-gradient-to-br from-orange-400 via-amber-500 to-yellow-500',
-    'bg-gradient-to-br from-gray-700 via-gray-900 to-black',
 ];
 
 const fontFamilies = [
@@ -42,10 +39,10 @@ const fontFamilies = [
     { name: 'Mono', class: 'font-mono' },
 ];
 
-const fontSizes = [
-    { name: 'S', class: 'text-2xl' },
-    { name: 'M', class: 'text-3xl' },
-    { name: 'L', class: 'text-4xl' },
+const textBackgroundStyles = [
+  { name: 'None', classes: '' },
+  { name: 'Light', classes: 'bg-white/90 text-black px-4 py-2 rounded-lg' },
+  { name: 'Dark', classes: 'bg-black/60 text-white px-4 py-2 rounded-lg' },
 ];
 
 
@@ -53,7 +50,7 @@ const StoryCreatorModal: React.FC<StoryCreatorModalProps> = ({ currentUser, admi
     const [textContent, setTextContent] = useState('');
     const [backgroundColor, setBackgroundColor] = useState(backgroundOptions[0]);
     const [fontFamilyIndex, setFontFamilyIndex] = useState(0);
-    const [fontSizeIndex, setFontSizeIndex] = useState(1);
+    const [textBackgroundIndex, setTextBackgroundIndex] = useState(0);
     const [isBold, setIsBold] = useState(true);
 
     const [poster, setPoster] = useState<Poster>(
@@ -63,18 +60,17 @@ const StoryCreatorModal: React.FC<StoryCreatorModalProps> = ({ currentUser, admi
     );
     const [showPosterSelector, setShowPosterSelector] = useState(false);
 
-
     const activeFont = fontFamilies[fontFamilyIndex];
-    const activeSize = fontSizes[fontSizeIndex];
+    const activeTextBackground = textBackgroundStyles[textBackgroundIndex];
 
     const handleSubmit = () => {
         if (textContent.trim()) {
             onAddStory({ 
-                textContent, 
+                textContent: textContent.trim(), 
                 backgroundColor,
                 fontFamily: activeFont.class,
                 fontWeight: isBold ? 'font-bold' : 'font-normal',
-                fontSize: activeSize.class,
+                fontSize: 'text-3xl', // Default font size
                 groupId: poster.type === 'group' ? poster.id : undefined
             });
             onClose();
@@ -88,94 +84,80 @@ const StoryCreatorModal: React.FC<StoryCreatorModalProps> = ({ currentUser, admi
 
     return (
         <div className="fixed inset-0 bg-black z-50 flex flex-col" role="dialog" aria-modal="true">
-            {/* Header */}
-            <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-10">
-                <button onClick={onClose} className="p-2 bg-black/30 rounded-full text-white">
-                    <CloseIcon className="w-6 h-6" />
-                </button>
-                 <div className="flex items-center space-x-2 bg-black/30 p-1.5 rounded-full">
-                    {/* Font Family Cycle Button */}
-                    <button 
-                        onClick={() => setFontFamilyIndex((prev) => (prev + 1) % fontFamilies.length)}
-                        className="text-white font-semibold text-sm px-3 py-1 rounded-full hover:bg-white/20"
-                    >
-                       <span className={activeFont.class}>{activeFont.name}</span>
-                    </button>
-                    {/* Font Size Cycle Button */}
-                     <button
-                        onClick={() => setFontSizeIndex((prev) => (prev + 1) % fontSizes.length)}
-                        className="text-white font-semibold text-sm px-3 py-1 rounded-full hover:bg-white/20 flex items-center"
-                    >
-                        <span className="text-xs">A</span>
-                        <span className="text-lg">A</span>
-                    </button>
-                    {/* Bold Toggle Button */}
-                    <button
-                        onClick={() => setIsBold(!isBold)}
-                        className={`text-white font-bold text-sm px-3 py-1 rounded-full ${isBold ? 'bg-white text-black' : 'hover:bg-white/20'}`}
-                    >
-                        B
-                    </button>
-                 </div>
-                 <div className="flex items-center space-x-2">
-                    {backgroundOptions.map(bg => (
-                        <button 
-                            key={bg} 
-                            onClick={() => setBackgroundColor(bg)}
-                            className={`w-8 h-8 rounded-full ${bg} border-2 transition-all duration-200 ${backgroundColor === bg ? 'border-white scale-110' : 'border-transparent'}`}
-                            aria-label={`Select background ${bg}`}
-                        />
-                    ))}
-                 </div>
-            </div>
+            {/* The gradient background layer */}
+            <div className={`absolute inset-0 transition-colors duration-300 ${backgroundColor}`}></div>
 
-            {/* Content */}
-            <div className={`flex-1 flex items-center justify-center p-8 transition-colors duration-300 ${backgroundColor}`}>
-                <textarea
-                    value={textContent}
-                    onChange={(e) => setTextContent(e.target.value)}
-                    placeholder="Start typing..."
-                    maxLength={250}
-                    className={`w-full bg-transparent text-white text-center focus:outline-none resize-none placeholder:text-white/70 ${activeSize.class} ${activeFont.class} ${isBold ? 'font-bold' : 'font-normal'}`}
-                />
-            </div>
-
-            {/* Footer */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 flex justify-between items-center z-10">
-                <div className="relative">
-                    {!defaultGroup && posterOptions.length > 1 && (
+            {/* UI Overlay */}
+            <div className="relative flex-1 flex flex-col p-4">
+                {/* Header */}
+                <div className="relative h-12 flex justify-between items-center z-10">
+                    <button onClick={onClose} className="p-2 bg-black/30 rounded-full text-white">
+                        <CloseIcon className="w-6 h-6" />
+                    </button>
+                    
+                    <div className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center space-x-2 bg-black/40 backdrop-blur-sm p-1.5 rounded-full">
+                        {/* Font family button */}
                         <button 
-                            onClick={() => setShowPosterSelector(!showPosterSelector)}
-                            className="flex items-center space-x-2 bg-black/40 text-white font-semibold py-2 px-4 rounded-full text-sm"
+                            onClick={() => setFontFamilyIndex((prev) => (prev + 1) % fontFamilies.length)}
+                            className="text-white font-semibold text-sm px-3 py-1.5 rounded-full hover:bg-white/20 transition-colors"
                         >
-                            <span>Posting as: <strong>{poster.name}</strong></span>
+                            <span className={activeFont.class}>{activeFont.name}</span>
                         </button>
-                    )}
-                    {showPosterSelector && !defaultGroup && (
-                        <div className="absolute bottom-full mb-2 bg-card rounded-lg shadow-lg w-60 overflow-hidden">
-                            {posterOptions.map(option => (
-                                <div key={option.id} onClick={() => { setPoster(option); setShowPosterSelector(false); }} className="flex items-center space-x-3 p-3 hover:bg-muted cursor-pointer">
-                                    {option.type === 'user' ? (
-                                        <Avatar src={option.avatarUrl} name={option.name} size="md" />
-                                    ) : (
-                                        <div className="h-10 w-10 rounded-md bg-primary/20 text-primary flex items-center justify-center">
-                                            <UsersIcon className="w-6 h-6" />
-                                        </div>
-                                    )}
-                                    <span className="font-semibold text-foreground">{option.name}</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                        {/* Text background style button */}
+                        <button
+                            onClick={() => setTextBackgroundIndex((prev) => (prev + 1) % textBackgroundStyles.length)}
+                            className="text-white font-semibold text-sm w-9 h-7 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors"
+                        >
+                            AA
+                        </button>
+                        {/* Bold style button */}
+                        <button
+                            onClick={() => setIsBold(!isBold)}
+                            className={`text-sm w-9 h-7 flex items-center justify-center rounded-full transition-colors ${isBold ? 'bg-white text-black font-bold' : 'text-white font-semibold hover:bg-white/20'}`}
+                        >
+                            B
+                        </button>
+
+                        {/* Separator */}
+                        <div className="w-px h-5 bg-white/30 mx-1"></div>
+
+                        {/* Color Palette */}
+                        {backgroundOptions.map(bg => (
+                            <button 
+                                key={bg} 
+                                onClick={() => setBackgroundColor(bg)}
+                                className={`w-8 h-8 rounded-full ${bg} border-2 transition-all duration-200 ${backgroundColor === bg ? 'border-white scale-110' : 'border-white/30 hover:border-white/70'}`}
+                                aria-label={`Select background ${bg}`}
+                            />
+                        ))}
+                    </div>
                 </div>
-                <button 
-                    onClick={handleSubmit}
-                    disabled={!textContent.trim()}
-                    className="flex items-center space-x-2 bg-white text-black font-bold py-3 px-6 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-transform hover:scale-105 hover:shadow-lg"
-                >
-                    <SendIcon className="w-5 h-5"/>
-                    <span>Share Story</span>
-                </button>
+
+
+                {/* Content */}
+                <div className="flex-1 flex items-center justify-center p-4">
+                    <div className={activeTextBackground.classes}>
+                        <textarea
+                            value={textContent}
+                            onChange={(e) => setTextContent(e.target.value)}
+                            placeholder="Start typing..."
+                            maxLength={250}
+                            className={`w-full bg-transparent text-white text-center focus:outline-none resize-none placeholder:text-white/70 text-3xl ${activeFont.class} ${isBold ? 'font-bold' : 'font-normal'}`}
+                        />
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="flex justify-end items-center z-10">
+                    <button 
+                        onClick={handleSubmit}
+                        disabled={!textContent.trim()}
+                        className="flex items-center space-x-2 bg-white/90 text-black font-bold py-2.5 px-5 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-transform transform hover:scale-105"
+                    >
+                        <SendIcon className="w-5 h-5"/>
+                        <span>Share Story</span>
+                    </button>
+                </div>
             </div>
         </div>
     );
