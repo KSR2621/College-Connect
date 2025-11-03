@@ -57,6 +57,23 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ currentUser, groups, onNavigate
             </div>
         </div>
 
+        {/* Confessions Link Card */}
+        <div className="mb-12 animate-fade-in">
+            <div 
+                className="bg-card rounded-xl shadow-card hover:shadow-card-hover transition-all duration-300 cursor-pointer border border-border flex items-center p-6 group hover:-translate-y-1" 
+                onClick={() => onNavigate('#/confessions')}
+            >
+                <div className="flex-shrink-0 h-14 w-14 bg-gradient-to-br from-purple-500 to-indigo-600 text-white rounded-xl flex items-center justify-center">
+                    <GhostIcon className="h-8 w-8"/>
+                </div>
+                <div className="ml-5 flex-1">
+                    <h3 className="text-lg font-bold text-card-foreground">Campus Confessions</h3>
+                    <p className="text-sm text-text-muted">Share your thoughts anonymously with the entire community.</p>
+                </div>
+                <ArrowRightIcon className="w-6 h-6 text-text-muted group-hover:text-primary group-hover:translate-x-1 transition-transform" />
+            </div>
+        </div>
+
         {/* My Groups Section */}
         {myGroups.length > 0 && (
             <div className="mb-12">

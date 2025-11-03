@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 // FIX: Corrected import path for types.
 import type { User, Course, Student, Note, Assignment, AttendanceStatus, AttendanceRecord, Message } from '../types';
@@ -8,6 +9,8 @@ import BottomNavBar from '../components/BottomNavBar';
 import Avatar from '../components/Avatar';
 import { auth } from '../firebase';
 import { ArrowLeftIcon, UploadIcon, ClipboardListIcon, CheckSquareIcon, CloseIcon, CheckCircleIcon, XCircleIcon, ClockIcon, SearchIcon, ArrowRightIcon, PlusIcon, TrashIcon, UserPlusIcon, MessageIcon, SendIcon } from '../components/Icons';
+// FIX: Import yearOptions to resolve reference error.
+import { yearOptions } from '../constants';
 
 // --- PROPS ---
 interface CourseDetailPageProps {

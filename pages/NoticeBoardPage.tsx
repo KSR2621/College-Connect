@@ -5,10 +5,8 @@ import BottomNavBar from '../components/BottomNavBar';
 import Avatar from '../components/Avatar';
 import { auth } from '../firebase';
 import { MegaphoneIcon, PlusIcon, CloseIcon, ChevronDownIcon, TrashIcon, CheckSquareIcon } from '../components/Icons';
-
-// Constants for filters and creation
-const departmentOptions = ["Computer Science", "Mechanical Eng.", "Literature", "Mathematics", "Electrical Eng.", "Civil Eng."];
-const yearOptions = [{ val: 1, label: "1st Year" }, { val: 2, label: "2nd Year" }, { val: 3, label: "3rd Year" }, { val: 4, label: "4th Year" }, { val: 5, label: "Graduate" }];
+// FIX: Centralize constants by importing from constants.ts to remove local definitions.
+import { departmentOptions, yearOptions } from '../constants';
 
 // --- PROPS ---
 interface NoticeBoardPageProps {

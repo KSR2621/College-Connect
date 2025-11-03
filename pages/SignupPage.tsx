@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { auth, db } from '../firebase';
 import type { UserTag } from '../types';
 import { UserIcon, MailIcon, LockIcon, BuildingIcon } from '../components/Icons';
+// FIX: Import yearOptions to dynamically generate year selection.
+import { yearOptions } from '../constants';
 
 interface SignupPageProps {
     onNavigate: (path: string) => void;
@@ -86,11 +88,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                         <div>
                             <label className="text-sm font-medium text-text-muted">Year of Study</label>
                             <select value={yearOfStudy} onChange={e => setYearOfStudy(Number(e.target.value))} className={`mt-1 ${selectClasses}`}>
-                                <option value={1}>1st Year</option>
-                                <option value={2}>2nd Year</option>
-                                <option value={3}>3rd Year</option>
-                                <option value={4}>4th Year</option>
-                                <option value={5}>Graduate</option>
+                                {yearOptions.map(opt => <option key={opt.val} value={opt.val}>{opt.label}</option>)}
                             </select>
                         </div>
                     )}

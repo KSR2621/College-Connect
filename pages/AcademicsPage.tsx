@@ -5,22 +5,8 @@ import BottomNavBar from '../components/BottomNavBar';
 import Avatar from '../components/Avatar';
 import { auth } from '../firebase';
 import { BookOpenIcon, CloseIcon, PlusIcon, ArrowRightIcon, SearchIcon, MegaphoneIcon, TrashIcon } from '../components/Icons';
-
-// --- TYPES & CONSTANTS ---
-const departmentOptions = ["Computer Science", "Mechanical Eng.", "Literature", "Mathematics", "Electrical Eng.", "Civil Eng."];
-const yearOptions = [{ val: 1, label: "1st Year" }, { val: 2, label: "2nd Year" }, { val: 3, label: "3rd Year" }, { val: 4, label: "4th Year" }, { val: 5, label: "Graduate" }];
-
-interface AcademicsPageProps {
-  currentUser: User;
-  onNavigate: (path: string) => void;
-  currentPath: string;
-  courses: Course[];
-  onCreateCourse: (course: Omit<Course, 'id' | 'facultyId'>) => void;
-  notices: Notice[];
-  users: { [key: string]: User };
-  onCreateNotice: (noticeData: { title: string; content: string }) => void;
-  onDeleteNotice: (noticeId: string) => void;
-}
+// FIX: Centralize constants by importing from constants.ts to remove local definitions.
+import { departmentOptions, yearOptions } from '../constants';
 
 // --- MODALS & SUB-COMPONENTS ---
 const CreateCourseModal: React.FC<{ onClose: () => void; onAddCourse: (course: Omit<Course, 'id' | 'facultyId'>) => void; }> = ({ onClose, onAddCourse }) => {

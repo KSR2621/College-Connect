@@ -1079,6 +1079,17 @@ const App: React.FC = () => {
             case 'opportunities': return <OpportunitiesPage currentUser={currentUser} users={users} posts={posts} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} postCardProps={postCardProps} />;
             case 'chat': return <ChatPage currentUser={currentUser} users={users} conversations={conversations} onSendMessage={handleSendMessage} onDeleteMultipleMessages={handleDeleteMultipleMessages} onDeleteConversations={handleDeleteConversations} onCreateOrOpenConversation={handleCreateOrOpenConversation} onNavigate={handleNavigate} currentPath={currentPath} />;
             case 'search': return <SearchPage currentUser={currentUser} users={allUsersList} posts={posts} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} {...postCardProps} />;
+            case 'confessions':
+                return <ConfessionsPage 
+                    currentUser={currentUser}
+                    users={users}
+                    posts={posts.filter(p => p.isConfession)}
+                    groups={groups}
+                    onNavigate={handleNavigate}
+                    onAddPost={handleAddPost}
+                    currentPath={currentPath}
+                    {...postCardProps}
+                />;
             case 'academics': 
                  if (params[0]) { // We have a course ID
                     const course = courses.find(c => c.id === params[0]);

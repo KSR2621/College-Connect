@@ -131,11 +131,16 @@ const HomePage: React.FC<HomePageProps> = (props) => {
         ]);
 
         const filtered = posts.filter(post => {
+            // Exclude all confessions from the main home feed
+            if (post.isConfession) {
+                return false;
+            }
+
             // If it's a group post, only show it if the user is a member or follower of that group.
             if (post.groupId && !userGroupIds.has(post.groupId)) {
                 return false;
             }
-            // Otherwise, show the post (this now includes confessions)
+            // Otherwise, show the post
             return true;
         });
 
