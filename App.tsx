@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { auth, db, storage, FieldValue } from './firebase';
 import type { User, Post, Group, Conversation, Message, Achievement, UserTag, SharedPostInfo, ReactionType, Story, ConfessionMood, Course, Note, Assignment, AttendanceRecord, AttendanceStatus, Notice } from './types';
@@ -160,7 +161,8 @@ const App: React.FC = () => {
                             postsMap.set(data.id, data);
                         }
                     }
-                    return Array.from(postsMap.values()).sort((a, b) => b.timestamp - a.timestamp);
+                    // FIX: Explicitly type sort parameters to resolve 'unknown' type error.
+                    return Array.from(postsMap.values()).sort((a: Post, b: Post) => b.timestamp - a.timestamp);
                 });
             }),
             db.collection('stories')
@@ -186,7 +188,8 @@ const App: React.FC = () => {
                         }
                     }
                     // Sort by name for a consistent order in lists
-                    return Array.from(groupsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+                    // FIX: Explicitly type sort parameters to resolve 'unknown' type error.
+                    return Array.from(groupsMap.values()).sort((a: Group, b: Group) => a.name.localeCompare(b.name));
                 });
             }),
             db.collection('conversations').where('participantIds', 'array-contains', currentUser.id).onSnapshot(snapshot => {
@@ -1077,7 +1080,8 @@ const App: React.FC = () => {
             case 'academics': 
                  if (params[0]) { // We have a course ID
                     const course = courses.find(c => c.id === params[0]);
-                    const studentsForCourse = allUsersList.filter(u => course?.students?.includes(u.id));
+                    // FIX: Explicitly type parameter 'u' to resolve 'unknown' type error.
+                    const studentsForCourse = allUsersList.filter((u: User) => course?.students?.includes(u.id));
                     return course ? <CourseDetailPage 
                         course={course} 
                         currentUser={currentUser} 

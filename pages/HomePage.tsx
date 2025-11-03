@@ -172,7 +172,7 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                 </div>
             )}
 
-            <main className="container mx-auto pt-8 pb-20 md:pb-4" ref={mainContentRef}>
+            <main className="container mx-auto px-2 sm:px-4 lg:px-8 pt-8 pb-20 md:pb-4" ref={mainContentRef}>
                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     {/* Left Sidebar (Desktop) */}
                     <aside className="hidden lg:block lg:col-span-3">
@@ -181,35 +181,37 @@ const HomePage: React.FC<HomePageProps> = (props) => {
 
                     {/* Main Content Feed */}
                     <div className="lg:col-span-6">
-                        <StoriesReel
-                            stories={stories}
-                            users={users}
-                            groups={groups}
-                            currentUser={currentUser}
-                            onAddStoryClick={() => setIsStoryCreatorOpen(true)}
-                            onViewStoryEntity={(entityId) => setViewingStoryEntityId(entityId)}
-                        />
-                        
-                        <InlineCreatePost user={currentUser} onOpenCreateModal={setCreateModalType} />
+                        <div className="max-w-2xl mx-auto w-full">
+                            <StoriesReel
+                                stories={stories}
+                                users={users}
+                                groups={groups}
+                                currentUser={currentUser}
+                                onAddStoryClick={() => setIsStoryCreatorOpen(true)}
+                                onViewStoryEntity={(entityId) => setViewingStoryEntityId(entityId)}
+                            />
+                            
+                            <InlineCreatePost user={currentUser} onOpenCreateModal={setCreateModalType} />
 
-                        {/* Feed sort options */}
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold text-foreground">Feed</h2>
-                            <div className="flex items-center space-x-1">
-                                <button onClick={() => handleSortOrderChange('forYou')} className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${sortOrder === 'forYou' ? 'bg-primary/10 text-primary' : 'text-text-muted hover:bg-muted'}`}>For You</button>
-                                <button onClick={() => handleSortOrderChange('latest')} className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${sortOrder === 'latest' ? 'bg-primary/10 text-primary' : 'text-text-muted hover:bg-muted'}`}>Latest</button>
+                            {/* Feed sort options */}
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-foreground">Feed</h2>
+                                <div className="flex items-center space-x-1">
+                                    <button onClick={() => handleSortOrderChange('forYou')} className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${sortOrder === 'forYou' ? 'bg-primary/10 text-primary' : 'text-text-muted hover:bg-muted'}`}>For You</button>
+                                    <button onClick={() => handleSortOrderChange('latest')} className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${sortOrder === 'latest' ? 'bg-primary/10 text-primary' : 'text-text-muted hover:bg-muted'}`}>Latest</button>
+                                </div>
                             </div>
+
+
+                            <Feed 
+                                posts={feedToRender}
+                                users={users}
+                                currentUser={currentUser}
+                                groups={groups}
+                                onNavigate={onNavigate}
+                                {...postCardProps}
+                            />
                         </div>
-
-
-                        <Feed 
-                            posts={feedToRender}
-                            users={users}
-                            currentUser={currentUser}
-                            groups={groups}
-                            onNavigate={onNavigate}
-                            {...postCardProps}
-                        />
                     </div>
                     
                     {/* Right Sidebar (Desktop) */}

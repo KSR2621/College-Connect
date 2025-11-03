@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { User, Course, Student, Note, Assignment, AttendanceStatus, AttendanceRecord, Message } from 'types';
 import Header from '../components/Header';
@@ -89,18 +90,20 @@ const TakeAttendanceModal: React.FC<{ course: Course; students: Student[]; onClo
     }, [students]);
 
     const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
-        setAttendance(prev => ({ ...prev, [studentId]: { ...prev[studentId], status } }));
+        setAttendance(prev => ({ ...prev, [studentId]: { ...(prev[studentId] || { note: '' }), status } }));
     };
 
     const handleNoteChange = (studentId: string, note: string) => {
-        setAttendance(prev => ({ ...prev, [studentId]: { ...prev[studentId], note } }));
+        setAttendance(prev => ({ ...prev, [studentId]: { ...(prev[studentId] || { status: 'present' }), note } }));
     };
 
     const markAllPresent = () => {
         setAttendance(prev => {
             const newAttendance = { ...prev };
             students.forEach(student => {
-                newAttendance[student.id] = { ...newAttendance[student.id], status: 'present' };
+                // FIX: Avoid spreading a potentially undefined object which TypeScript infers as 'unknown' here.
+                const record = newAttendance[student.id] || { status: 'present', note: '' };
+                newAttendance[student.id] = { ...record, status: 'present' };
             });
             return newAttendance;
         });
