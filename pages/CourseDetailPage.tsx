@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { User, Course, Student, Note, Assignment, AttendanceStatus, AttendanceRecord, Message } from 'types';
 import Header from '../components/Header';
@@ -89,19 +90,20 @@ const TakeAttendanceModal: React.FC<{ course: Course; students: Student[]; onClo
         setAttendance(initialAttendance);
     }, [students]);
 
+    // FIX: Provide a full default object when spreading to ensure type safety, preventing errors when `prev[studentId]` is undefined.
     const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
-        setAttendance(prev => ({ ...prev, [studentId]: { ...(prev[studentId] || { note: '' }), status } }));
+        setAttendance(prev => ({ ...prev, [studentId]: { ...(prev[studentId] || { status: 'present', note: '' }), status } }));
     };
 
+    // FIX: Provide a full default object when spreading to ensure type safety, preventing errors when `prev[studentId]` is undefined.
     const handleNoteChange = (studentId: string, note: string) => {
-        setAttendance(prev => ({ ...prev, [studentId]: { ...(prev[studentId] || { status: 'present' }), note } }));
+        setAttendance(prev => ({ ...prev, [studentId]: { ...(prev[studentId] || { status: 'present', note: '' }), note } }));
     };
 
     const markAllPresent = () => {
         setAttendance(prev => {
             const newAttendance = { ...prev };
             students.forEach(student => {
-                // FIX: Avoid spreading a potentially undefined object which TypeScript infers as 'unknown' here.
                 const record = newAttendance[student.id] || { status: 'present', note: '' };
                 newAttendance[student.id] = { ...record, status: 'present' };
             });

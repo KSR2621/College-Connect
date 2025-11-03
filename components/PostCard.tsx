@@ -69,7 +69,18 @@ const PostCard: React.FC<PostCardProps> = (props) => {
   const wasLongPress = useRef(false);
   const [countdown, setCountdown] = useState('');
 
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isSharedPostExpanded, setIsSharedPostExpanded] = useState(false);
+  const TRUNCATE_LENGTH = 350;
+
   const isSaved = currentUser.savedPosts?.includes(post.id);
+
+  const postContent = post.content || '';
+  const isLongContent = postContent.length > TRUNCATE_LENGTH;
+
+  const sharedPostOriginalContent = post.sharedPost?.originalContent || '';
+  const isLongSharedPost = sharedPostOriginalContent.length > TRUNCATE_LENGTH;
+
 
   useEffect(() => {
     if (!post.isEvent || !post.eventDetails) return;
@@ -257,10 +268,26 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                     <TrashIcon className="w-5 h-5" />
                 </button>
             )}
-            <div 
-                className="text-center leading-relaxed whitespace-pre-wrap break-words w-full"
-                dangerouslySetInnerHTML={{ __html: post.content }} 
-            />
+            <div className="text-center leading-relaxed whitespace-pre-wrap break-words w-full">
+                {isLongContent && !isExpanded ? (
+                    <>
+                        <span dangerouslySetInnerHTML={{ __html: postContent.substring(0, TRUNCATE_LENGTH) }} />
+                        <span>... </span>
+                        <button onClick={() => setIsExpanded(true)} className="text-white/80 font-semibold hover:underline">
+                            more
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        <span dangerouslySetInnerHTML={{ __html: postContent }} />
+                        {isLongContent && isExpanded && (
+                            <button onClick={() => setIsExpanded(false)} className="text-white/80 font-semibold hover:underline ml-1">
+                                less
+                            </button>
+                        )}
+                    </>
+                )}
+            </div>
             </div>
             
             <div className={`bg-card px-4 pt-2 pb-1 ${!showComments ? 'rounded-b-[10px]' : ''}`}>
@@ -311,34 +338,29 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                             onClick={handleLikeClick}
                             onTouchStart={handleTouchStart}
                             onTouchEnd={handleTouchEnd}
-                            className={`w-full flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted transition-colors font-semibold ${
+                            className={`w-full flex items-center justify-center py-2 rounded-lg hover:bg-muted transition-colors font-semibold ${
                                 currentUserReaction ? currentUserReaction.color : 'text-text-muted'
                             }`}
                         >
                             {currentUserReaction ? (
                                 <>
                                     <span className="text-xl" role="img" aria-label={currentUserReaction.label}>{currentUserReaction.emoji}</span>
-                                    <span>{currentUserReaction.label}</span>
                                 </>
                             ) : (
                                 <>
                                     <LikeIcon className="w-6 h-6" fill="none" stroke="currentColor"/>
-                                    <span>Like</span>
                                 </>
                             )}
                         </button>
                     </div>
-                    <button onClick={() => setShowComments(!showComments)} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors font-semibold">
+                    <button onClick={() => setShowComments(!showComments)} className="flex-1 flex items-center justify-center py-2 rounded-lg hover:bg-muted text-text-muted transition-colors font-semibold">
                         <CommentIcon className="w-6 h-6" />
-                        <span>Comment</span>
                     </button>
-                    <button onClick={() => onToggleSavePost(post.id)} className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted transition-colors font-semibold ${isSaved ? 'text-primary' : 'text-text-muted'}`}>
+                    <button onClick={() => onToggleSavePost(post.id)} className={`flex-1 flex items-center justify-center py-2 rounded-lg hover:bg-muted transition-colors font-semibold ${isSaved ? 'text-primary' : 'text-text-muted'}`}>
                         {isSaved ? <BookmarkIconSolid className="w-6 h-6" /> : <BookmarkIcon className="w-6 h-6" />}
-                        <span>{isSaved ? 'Saved' : 'Save'}</span>
                     </button>
-                    <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'message'})} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors font-semibold">
+                    <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'message'})} className="flex-1 flex items-center justify-center py-2 rounded-lg hover:bg-muted text-text-muted transition-colors font-semibold">
                         <SendIcon className="w-6 h-6" />
-                        <span>Send</span>
                     </button>
                 </div>
             </div>
@@ -463,7 +485,28 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                         </div>
                     )}
                     
-                    {post.content && <p className="mt-3 text-card-foreground text-sm whitespace-pre-wrap line-clamp-2" dangerouslySetInnerHTML={{ __html: post.content }}></p>}
+                    {post.content && (
+                        <div className="mt-3 text-card-foreground text-sm whitespace-pre-wrap">
+                            {isLongContent && !isExpanded ? (
+                                <>
+                                    <span dangerouslySetInnerHTML={{ __html: postContent.substring(0, TRUNCATE_LENGTH) }} />
+                                    <span>... </span>
+                                    <button onClick={() => setIsExpanded(true)} className="text-primary font-semibold hover:underline">
+                                        more
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <span dangerouslySetInnerHTML={{ __html: postContent }} />
+                                    {isLongContent && isExpanded && (
+                                        <button onClick={() => setIsExpanded(false)} className="text-primary font-semibold hover:underline ml-1">
+                                            less
+                                        </button>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    )}
                     
                     {post.eventDetails.link && (
                         <a href={post.eventDetails.link} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center justify-center w-full bg-secondary text-secondary-foreground font-bold py-2 px-4 rounded-lg text-sm hover:bg-secondary/90 transition-transform transform group-hover:scale-105">
@@ -520,34 +563,29 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                                 onClick={handleLikeClick}
                                 onTouchStart={handleTouchStart}
                                 onTouchEnd={handleTouchEnd}
-                                className={`w-full flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted transition-colors font-semibold ${
+                                className={`w-full flex items-center justify-center py-2 rounded-lg hover:bg-muted transition-colors font-semibold ${
                                     currentUserReaction ? currentUserReaction.color : 'text-text-muted'
                                 }`}
                             >
                                 {currentUserReaction ? (
                                     <>
                                         <span className="text-xl" role="img" aria-label={currentUserReaction.label}>{currentUserReaction.emoji}</span>
-                                        <span>{currentUserReaction.label}</span>
                                     </>
                                 ) : (
                                     <>
                                         <LikeIcon className="w-6 h-6" fill="none" stroke="currentColor"/>
-                                        <span>Like</span>
                                     </>
                                 )}
                             </button>
                         </div>
-                        <button onClick={() => setShowComments(!showComments)} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors font-semibold">
+                        <button onClick={() => setShowComments(!showComments)} className="flex-1 flex items-center justify-center py-2 rounded-lg hover:bg-muted text-text-muted transition-colors font-semibold">
                             <CommentIcon className="w-6 h-6" />
-                            <span>Comment</span>
                         </button>
-                        <button onClick={() => onToggleSavePost(post.id)} className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted transition-colors font-semibold ${isSaved ? 'text-primary' : 'text-text-muted'}`}>
+                        <button onClick={() => onToggleSavePost(post.id)} className={`flex-1 flex items-center justify-center py-2 rounded-lg hover:bg-muted transition-colors font-semibold ${isSaved ? 'text-primary' : 'text-text-muted'}`}>
                             {isSaved ? <BookmarkIconSolid className="w-6 h-6" /> : <BookmarkIcon className="w-6 h-6" />}
-                            <span>{isSaved ? 'Saved' : 'Save'}</span>
                         </button>
-                        <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'message'})} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors font-semibold">
+                        <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'message'})} className="flex-1 flex items-center justify-center py-2 rounded-lg hover:bg-muted text-text-muted transition-colors font-semibold">
                             <SendIcon className="w-6 h-6" />
-                            <span>Send</span>
                         </button>
                     </div>
                 </div>
@@ -633,7 +671,26 @@ const PostCard: React.FC<PostCardProps> = (props) => {
 
                     <div className="mt-4 flex-1 px-5">
                         <h3 className="text-lg font-bold text-foreground leading-tight">{title}</h3>
-                        <p className="mt-2 text-card-foreground text-sm whitespace-pre-wrap line-clamp-3" dangerouslySetInnerHTML={{ __html: post.content }}></p>
+                        <div className="mt-2 text-card-foreground text-sm whitespace-pre-wrap">
+                           {isLongContent && !isExpanded ? (
+                                <>
+                                    <span dangerouslySetInnerHTML={{ __html: postContent.substring(0, TRUNCATE_LENGTH) }} />
+                                    <span>... </span>
+                                    <button onClick={() => setIsExpanded(true)} className="text-primary font-semibold hover:underline">
+                                        more
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <span dangerouslySetInnerHTML={{ __html: postContent }} />
+                                    {isLongContent && isExpanded && (
+                                        <button onClick={() => setIsExpanded(false)} className="text-primary font-semibold hover:underline ml-1">
+                                            less
+                                        </button>
+                                    )}
+                                </>
+                            )}
+                        </div>
                     </div>
                     
                     {applyLink && (
@@ -694,34 +751,29 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                             onClick={handleLikeClick}
                             onTouchStart={handleTouchStart}
                             onTouchEnd={handleTouchEnd}
-                            className={`w-full flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted transition-colors font-semibold ${
+                            className={`w-full flex items-center justify-center py-2 rounded-lg hover:bg-muted transition-colors font-semibold ${
                                 currentUserReaction ? currentUserReaction.color : 'text-text-muted'
                             }`}
                         >
                                 {currentUserReaction ? (
                                     <>
                                         <span className="text-xl" role="img" aria-label={currentUserReaction.label}>{currentUserReaction.emoji}</span>
-                                        <span>{currentUserReaction.label}</span>
                                     </>
                                 ) : (
                                     <>
                                         <LikeIcon className="w-6 h-6" fill="none" stroke="currentColor"/>
-                                        <span>Like</span>
                                     </>
                                 )}
                         </button>
                     </div>
-                    <button onClick={() => setShowComments(!showComments)} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors font-semibold">
+                    <button onClick={() => setShowComments(!showComments)} className="flex-1 flex items-center justify-center py-2 rounded-lg hover:bg-muted text-text-muted transition-colors font-semibold">
                         <CommentIcon className="w-6 h-6" />
-                        <span>Comment</span>
                     </button>
-                    <button onClick={() => onToggleSavePost(post.id)} className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted transition-colors font-semibold ${isSaved ? 'text-primary' : 'text-text-muted'}`}>
+                    <button onClick={() => onToggleSavePost(post.id)} className={`flex-1 flex items-center justify-center py-2 rounded-lg hover:bg-muted transition-colors font-semibold ${isSaved ? 'text-primary' : 'text-text-muted'}`}>
                         {isSaved ? <BookmarkIconSolid className="w-6 h-6" /> : <BookmarkIcon className="w-6 h-6" />}
-                        <span>{isSaved ? 'Saved' : 'Save'}</span>
                     </button>
-                    <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'message'})} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors font-semibold">
+                    <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'message'})} className="flex-1 flex items-center justify-center py-2 rounded-lg hover:bg-muted text-text-muted transition-colors font-semibold">
                         <SendIcon className="w-6 h-6" />
-                        <span>Send</span>
                     </button>
                     </div>
                 </div>
@@ -810,8 +862,26 @@ const PostCard: React.FC<PostCardProps> = (props) => {
             {/* Content */}
             <div className="px-4 pb-2">
                 {post.content && (
-                    <p className="text-card-foreground whitespace-pre-wrap leading-relaxed" dangerouslySetInnerHTML={{ __html: post.content }}>
-                    </p>
+                    <div className="text-card-foreground whitespace-pre-wrap leading-relaxed">
+                        {isLongContent && !isExpanded ? (
+                            <>
+                                <span dangerouslySetInnerHTML={{ __html: postContent.substring(0, TRUNCATE_LENGTH) }} />
+                                <span>... </span>
+                                <button onClick={() => setIsExpanded(true)} className="text-primary font-semibold hover:underline">
+                                    more
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <span dangerouslySetInnerHTML={{ __html: postContent }} />
+                                {isLongContent && isExpanded && (
+                                    <button onClick={() => setIsExpanded(false)} className="text-primary font-semibold hover:underline ml-1">
+                                        less
+                                    </button>
+                                )}
+                            </>
+                        )}
+                    </div>
                 )}
             </div>
 
@@ -854,7 +924,26 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                                     ) : null
                                 )}
                             </div>
-                            <p className="text-card-foreground text-sm whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: post.sharedPost.originalContent }}></p>
+                            <div className="text-card-foreground text-sm whitespace-pre-wrap">
+                                {isLongSharedPost && !isSharedPostExpanded ? (
+                                    <>
+                                        <span dangerouslySetInnerHTML={{ __html: sharedPostOriginalContent.substring(0, TRUNCATE_LENGTH) }} />
+                                        <span>... </span>
+                                        <button onClick={() => setIsSharedPostExpanded(true)} className="text-primary font-semibold hover:underline">
+                                            more
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span dangerouslySetInnerHTML={{ __html: sharedPostOriginalContent }} />
+                                        {isLongSharedPost && isSharedPostExpanded && (
+                                            <button onClick={() => setIsSharedPostExpanded(false)} className="text-primary font-semibold hover:underline ml-1">
+                                                less
+                                            </button>
+                                        )}
+                                    </>
+                                )}
+                            </div>
                         </div>
                         {post.sharedPost.originalMediaUrl && (
                             <div className="bg-muted">
@@ -915,34 +1004,29 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                         onClick={handleLikeClick}
                         onTouchStart={handleTouchStart}
                         onTouchEnd={handleTouchEnd}
-                        className={`w-full flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted transition-colors font-semibold ${
+                        className={`w-full flex items-center justify-center py-2 rounded-lg hover:bg-muted transition-colors font-semibold ${
                             currentUserReaction ? currentUserReaction.color : 'text-text-muted'
                         }`}
                     >
                         {currentUserReaction ? (
                             <>
                                 <span className="text-xl" role="img" aria-label={currentUserReaction.label}>{currentUserReaction.emoji}</span>
-                                <span>{currentUserReaction.label}</span>
                             </>
                         ) : (
                             <>
                                 <LikeIcon className="w-6 h-6" fill="none" stroke="currentColor"/>
-                                <span>Like</span>
                             </>
                         )}
                     </button>
                 </div>
-                <button onClick={() => setShowComments(!showComments)} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors font-semibold">
+                <button onClick={() => setShowComments(!showComments)} className="flex-1 flex items-center justify-center py-2 rounded-lg hover:bg-muted text-text-muted transition-colors font-semibold">
                     <CommentIcon className="w-6 h-6" />
-                    <span>Comment</span>
                 </button>
-                <button onClick={() => onToggleSavePost(post.id)} className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted transition-colors font-semibold ${isSaved ? 'text-primary' : 'text-text-muted'}`}>
+                <button onClick={() => onToggleSavePost(post.id)} className={`flex-1 flex items-center justify-center py-2 rounded-lg hover:bg-muted transition-colors font-semibold ${isSaved ? 'text-primary' : 'text-text-muted'}`}>
                     {isSaved ? <BookmarkIconSolid className="w-6 h-6" /> : <BookmarkIcon className="w-6 h-6" />}
-                    <span>{isSaved ? 'Saved' : 'Save'}</span>
                 </button>
-                <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'message'})} className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-muted text-text-muted transition-colors font-semibold">
+                <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'message'})} className="flex-1 flex items-center justify-center py-2 rounded-lg hover:bg-muted text-text-muted transition-colors font-semibold">
                     <SendIcon className="w-6 h-6" />
-                    <span>Send</span>
                 </button>
             </div>
 
