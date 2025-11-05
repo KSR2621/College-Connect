@@ -8,13 +8,12 @@ interface AchievementCardProps {
 
 const AchievementCard: React.FC<AchievementCardProps> = ({ achievement }) => {
   return (
-    <div className="bg-card p-4 rounded-lg shadow-sm flex items-start space-x-4 border border-border">
-      <div className="flex-shrink-0 h-10 w-10 bg-primary/10 text-primary rounded-full flex items-center justify-center">
-        {/* Placeholder for dynamic icons, using a default for now */}
+    <div className="bg-muted/50 p-3 rounded-lg flex items-center space-x-3 border border-border/50">
+      <div className="flex-shrink-0 text-accent">
         <AwardIcon className="h-6 w-6" />
       </div>
-      <div>
-        <h4 className="font-bold text-card-foreground">{achievement.title}</h4>
+      <div className="flex-1">
+        <h4 className="font-semibold text-card-foreground">{achievement.title}</h4>
         <p className="text-sm text-text-muted">{achievement.description}</p>
       </div>
     </div>
