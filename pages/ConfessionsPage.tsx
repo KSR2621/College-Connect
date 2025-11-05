@@ -15,7 +15,7 @@ interface ConfessionsPageProps {
   onNavigate: (path: string) => void;
   onAddPost: (postDetails: { 
     content: string; 
-    mediaFile?: File | null; 
+    mediaDataUrl?: string | null; 
     mediaType?: "image" | "video" | null; 
     isConfession?: boolean;
     confessionMood?: ConfessionMood;

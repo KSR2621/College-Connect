@@ -7,7 +7,7 @@ interface CreatePostProps {
   user: User;
   onAddPost: (postDetails: {
     content: string;
-    mediaFile?: File | null;
+    mediaDataUrl?: string | null;
     mediaType?: 'image' | 'video' | null;
     eventDetails?: { title: string; date: string; location: string; link?: string; };
     groupId?: string;
@@ -35,31 +35,47 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
   const [postType, setPostType] = useState<'post' | 'event'>(defaultType || 'post');
   
   const [eventDetails, setEventDetails] = useState({ title: '', date: '', time: '', location: '', link: '' });
-  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaDataUrl, setMediaDataUrl] = useState<string | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setMediaFile(file);
-      setMediaType(type);
-      setMediaPreview(URL.createObjectURL(file));
-    }
-  };
-
   const clearMedia = () => {
-    setMediaFile(null);
+    setMediaDataUrl(null);
     setMediaPreview(null);
     setMediaType(null);
     if(imageInputRef.current) imageInputRef.current.value = '';
-    if(videoInputRef.current) videoInputRef.current.value = '';
   }
-  
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+        if (file.type.startsWith('video/')) {
+            alert("Video uploads are not supported. Please select an image.");
+            clearMedia();
+            return;
+        }
+        // Firestore doc limit is 1MiB. Base64 is ~33% larger than binary.
+        // A 700KB file becomes roughly 933KB as Base64, which is safely under the limit.
+        if (file.size > 700 * 1024) { 
+            alert("Image file is too large. Please select an image smaller than 700KB.");
+            clearMedia();
+            return;
+        }
+      
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const result = reader.result as string;
+            setMediaDataUrl(result);
+            setMediaPreview(result);
+            setMediaType('image');
+        };
+        reader.readAsDataURL(file);
+    }
+  };
+
   const applyStyle = (e: React.MouseEvent, command: string) => {
     e.preventDefault();
     document.execCommand(command, false, undefined);
@@ -77,8 +93,8 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
 
     const currentTextContent = editorRef.current?.innerText.trim() || '';
 
-    if (postType === 'post' && !currentTextContent && !mediaFile) {
-        alert("Please write something or add media to create a post.");
+    if (postType === 'post' && !currentTextContent && !mediaDataUrl) {
+        alert("Please write something or add an image to create a post.");
         return;
     }
 
@@ -99,7 +115,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
 
     onAddPost({
       content,
-      mediaFile,
+      mediaDataUrl,
       mediaType,
       eventDetails: finalEventDetails,
       groupId,
@@ -177,23 +193,18 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
 
                 {mediaPreview && (
                 <div className="mt-4 relative">
-                    {mediaType === 'image' ? (
                     <img src={mediaPreview} alt="Preview" className="rounded-lg max-h-80 w-auto" />
-                    ) : (
-                    <video src={mediaPreview} controls className="rounded-lg max-h-80 w-auto" />
-                    )}
                     <button onClick={clearMedia} className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 leading-none w-6 h-6 flex items-center justify-center">&times;</button>
                 </div>
                 )}
 
                 <div className="flex justify-between items-center mt-4 pt-4 border-t border-border">
                 <div className="flex space-x-1">
-                    <input type="file" accept="image/*" ref={imageInputRef} onChange={(e) => handleFileChange(e, 'image')} className="hidden" />
-                    <input type="file" accept="video/*" ref={videoInputRef} onChange={(e) => handleFileChange(e, 'video')} className="hidden" />
+                    <input type="file" accept="image/*" ref={imageInputRef} onChange={handleFileChange} className="hidden" />
                     <button type="button" onClick={() => imageInputRef.current?.click()} className="flex items-center text-text-muted hover:text-primary p-2 rounded-full hover:bg-primary/10 transition-colors" aria-label="Add photo">
                     <PhotoIcon className="w-6 h-6" />
                     </button>
-                    <button type="button" onClick={() => videoInputRef.current?.click()} className="flex items-center text-text-muted hover:text-primary p-2 rounded-full hover:bg-primary/10 transition-colors" aria-label="Add video">
+                    <button type="button" className="flex items-center text-text-muted/50 p-2 rounded-full cursor-not-allowed" aria-label="Add video (disabled)" title="Video uploads are not supported">
                     <VideoIcon className="w-6 h-6" />
                     </button>
                 </div>

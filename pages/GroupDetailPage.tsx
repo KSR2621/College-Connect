@@ -17,7 +17,7 @@ interface GroupDetailPageProps {
   groups: Group[];
   onNavigate: (path: string) => void;
   currentPath: string;
-  onAddPost: (postDetails: { content: string; groupId?: string; mediaFile?: File | null; mediaType?: "image" | "video" | null; eventDetails?: { title: string; date: string; location: string; link?: string; }; }) => void;
+  onAddPost: (postDetails: { content: string; groupId?: string; mediaDataUrl?: string | null; mediaType?: "image" | "video" | null; eventDetails?: { title: string; date: string; location: string; link?: string; }; }) => void;
   onAddStory: (storyDetails: { 
     textContent: string; 
     backgroundColor: string;

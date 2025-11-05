@@ -14,7 +14,7 @@ interface EventsPageProps {
   groups: Group[];
   onNavigate: (path: string) => void;
   currentPath: string;
-  onAddPost: (postDetails: { content: string; mediaFile?: File | null; mediaType?: "image" | "video" | null; eventDetails?: { title: string; date: string; location: string; link?: string; }; }) => void;
+  onAddPost: (postDetails: { content: string; mediaDataUrl?: string | null; mediaType?: "image" | "video" | null; eventDetails?: { title: string; date: string; location: string; link?: string; }; }) => void;
   onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;

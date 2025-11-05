@@ -67,8 +67,6 @@ export type Post = {
     content: string; // Used for description in opportunities
     mediaUrl?: string;
     mediaType?: 'image' | 'video';
-    imagePath?: string; // For reliable deletion from storage
-    videoPath?: string; // For reliable deletion from storage
     timestamp: number;
     reactions?: { [key in ReactionType]?: string[] };
     comments: Comment[];

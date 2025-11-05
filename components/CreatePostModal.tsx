@@ -8,7 +8,7 @@ interface CreatePostModalProps {
   user: User;
   onAddPost: (postDetails: {
     content: string;
-    mediaFile?: File | null;
+    mediaDataUrl?: string | null;
     mediaType?: 'image' | 'video' | null;
     eventDetails?: { title: string; date: string; location: string; link?: string; };
     groupId?: string;

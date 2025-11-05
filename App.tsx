@@ -254,7 +254,7 @@ const App: React.FC = () => {
     
     const handleAddPost = async (postDetails: {
         content: string;
-        mediaFile?: File | null;
+        mediaDataUrl?: string | null;
         mediaType?: 'image' | 'video' | null;
         eventDetails?: { title: string; date: string; location: string; link?: string; };
         groupId?: string;
@@ -267,13 +267,9 @@ const App: React.FC = () => {
 
         try {
             let mediaUrl = '';
-            let mediaPath = '';
             
-            if (postDetails.mediaFile && postDetails.mediaType) {
-                const filePath = `${postDetails.mediaType}s/${currentUser.id}_${Date.now()}_${postDetails.mediaFile.name}`;
-                const fileSnapshot = await storage.ref(filePath).put(postDetails.mediaFile);
-                mediaUrl = await fileSnapshot.ref.getDownloadURL();
-                mediaPath = filePath;
+            if (postDetails.mediaDataUrl && postDetails.mediaType) {
+                mediaUrl = postDetails.mediaDataUrl;
             }
 
             const newPost: Partial<Omit<Post, 'id'>> = {
@@ -290,11 +286,6 @@ const App: React.FC = () => {
             if (mediaUrl && postDetails.mediaType) {
                 newPost.mediaUrl = mediaUrl;
                 newPost.mediaType = postDetails.mediaType;
-                if (postDetails.mediaType === 'image' && mediaPath) {
-                    newPost.imagePath = mediaPath;
-                } else if (postDetails.mediaType === 'video' && mediaPath) {
-                    newPost.videoPath = mediaPath;
-                }
             }
 
             if (postDetails.groupId) {
@@ -471,15 +462,6 @@ const App: React.FC = () => {
                 return;
             }
     
-            // Delete associated media from storage
-            const mediaPath = postToDelete.imagePath || postToDelete.videoPath;
-            if (mediaPath) {
-                await storage.ref(mediaPath).delete().catch(err => {
-                    // Log error but don't block post deletion if file is already gone
-                    console.warn(`Could not delete media at ${mediaPath}:`, err);
-                });
-            }
-            
             // Delete the post document from Firestore
             await postRef.delete();
         } catch (error) {
@@ -1011,20 +993,10 @@ const App: React.FC = () => {
 
     const handleAdminDeletePost = async (postId: string) => {
         if (!currentUser?.isAdmin) return;
-        const postRef = db.collection('posts').doc(postId);
-        try {
-            const doc = await postRef.get();
-            if (!doc.exists) return;
-            const postToDelete = doc.data() as Omit<Post, 'id'>;
-            const mediaPath = postToDelete.imagePath || postToDelete.videoPath;
-            if (mediaPath) {
-                await storage.ref(mediaPath).delete().catch(err => console.warn(`Could not delete media at ${mediaPath}:`, err));
-            }
-            await postRef.delete();
-        } catch (error) {
+        await db.collection('posts').doc(postId).delete().catch(error => {
             console.error(`Admin error deleting post ${postId}:`, error);
             alert("Could not delete the post.");
-        }
+        });
     };
 
     const handleAdminDeleteGroup = async (groupId: string) => {
