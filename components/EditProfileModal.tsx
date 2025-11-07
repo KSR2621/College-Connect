@@ -45,6 +45,10 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, cu
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 700 * 1024) {
+        alert("Profile picture must be smaller than 700KB.");
+        return;
+      }
       setAvatarFile(file);
       setAvatarPreview(URL.createObjectURL(file));
     }

@@ -19,7 +19,7 @@ interface ProfilePageProps {
   groups: Group[];
   onNavigate: (path: string) => void;
   currentPath: string;
-  onAddPost: (postDetails: { content: string; mediaDataUrl?: string | null; mediaType?: "image" | "video" | null; eventDetails?: { title: string; date: string; location: string; link?: string; }; }) => void;
+  onAddPost: (postDetails: { content: string; mediaDataUrls?: string[] | null; mediaType?: "image" | "video" | null; eventDetails?: { title: string; date: string; location: string; link?: string; }; }) => void;
   onAddAchievement: (achievement: Achievement) => void;
   onAddInterest: (interest: string) => void;
   onUpdateProfile: (updateData: { name: string; bio: string; department: string; tag: UserTag; yearOfStudy?: number }, avatarFile?: File | null) => void;

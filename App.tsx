@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { auth, db, storage, FieldValue } from './firebase';
 import type { User, Post, Group, Conversation, Message, Achievement, UserTag, SharedPostInfo, ReactionType, Story, ConfessionMood, Course, Note, Assignment, AttendanceRecord, AttendanceStatus, Notice } from './types';
@@ -36,6 +35,8 @@ const App: React.FC = () => {
     const [courses, setCourses] = useState<Course[]>([]);
     const [notices, setNotices] = useState<Notice[]>([]);
     const prevConversationsRef = useRef<Conversation[]>([]);
+    const prevPostsRef = useRef<Post[]>([]);
+    const remindedEventIdsRef = useRef<Set<string>>(new Set());
 
 
     useEffect(() => {
@@ -78,6 +79,69 @@ const App: React.FC = () => {
     
         prevConversationsRef.current = conversations;
     }, [conversations, currentUser, users]);
+
+    // Effect for new group post notifications
+    useEffect(() => {
+        if (!currentUser || posts.length === 0 || !document.hidden || groups.length === 0) {
+            prevPostsRef.current = posts;
+            return;
+        }
+
+        const prevPostIds = new Set(prevPostsRef.current.map(p => p.id));
+        const newPosts = posts.filter(p => !prevPostIds.has(p.id));
+
+        if (newPosts.length > 0) {
+            const userGroupIds = new Set([
+                ...(currentUser.followingGroups || []),
+                ...groups.filter(g => g.memberIds.includes(currentUser.id)).map(g => g.id)
+            ]);
+
+            newPosts.forEach(post => {
+                if (post.groupId && userGroupIds.has(post.groupId) && post.authorId !== currentUser.id) {
+                    const group = groups.find(g => g.id === post.groupId);
+                    const author = users[post.authorId];
+                    if (group && author) {
+                        new Notification(`New post in ${group.name}`, {
+                            body: `${author.name}: ${post.content.substring(0, 100).replace(/<[^>]*>?/gm, '')}...`,
+                            icon: author.avatarUrl || '/vite.svg'
+                        });
+                    }
+                }
+            });
+        }
+
+        prevPostsRef.current = posts;
+    }, [posts, currentUser, users, groups]);
+
+    // Effect for event reminders
+    useEffect(() => {
+        if (!currentUser) return;
+
+        const reminderInterval = setInterval(() => {
+            const now = Date.now();
+            const oneHour = 60 * 60 * 1000;
+
+            posts.forEach(post => {
+                if (post.isEvent && post.eventDetails) {
+                    const eventTime = new Date(post.eventDetails.date).getTime();
+                    const timeUntilEvent = eventTime - now;
+
+                    if (timeUntilEvent > 0 && timeUntilEvent <= oneHour && !remindedEventIdsRef.current.has(post.id)) {
+                        new Notification(`Event Reminder: ${post.eventDetails.title}`, {
+                            body: `Starts in about an hour at ${post.eventDetails.location}.`,
+                            icon: '/vite.svg' 
+                        });
+                        remindedEventIdsRef.current.add(post.id);
+                    }
+                }
+            });
+        }, 60 * 1000); // Check every minute
+
+        return () => {
+            clearInterval(reminderInterval);
+            remindedEventIdsRef.current.clear();
+        };
+    }, [posts, currentUser]);
 
 
     useEffect(() => {
@@ -254,7 +318,7 @@ const App: React.FC = () => {
     
     const handleAddPost = async (postDetails: {
         content: string;
-        mediaDataUrl?: string | null;
+        mediaDataUrls?: string[] | null;
         mediaType?: 'image' | 'video' | null;
         eventDetails?: { title: string; date: string; location: string; link?: string; };
         groupId?: string;
@@ -266,12 +330,6 @@ const App: React.FC = () => {
         if (!currentUser) return;
 
         try {
-            let mediaUrl = '';
-            
-            if (postDetails.mediaDataUrl && postDetails.mediaType) {
-                mediaUrl = postDetails.mediaDataUrl;
-            }
-
             const newPost: Partial<Omit<Post, 'id'>> = {
                 authorId: currentUser.id,
                 content: postDetails.content,
@@ -283,8 +341,8 @@ const App: React.FC = () => {
                 isOpportunity: !!postDetails.isOpportunity,
             };
 
-            if (mediaUrl && postDetails.mediaType) {
-                newPost.mediaUrl = mediaUrl;
+            if (postDetails.mediaDataUrls && postDetails.mediaDataUrls.length > 0 && postDetails.mediaType) {
+                newPost.mediaUrls = postDetails.mediaDataUrls;
                 newPost.mediaType = postDetails.mediaType;
             }
 
@@ -570,7 +628,7 @@ const App: React.FC = () => {
                 originalAuthorId: originalPost.authorId,
                 originalTimestamp: originalPost.timestamp,
                 originalContent: originalPost.content,
-                originalMediaUrl: originalPost.mediaUrl,
+                originalMediaUrls: originalPost.mediaUrls,
                 originalMediaType: originalPost.mediaType,
                 originalIsEvent: originalPost.isEvent,
                 originalEventDetails: originalPost.eventDetails,
@@ -806,6 +864,13 @@ const App: React.FC = () => {
         });
     };
 
+    const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
+    });
+
     const handleUpdateProfile = async (
         updateData: { name: string; bio: string; department: string; tag: UserTag; yearOfStudy?: number; }, 
         avatarFile?: File | null
@@ -814,7 +879,6 @@ const App: React.FC = () => {
         try {
             const userRef = db.collection('users').doc(currentUser.id);
             
-            // Explicitly build the update object to prevent issues with undefined fields
             const dataToUpdate: { [key: string]: any } = {
                 name: updateData.name,
                 bio: updateData.bio,
@@ -829,9 +893,8 @@ const App: React.FC = () => {
             }
     
             if (avatarFile) {
-                const filePath = `avatars/${currentUser.id}/${avatarFile.name}`;
-                const fileSnapshot = await storage.ref(filePath).put(avatarFile);
-                dataToUpdate.avatarUrl = await fileSnapshot.ref.getDownloadURL();
+                const dataUrl = await fileToBase64(avatarFile);
+                dataToUpdate.avatarUrl = dataUrl;
             }
             await userRef.update(dataToUpdate);
         } catch (error) {

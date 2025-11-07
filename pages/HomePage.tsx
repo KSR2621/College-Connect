@@ -21,7 +21,7 @@ interface HomePageProps {
   groups: Group[];
   events: Post[];
   onNavigate: (path: string) => void;
-  onAddPost: (postDetails: { content: string; mediaDataUrl?: string | null; mediaType?: "image" | "video" | null; eventDetails?: { title: string; date: string; location: string; link?: string; }; isConfession?: boolean, confessionMood?: ConfessionMood }) => void;
+  onAddPost: (postDetails: { content: string; mediaDataUrls?: string[] | null; mediaType?: "image" | "video" | null; eventDetails?: { title: string; date: string; location: string; link?: string; }; isConfession?: boolean, confessionMood?: ConfessionMood }) => void;
   onAddStory: (storyDetails: { 
     textContent: string; 
     backgroundColor: string;

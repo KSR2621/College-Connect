@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { auth, db } from '../firebase';
 import type { UserTag } from '../types';
-import { UserIcon, MailIcon, LockIcon, BuildingIcon } from '../components/Icons';
-// FIX: Import yearOptions to dynamically generate year selection.
+import { UserIcon, MailIcon, LockIcon, BuildingIcon, CameraIcon } from '../components/Icons';
 import { yearOptions } from '../constants';
 
 interface SignupPageProps {
@@ -17,6 +16,31 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
     const [tag, setTag] = useState<UserTag>('Student');
     const [yearOfStudy, setYearOfStudy] = useState<number>(1);
     const [error, setError] = useState('');
+    
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 700 * 1024) { 
+                alert("Profile picture must be smaller than 700KB.");
+                return;
+            }
+            setAvatarFile(file);
+            setAvatarPreview(URL.createObjectURL(file));
+        }
+    };
+
+    const fileToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = error => reject(error);
+        });
+    };
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,13 +48,17 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
         try {
             const { user } = await auth.createUserWithEmailAndPassword(email, password);
             if (user) {
-                // Create a user document in Firestore
+                let avatarUrl = '';
+                if (avatarFile) {
+                    avatarUrl = await fileToBase64(avatarFile);
+                }
+
                 const userData: any = {
                     name,
                     email,
                     department,
                     tag,
-                    avatarUrl: '', // Default avatar
+                    avatarUrl,
                     bio: '',
                     interests: [],
                     achievements: []
@@ -61,6 +89,31 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                 </div>
                 
                 <form onSubmit={handleSignup} className="space-y-4">
+                    <div className="flex justify-center">
+                        <div className="relative">
+                            <img
+                                src={avatarPreview || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'A')}&background=random&color=fff`}
+                                alt="Avatar preview"
+                                className="w-24 h-24 rounded-full object-cover border-4 border-card shadow-md"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground p-2 rounded-full border-2 border-card hover:bg-primary/90"
+                                aria-label="Upload profile picture"
+                            >
+                                <CameraIcon className="w-5 h-5"/>
+                            </button>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                className="hidden"
+                            />
+                        </div>
+                    </div>
+
                     <div className="relative">
                         <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
                         <input type="text" placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} required className={inputClasses} />

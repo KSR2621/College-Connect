@@ -1,13 +1,13 @@
 import React, { useState, useRef } from 'react';
 import type { User } from '../types';
 import Avatar from './Avatar';
-import { PostIcon, EventIcon, PhotoIcon, VideoIcon, GhostIcon, LinkIcon } from './Icons';
+import { PostIcon, EventIcon, PhotoIcon, VideoIcon, GhostIcon, LinkIcon, CloseIcon } from './Icons';
 
 interface CreatePostProps {
   user: User;
   onAddPost: (postDetails: {
     content: string;
-    mediaDataUrl?: string | null;
+    mediaDataUrls?: string[] | null;
     mediaType?: 'image' | 'video' | null;
     eventDetails?: { title: string; date: string; location: string; link?: string; };
     groupId?: string;
@@ -35,44 +35,57 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
   const [postType, setPostType] = useState<'post' | 'event'>(defaultType || 'post');
   
   const [eventDetails, setEventDetails] = useState({ title: '', date: '', time: '', location: '', link: '' });
-  const [mediaDataUrl, setMediaDataUrl] = useState<string | null>(null);
-  const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+  const [mediaDataUrls, setMediaDataUrls] = useState<string[]>([]);
+  const [mediaPreviews, setMediaPreviews] = useState<string[]>([]);
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
 
   const clearMedia = () => {
-    setMediaDataUrl(null);
-    setMediaPreview(null);
+    setMediaDataUrls([]);
+    setMediaPreviews([]);
     setMediaType(null);
     if(imageInputRef.current) imageInputRef.current.value = '';
-  }
+  };
+
+  const removeMediaItem = (index: number) => {
+    setMediaDataUrls(urls => urls.filter((_, i) => i !== index));
+    setMediaPreviews(previews => previews.filter((_, i) => i !== index));
+    if (mediaDataUrls.length === 1) { // if it was the last one
+        setMediaType(null);
+    }
+  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-        if (file.type.startsWith('video/')) {
-            alert("Video uploads are not supported. Please select an image.");
-            clearMedia();
+    const files = event.target.files;
+    if (files) {
+        if (files.length + mediaDataUrls.length > 5) {
+            alert("You can upload a maximum of 5 images.");
             return;
         }
-        // Firestore doc limit is 1MiB. Base64 is ~33% larger than binary.
-        // A 700KB file becomes roughly 933KB as Base64, which is safely under the limit.
-        if (file.size > 700 * 1024) { 
-            alert("Image file is too large. Please select an image smaller than 700KB.");
-            clearMedia();
-            return;
-        }
+
+        // FIX: Explicitly type 'file' as File to resolve properties 'type', 'size', and 'name'.
+        Array.from(files).forEach((file: File) => {
+            if (file.type.startsWith('video/')) {
+                alert("Video uploads are not supported. Please select an image.");
+                return;
+            }
+            if (file.size > 700 * 1024) { 
+                alert(`Image "${file.name}" is too large (max 700KB).`);
+                return;
+            }
       
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const result = reader.result as string;
-            setMediaDataUrl(result);
-            setMediaPreview(result);
-            setMediaType('image');
-        };
-        reader.readAsDataURL(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const result = reader.result as string;
+                setMediaDataUrls(prev => [...prev, result]);
+                setMediaPreviews(prev => [...prev, result]);
+                setMediaType('image');
+            };
+            // FIX: The 'file' is now correctly typed as File, which is a Blob, satisfying readAsDataURL.
+            reader.readAsDataURL(file);
+        });
     }
   };
 
@@ -93,7 +106,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
 
     const currentTextContent = editorRef.current?.innerText.trim() || '';
 
-    if (postType === 'post' && !currentTextContent && !mediaDataUrl) {
+    if (postType === 'post' && !currentTextContent && mediaDataUrls.length === 0) {
         alert("Please write something or add an image to create a post.");
         return;
     }
@@ -115,7 +128,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
 
     onAddPost({
       content,
-      mediaDataUrl,
+      mediaDataUrls,
       mediaType,
       eventDetails: finalEventDetails,
       groupId,
@@ -191,22 +204,33 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
                     </div>
                 </div>
 
-                {mediaPreview && (
-                <div className="mt-4 relative">
-                    <img src={mediaPreview} alt="Preview" className="rounded-lg max-h-80 w-auto" />
-                    <button onClick={clearMedia} className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 leading-none w-6 h-6 flex items-center justify-center">&times;</button>
-                </div>
+                {mediaPreviews.length > 0 && (
+                    <div className="mt-4 grid grid-cols-3 sm:grid-cols-5 gap-2">
+                        {mediaPreviews.map((preview, index) => (
+                            <div key={index} className="relative aspect-square">
+                                <img src={preview} alt={`Preview ${index + 1}`} className="rounded-lg object-cover w-full h-full" />
+                                <button type="button" onClick={() => removeMediaItem(index)} className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 leading-none w-5 h-5 flex items-center justify-center hover:bg-black">
+                                    <CloseIcon className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
                 )}
+
 
                 <div className="flex justify-between items-center mt-4 pt-4 border-t border-border">
                 <div className="flex space-x-1">
-                    <input type="file" accept="image/*" ref={imageInputRef} onChange={handleFileChange} className="hidden" />
-                    <button type="button" onClick={() => imageInputRef.current?.click()} className="flex items-center text-text-muted hover:text-primary p-2 rounded-full hover:bg-primary/10 transition-colors" aria-label="Add photo">
-                    <PhotoIcon className="w-6 h-6" />
-                    </button>
-                    <button type="button" className="flex items-center text-text-muted/50 p-2 rounded-full cursor-not-allowed" aria-label="Add video (disabled)" title="Video uploads are not supported">
-                    <VideoIcon className="w-6 h-6" />
-                    </button>
+                    <input type="file" accept="image/*" ref={imageInputRef} onChange={handleFileChange} multiple className="hidden" />
+                    {!isConfessionMode && (
+                        <>
+                        <button type="button" onClick={() => imageInputRef.current?.click()} className="flex items-center text-text-muted hover:text-primary p-2 rounded-full hover:bg-primary/10 transition-colors" aria-label="Add photo">
+                        <PhotoIcon className="w-6 h-6" />
+                        </button>
+                        <button type="button" className="flex items-center text-text-muted/50 p-2 rounded-full cursor-not-allowed" aria-label="Add video (disabled)" title="Video uploads are not supported">
+                        <VideoIcon className="w-6 h-6" />
+                        </button>
+                        </>
+                    )}
                 </div>
                 <button type="submit" className="bg-gradient-to-r from-primary to-secondary text-primary-foreground font-bold py-2.5 px-8 rounded-full hover:shadow-lg hover:shadow-primary/30 transition-all transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100 disabled:shadow-none">
                     Post

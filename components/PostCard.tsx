@@ -4,7 +4,7 @@ import Avatar from './Avatar';
 import CommentSection from './CommentSection';
 import ShareModal from './ShareModal';
 import ReactionsModal from './ReactionsModal';
-import { CommentIcon, RepostIcon, CalendarIcon, GhostIcon, LikeIcon, BriefcaseIcon, LinkIcon, TrashIcon, BookmarkIcon, SendIcon, BookmarkIconSolid, OptionsIcon } from './Icons';
+import { CommentIcon, RepostIcon, CalendarIcon, GhostIcon, LikeIcon, BriefcaseIcon, LinkIcon, TrashIcon, BookmarkIcon, SendIcon, BookmarkIconSolid, OptionsIcon, CloseIcon, ArrowLeftIcon, ArrowRightIcon } from './Icons';
 
 interface PostCardProps {
   post: Post;
@@ -56,6 +56,86 @@ const formatTimestamp = (timestamp: number) => {
     return postDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
+const ImageGrid: React.FC<{ images: string[]; onImageClick: (index: number) => void }> = ({ images, onImageClick }) => {
+    const count = images.length;
+    const renderImage = (index: number, className: string = '') => (
+        <div key={index} className={`relative cursor-pointer overflow-hidden bg-slate-100 ${className}`} onClick={() => onImageClick(index)}>
+            <img src={images[index]} alt={`Post media ${index + 1}`} className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+        </div>
+    );
+
+    if (count === 1) {
+        return <div className="aspect-video relative cursor-pointer overflow-hidden rounded-lg group" onClick={() => onImageClick(0)}><img src={images[0]} alt="Post media" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" /></div>;
+    }
+    if (count === 2) {
+        return <div className="grid grid-cols-2 gap-1 aspect-video rounded-lg overflow-hidden group">{images.map((_, i) => renderImage(i))}</div>;
+    }
+    if (count === 3) {
+        return (
+            <div className="grid grid-cols-2 grid-rows-2 gap-1 aspect-video rounded-lg overflow-hidden group">
+                {renderImage(0, 'row-span-2')}
+                {renderImage(1)}
+                {renderImage(2)}
+            </div>
+        );
+    }
+    if (count === 4) {
+        return <div className="grid grid-cols-2 grid-rows-2 gap-1 aspect-video rounded-lg overflow-hidden group">{images.slice(0, 4).map((_, i) => renderImage(i))}</div>;
+    }
+    if (count >= 5) {
+        return (
+            <div className="grid grid-cols-2 grid-rows-2 gap-1 aspect-video rounded-lg overflow-hidden group">
+                {renderImage(0)}
+                {renderImage(1)}
+                {renderImage(2)}
+                <div key={3} className="relative cursor-pointer" onClick={() => onImageClick(3)}>
+                    <img src={images[3]} alt="Post media 4" className="absolute inset-0 w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <span className="text-white text-3xl font-bold">+{count - 4}</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+    return null;
+};
+
+const Lightbox: React.FC<{ images: string[]; startIndex: number; onClose: () => void }> = ({ images, startIndex, onClose }) => {
+    const [currentIndex, setCurrentIndex] = useState(startIndex);
+
+    const nextImage = (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        setCurrentIndex(prev => (prev + 1) % images.length);
+    };
+    const prevImage = (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        setCurrentIndex(prev => (prev - 1 + images.length) % images.length);
+    };
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'ArrowRight') nextImage();
+            else if (e.key === 'ArrowLeft') prevImage();
+            else if (e.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    return (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center animate-fade-in" onClick={onClose}>
+            <div className="relative w-full h-full flex items-center justify-center" onClick={e => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-4 right-4 text-white p-2 bg-black/50 rounded-full hover:bg-black/80 transition-colors z-10"><CloseIcon className="w-6 h-6"/></button>
+                {images.length > 1 && <>
+                    <button onClick={prevImage} className="absolute left-4 text-white p-2 bg-black/50 rounded-full hover:bg-black/80 transition-colors"><ArrowLeftIcon className="w-6 h-6"/></button>
+                    <button onClick={nextImage} className="absolute right-4 text-white p-2 bg-black/50 rounded-full hover:bg-black/80 transition-colors"><ArrowRightIcon className="w-6 h-6"/></button>
+                </>}
+                <img src={images[currentIndex]} alt="Lightbox view" className="max-h-[90vh] max-w-[90vw] object-contain"/>
+            </div>
+        </div>
+    );
+};
+
 
 const PostCard: React.FC<PostCardProps> = (props) => {
   const { post, author, currentUser, users, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost, groups, onNavigate, animationIndex } = props;
@@ -74,6 +154,8 @@ const PostCard: React.FC<PostCardProps> = (props) => {
   const TRUNCATE_LENGTH = 350;
 
   const isSaved = currentUser.savedPosts?.includes(post.id);
+
+  const [lightboxState, setLightboxState] = useState<{ isOpen: boolean; startIndex: number }>({ isOpen: false, startIndex: 0 });
 
   const postContent = post.content || '';
   const isLongContent = postContent.length > TRUNCATE_LENGTH;
@@ -451,13 +533,9 @@ const PostCard: React.FC<PostCardProps> = (props) => {
             )}
           </div>
           
-          {post.mediaUrl && (
-            <div className="px-1 pb-1">
-              {post.mediaType === 'image' ? (
-                <img src={post.mediaUrl} alt="Post media" className="rounded-lg w-full max-h-[600px] object-cover" />
-              ) : (
-                <video src={post.mediaUrl} controls className="rounded-lg w-full" />
-              )}
+          {post.mediaUrls && post.mediaUrls.length > 0 && post.mediaType === 'image' && (
+            <div className="px-4 pb-2">
+                <ImageGrid images={post.mediaUrls} onImageClick={index => setLightboxState({ isOpen: true, startIndex: index })} />
             </div>
           )}
 
@@ -515,7 +593,13 @@ const PostCard: React.FC<PostCardProps> = (props) => {
             defaultTab={shareModalState.defaultTab}
         />
         {isReactionsModalOpen && <ReactionsModal isOpen={isReactionsModalOpen} onClose={() => setIsReactionsModalOpen(false)} reactions={post.reactions} users={users} onNavigate={onNavigate} />}
-
+        {lightboxState.isOpen && post.mediaUrls && (
+            <Lightbox 
+                images={post.mediaUrls}
+                startIndex={lightboxState.startIndex}
+                onClose={() => setLightboxState({ isOpen: false, startIndex: 0 })}
+            />
+        )}
     </div>
   );
 };

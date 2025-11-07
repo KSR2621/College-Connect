@@ -47,7 +47,7 @@ export type SharedPostInfo = {
   originalAuthorId: string;
   originalTimestamp: number;
   originalContent: string;
-  originalMediaUrl?: string;
+  originalMediaUrls?: string[];
   originalMediaType?: 'image' | 'video';
   originalIsEvent?: boolean;
   originalEventDetails?: {
@@ -65,7 +65,7 @@ export type Post = {
     id:string;
     authorId: string;
     content: string; // Used for description in opportunities
-    mediaUrl?: string;
+    mediaUrls?: string[];
     mediaType?: 'image' | 'video';
     timestamp: number;
     reactions?: { [key in ReactionType]?: string[] };
