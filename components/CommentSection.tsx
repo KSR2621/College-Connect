@@ -2,16 +2,18 @@
 import React, { useState } from 'react';
 import type { Comment, User } from '../types';
 import Avatar from './Avatar';
-import { SendIcon } from './Icons';
+import { SendIcon, TrashIcon } from './Icons';
 
 interface CommentSectionProps {
   comments: Comment[];
   users: { [key: string]: User };
   currentUser: User;
   onAddComment: (text: string) => void;
+  postAuthorId: string;
+  onDeleteComment: (commentId: string) => void;
 }
 
-const CommentSection: React.FC<CommentSectionProps> = ({ comments, users, currentUser, onAddComment }) => {
+const CommentSection: React.FC<CommentSectionProps> = ({ comments, users, currentUser, onAddComment, postAuthorId, onDeleteComment }) => {
   const [newComment, setNewComment] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -44,13 +46,21 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments, users, curren
         {comments.sort((a,b) => a.timestamp - b.timestamp).map((comment) => {
           const author = users[comment.authorId];
           if (!author) return null;
+          const canDelete = currentUser.id === comment.authorId || currentUser.id === postAuthorId || currentUser.tag === 'Director';
           return (
-            <div key={comment.id} className="flex items-start space-x-3">
+            <div key={comment.id} className="group flex items-start space-x-3">
               <Avatar src={author.avatarUrl} name={author.name} size="sm" />
               <div className="flex-1">
-                <div className="bg-muted p-3 rounded-lg">
-                  <p className="font-semibold text-card-foreground text-sm">{author.name}</p>
-                  <p className="text-card-foreground text-sm">{comment.text}</p>
+                <div className="bg-muted p-3 rounded-lg flex justify-between items-start">
+                  <div>
+                    <p className="font-semibold text-card-foreground text-sm">{author.name}</p>
+                    <p className="text-card-foreground text-sm">{comment.text}</p>
+                  </div>
+                  {canDelete && (
+                      <button onClick={() => onDeleteComment(comment.id)} className="opacity-0 group-hover:opacity-100 text-destructive/70 hover:text-destructive p-1 flex-shrink-0 ml-2">
+                          <TrashIcon className="w-4 h-4"/>
+                      </button>
+                  )}
                 </div>
                 <p className="text-xs text-text-muted mt-1">{new Date(comment.timestamp).toLocaleString()}</p>
               </div>

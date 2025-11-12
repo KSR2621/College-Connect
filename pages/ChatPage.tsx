@@ -6,14 +6,15 @@ import Avatar from '../components/Avatar';
 import ChatPanel from '../components/ChatPanel';
 import NewConversationModal from '../components/NewConversationModal';
 import { auth } from '../firebase';
-import { PlusIcon, TrashIcon, CloseIcon } from '../components/Icons';
+import { PlusIcon, TrashIcon, CloseIcon, UsersIcon } from '../components/Icons';
 
 interface ChatPageProps {
   currentUser: User;
   users: { [key: string]: User };
   conversations: Conversation[];
   onSendMessage: (conversationId: string, text: string) => void;
-  onDeleteMultipleMessages: (conversationId: string, messageIds: string[]) => void;
+  onDeleteMessagesForEveryone: (conversationId: string, messageIds: string[]) => void;
+  onDeleteMessagesForSelf: (conversationId: string, messageIds: string[]) => void;
   onDeleteConversations: (conversationIds: string[]) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onNavigate: (path: string) => void;
@@ -36,7 +37,7 @@ const formatTimestampForChatList = (timestamp: number) => {
 };
 
 const ChatPage: React.FC<ChatPageProps> = (props) => {
-    const { currentUser, users, conversations, onSendMessage, onDeleteMultipleMessages, onDeleteConversations, onCreateOrOpenConversation, onNavigate, currentPath } = props;
+    const { currentUser, users, conversations, onSendMessage, onDeleteMessagesForEveryone, onDeleteMessagesForSelf, onDeleteConversations, onCreateOrOpenConversation, onNavigate, currentPath } = props;
 
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
     const [isNewConvoModalOpen, setIsNewConvoModalOpen] = useState(false);
@@ -136,13 +137,16 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                         )}
                         <div className="flex-1 overflow-y-auto no-scrollbar">
                             {sortedConversations.map(convo => {
-                                const otherParticipantId = convo.participantIds.find(id => id !== currentUser.id);
+                                const isGroup = convo.isGroupChat;
+                                const otherParticipantId = !isGroup ? convo.participantIds.find(id => id !== currentUser.id) : null;
                                 const otherUser = otherParticipantId ? users[otherParticipantId] : null;
-                                const lastMessage = convo.messages[convo.messages.length - 1];
+                                const lastMessage = convo.messages.filter(m => !m.deletedFor?.includes(currentUser.id)).pop();
                                 const isSelectedForDeletion = selectedConversations.includes(convo.id);
                                 const isActiveChat = selectedConversationId === convo.id && !isSelectionMode;
 
-                                if (!otherUser) return null;
+                                const chatName = isGroup ? convo.name : otherUser?.name;
+
+                                if (!chatName) return null;
 
                                 return (
                                     <div
@@ -158,10 +162,16 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                                             isActiveChat ? 'bg-gradient-to-r from-primary/20 to-secondary/20 border-primary shadow-inner' : 'border-transparent hover:bg-white'
                                         }`}
                                     >
-                                        <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="lg" />
+                                        {isGroup ? (
+                                             <div className="h-16 w-16 rounded-full bg-primary/20 text-primary flex items-center justify-center flex-shrink-0">
+                                                <UsersIcon className="w-8 h-8"/>
+                                            </div>
+                                        ) : (
+                                            <Avatar src={otherUser?.avatarUrl} name={otherUser?.name || ''} size="lg" />
+                                        )}
                                         <div className="flex-1 overflow-hidden">
                                             <div className="flex justify-between items-center">
-                                                <p className="font-semibold text-card-foreground truncate">{otherUser.name}</p>
+                                                <p className="font-semibold text-card-foreground truncate">{chatName}</p>
                                                 {lastMessage && (
                                                     <p className="text-xs text-text-muted flex-shrink-0 ml-2">
                                                         {formatTimestampForChatList(lastMessage.timestamp)}
@@ -169,7 +179,7 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                                                 )}
                                             </div>
                                             <p className="text-sm text-text-muted truncate">
-                                                {lastMessage ? `${lastMessage.senderId === currentUser.id ? 'You: ' : ''}${lastMessage.text}` : 'No messages yet'}
+                                                {lastMessage ? `${lastMessage.senderId === currentUser.id ? 'You: ' : ''}${lastMessage.text}` : `Created ${isGroup ? 'group' : 'chat'}`}
                                             </p>
                                         </div>
                                     </div>
@@ -186,7 +196,8 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                                 currentUser={currentUser}
                                 users={users}
                                 onSendMessage={onSendMessage}
-                                onDeleteMultipleMessages={onDeleteMultipleMessages}
+                                onDeleteMessagesForEveryone={onDeleteMessagesForEveryone}
+                                onDeleteMessagesForSelf={onDeleteMessagesForSelf}
                                 onClose={() => setSelectedConversationId(null)}
                                 onNavigate={onNavigate}
                             />

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { User, Post, Group, ReactionType, Achievement, UserTag } from '../types';
+import type { User, Post, Group, ReactionType, Achievement, UserTag, Comment } from '../types';
 import Header from '../components/Header';
 import Feed from '../components/Feed';
 import CreatePost from '../components/CreatePost';
@@ -26,6 +26,7 @@ interface ProfilePageProps {
   onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;
+  onDeleteComment: (postId: string, commentId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
   onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
@@ -35,7 +36,7 @@ interface ProfilePageProps {
 }
 
 const ProfilePage: React.FC<ProfilePageProps> = (props) => {
-    const { profileUserId, currentUser, users, posts, groups, onNavigate, currentPath, onAddPost, onAddAchievement, onAddInterest, onUpdateProfile, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost, isAdminView, onBackToAdmin } = props;
+    const { profileUserId, currentUser, users, posts, groups, onNavigate, currentPath, onAddPost, onAddAchievement, onAddInterest, onUpdateProfile, onReaction, onAddComment, onDeletePost, onDeleteComment, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost, isAdminView, onBackToAdmin } = props;
 
     const [activeTab, setActiveTab] = useState<'posts' | 'groups' | 'saved'>('posts');
     const [isEditing, setIsEditing] = useState(false);
@@ -93,13 +94,13 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
                 );
             case 'saved':
                 if (!isOwnProfile) return null;
-                return <div className="space-y-6"><Feed posts={savedPosts} users={users} currentUser={currentUser} onNavigate={onNavigate} groups={groups} onReaction={onReaction} onAddComment={onAddComment} onDeletePost={onDeletePost} onCreateOrOpenConversation={onCreateOrOpenConversation} onSharePostAsMessage={onSharePostAsMessage} onSharePost={onSharePost} onToggleSavePost={onToggleSavePost} /></div>;
+                return <div className="space-y-6"><Feed posts={savedPosts} users={users} currentUser={currentUser} onNavigate={onNavigate} groups={groups} onReaction={onReaction} onAddComment={onAddComment} onDeletePost={onDeletePost} onDeleteComment={onDeleteComment} onCreateOrOpenConversation={onCreateOrOpenConversation} onSharePostAsMessage={onSharePostAsMessage} onSharePost={onSharePost} onToggleSavePost={onToggleSavePost} /></div>;
             case 'posts':
             default:
                 return (
                     <div className="space-y-6">
                         {isOwnProfile && <CreatePost user={currentUser} onAddPost={onAddPost} />}
-                        <Feed posts={userPosts} users={users} currentUser={currentUser} onNavigate={onNavigate} groups={groups} onReaction={onReaction} onAddComment={onAddComment} onDeletePost={onDeletePost} onCreateOrOpenConversation={onCreateOrOpenConversation} onSharePostAsMessage={onSharePostAsMessage} onSharePost={onSharePost} onToggleSavePost={onToggleSavePost} />
+                        <Feed posts={userPosts} users={users} currentUser={currentUser} onNavigate={onNavigate} groups={groups} onReaction={onReaction} onAddComment={onAddComment} onDeletePost={onDeletePost} onDeleteComment={onDeleteComment} onCreateOrOpenConversation={onCreateOrOpenConversation} onSharePostAsMessage={onSharePostAsMessage} onSharePost={onSharePost} onToggleSavePost={onToggleSavePost} />
                     </div>
                 );
         }
@@ -124,7 +125,10 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
                         <div className="flex-1 text-center sm:text-left">
                             <div className="flex flex-col sm:flex-row justify-between items-center">
                                 <div>
-                                    <h1 className="text-2xl font-bold text-foreground">{profileUser.name}</h1>
+                                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                                        {profileUser.name}
+                                        {profileUser.isFrozen && <span className="text-xs font-bold bg-destructive/20 text-destructive px-2 py-1 rounded-full">SUSPENDED</span>}
+                                    </h1>
                                     <p className="text-sm text-text-muted">{profileUser.department} &bull; {profileUser.tag}{profileUser.tag === 'Student' && ` - ${profileUser.yearOfStudy || 1}st Year`}</p>
                                 </div>
                                 <div className="mt-4 sm:mt-0">

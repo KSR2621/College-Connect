@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import type { Post, User, Group, ReactionType, ConfessionMood } from '../types';
+import type { Post, User, Group, ReactionType, ConfessionMood, Comment } from '../types';
 import Avatar from './Avatar';
 import CommentSection from './CommentSection';
 import ShareModal from './ShareModal';
@@ -14,6 +14,7 @@ interface PostCardProps {
   onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;
+  onDeleteComment: (postId: string, commentId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
   onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
@@ -138,7 +139,7 @@ const Lightbox: React.FC<{ images: string[]; startIndex: number; onClose: () => 
 
 
 const PostCard: React.FC<PostCardProps> = (props) => {
-  const { post, author, currentUser, users, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost, groups, onNavigate, animationIndex } = props;
+  const { post, author, currentUser, users, onReaction, onAddComment, onDeletePost, onDeleteComment, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost, groups, onNavigate, animationIndex } = props;
   const [showComments, setShowComments] = useState(false);
   const [shareModalState, setShareModalState] = useState<{isOpen: boolean, defaultTab: 'share' | 'message'}>({isOpen: false, defaultTab: 'share'});
   const [isReactionsModalOpen, setIsReactionsModalOpen] = useState(false);
@@ -217,11 +218,11 @@ const PostCard: React.FC<PostCardProps> = (props) => {
   const isAuthor = post.authorId === currentUser.id;
   
   const canDelete = useMemo(() => {
-    const isAdmin = !!currentUser.isAdmin;
+    const isDirector = currentUser.tag === 'Director';
     if (post.isConfession) {
-        return isAdmin; // Only admins can delete confessions
+        return isDirector; // Only director can delete confessions
     }
-    return isAuthor || isAdmin; // Authors or admins can delete other posts
+    return isAuthor || isDirector; // Authors or director can delete other posts
   }, [post, currentUser, isAuthor]);
 
   const currentUserReaction = useMemo(() => {
@@ -576,6 +577,8 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                 users={users}
                 currentUser={currentUser}
                 onAddComment={handleAddCommentForPost}
+                postAuthorId={post.authorId}
+                onDeleteComment={(commentId) => onDeleteComment(post.id, commentId)}
               />
             </div>
           )}

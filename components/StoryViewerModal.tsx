@@ -112,6 +112,7 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
 
     const canDelete = useMemo(() => {
         if (!activeStory) return false;
+        if (currentUser.tag === 'Director') return true;
         const isAuthor = currentUser.id === activeStory.authorId;
         if (isAuthor) return true;
         
@@ -120,7 +121,7 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
             return !!(group && group.creatorId === currentUser.id);
         }
         return false;
-    }, [activeStory, currentUser.id, isGroupStory, groups]);
+    }, [activeStory, currentUser, isGroupStory, groups]);
 
     const goToNextStory = useCallback(() => {
         if (currentStoryIndex < activeEntityStories.length - 1) {

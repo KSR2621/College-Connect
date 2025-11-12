@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { User, Post, Group, ReactionType, Story, FeedPreferences, ConfessionMood } from '../types';
+import type { User, Post, Group, ReactionType, Story, FeedPreferences, ConfessionMood, Comment } from '../types';
 import Header from '../components/Header';
 import CreatePostModal from '../components/CreatePostModal';
 import Feed from '../components/Feed';
@@ -36,6 +36,7 @@ interface HomePageProps {
   onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;
+  onDeleteComment: (postId: string, commentId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
   onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
@@ -59,6 +60,9 @@ const HomePage: React.FC<HomePageProps> = (props) => {
     // === REFS & PERSISTENCE ===
     const prevPostCountRef = useRef(posts.length);
     const mainContentRef = useRef<HTMLDivElement>(null);
+
+    // Determine if the current user has posting privileges
+    const canPost = !(currentUser.tag === 'Teacher' && currentUser.isApproved === false);
 
     useEffect(() => {
         // Load user's sort order from local storage on component mount
@@ -161,7 +165,7 @@ const HomePage: React.FC<HomePageProps> = (props) => {
 
     // === RENDER ===
     return (
-        <div className="bg-slate-50 min-h-screen">
+        <div className="bg-slate-50 dark:bg-slate-900 min-h-screen">
             <Header 
                 currentUser={currentUser} 
                 onLogout={handleLogout} 
@@ -196,14 +200,14 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                                 onViewStoryEntity={(entityId) => setViewingStoryEntityId(entityId)}
                             />
                             
-                            <InlineCreatePost user={currentUser} onOpenCreateModal={setCreateModalType} />
+                            {canPost && <InlineCreatePost user={currentUser} onOpenCreateModal={setCreateModalType} />}
 
                             {/* Feed sort options */}
                             <div className="flex justify-between items-center mb-4">
                                 <h2 className="text-xl font-bold text-foreground">Feed</h2>
                                 <div className="flex items-center space-x-1">
-                                    <button onClick={() => handleSortOrderChange('forYou')} className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${sortOrder === 'forYou' ? 'bg-primary/10 text-primary' : 'text-text-muted hover:bg-muted'}`}>For You</button>
-                                    <button onClick={() => handleSortOrderChange('latest')} className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${sortOrder === 'latest' ? 'bg-primary/10 text-primary' : 'text-text-muted hover:bg-muted'}`}>Latest</button>
+                                    <button onClick={() => handleSortOrderChange('forYou')} className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${sortOrder === 'forYou' ? 'bg-primary/10 text-primary' : 'text-text-muted hover:bg-muted dark:hover:bg-slate-700'}`}>For You</button>
+                                    <button onClick={() => handleSortOrderChange('latest')} className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${sortOrder === 'latest' ? 'bg-primary/10 text-primary' : 'text-text-muted hover:bg-muted dark:hover:bg-slate-700'}`}>Latest</button>
                                 </div>
                             </div>
 
@@ -234,13 +238,15 @@ const HomePage: React.FC<HomePageProps> = (props) => {
 
             <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={props.currentPath}/>
             
-            <button
-                onClick={() => setCreateModalType('post')}
-                className="fixed bottom-20 right-5 md:bottom-8 md:right-8 bg-primary text-primary-foreground rounded-full p-4 shadow-lg hover:bg-primary/90 transition-transform transform hover:scale-110 z-40"
-                aria-label="Create new post"
-            >
-                <PlusIcon className="w-7 h-7"/>
-            </button>
+            {canPost && (
+                <button
+                    onClick={() => setCreateModalType('post')}
+                    className="fixed bottom-20 right-5 md:bottom-8 md:right-8 bg-primary text-primary-foreground rounded-full p-4 shadow-lg hover:bg-primary/90 transition-transform transform hover:scale-110 z-40"
+                    aria-label="Create new post"
+                >
+                    <PlusIcon className="w-7 h-7"/>
+                </button>
+            )}
 
 
             {/* Modals */}

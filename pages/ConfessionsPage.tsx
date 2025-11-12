@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { User, Post, Group, ReactionType, ConfessionMood } from '../types';
+import type { User, Post, Group, ReactionType, ConfessionMood, Comment } from '../types';
 import Header from '../components/Header';
 import PostCard from '../components/PostCard';
 import BottomNavBar from '../components/BottomNavBar';
@@ -24,6 +24,7 @@ interface ConfessionsPageProps {
   onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;
+  onDeleteComment: (postId: string, commentId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
   onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;

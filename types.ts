@@ -1,7 +1,7 @@
 import React from 'react';
 
-// FIX: Replaced circular import with the actual type definition for UserTag, resolving the circular dependency.
-export type UserTag = 'Student' | 'Faculty' | 'Alumni';
+// FIX: Removed the 'Director/Principle' type as it was redundant. The value 'Director' is used.
+export type UserTag = 'Student' | 'Teacher' | 'HOD/Dean' | 'Director';
 export type ConfessionMood = 'love' | 'funny' | 'sad' | 'chaos' | 'deep';
 
 export type User = {
@@ -16,10 +16,11 @@ export type User = {
   achievements?: Achievement[];
   yearOfStudy?: number;
   followingGroups?: string[];
-  isAdmin?: boolean;
   savedPosts?: string[];
   // FIX: Added personalNotes property to User type to resolve error in PersonalNotesPage.
   personalNotes?: PersonalNote[];
+  isApproved?: boolean;
+  isFrozen?: boolean;
 }
 
 // FIX: Added PersonalNote type to resolve error in PersonalNotesPage.
@@ -118,12 +119,16 @@ export type Message = {
     senderId: string;
     text: string;
     timestamp: number;
+    deletedFor?: string[];
 }
 
 export type Conversation = {
     id: string;
     participantIds: string[];
     messages: Message[];
+    name?: string; // For group chats
+    isGroupChat?: boolean;
+    creatorId?: 'system' | string;
 }
 
 export type FeedPreferences = {
@@ -165,6 +170,13 @@ export type Assignment = {
     dueDate: number;
 };
 
+export type Feedback = {
+    studentId: string;
+    rating: number;
+    comment: string;
+    timestamp: number;
+}
+
 export type Course = {
     id: string;
     subject: string;
@@ -179,6 +191,7 @@ export type Course = {
     pendingStudents?: string[]; // array of student IDs requesting to join
     messages?: Message[]; // For in-course chat
     personalNotes?: { [userId: string]: string; }; // Private notes for faculty and students
+    feedback?: Feedback[];
 };
 
 
@@ -192,4 +205,9 @@ export type Notice = {
   // FIX: Add optional properties for targeted notices to resolve type errors.
   targetDepartments?: string[];
   targetYears?: number[];
+};
+
+export type DepartmentChat = {
+    id: string; // Department name
+    messages: Message[];
 };

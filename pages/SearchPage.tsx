@@ -1,7 +1,7 @@
 
 
 import React, { useState, useMemo } from 'react';
-import type { User, Post, Group, ReactionType } from '../types';
+import type { User, Post, Group, ReactionType, Comment } from '../types';
 import Header from '../components/Header';
 import Avatar from '../components/Avatar';
 import PostCard from '../components/PostCard'; 
@@ -20,6 +20,7 @@ interface SearchPageProps {
   onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;
+  onDeleteComment: (postId: string, commentId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
   onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
@@ -34,7 +35,7 @@ const filterTabs: { id: 'all' | 'people' | 'posts' | 'groups', label: string, ic
 ];
 
 const SearchPage: React.FC<SearchPageProps> = (props) => {
-  const { currentUser, users, posts, groups, onNavigate, currentPath, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost } = props;
+  const { currentUser, users, posts, groups, onNavigate, currentPath, onReaction, onAddComment, onDeletePost, onDeleteComment, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost } = props;
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'people' | 'posts' | 'groups'>('all');
 
@@ -124,7 +125,7 @@ const SearchPage: React.FC<SearchPageProps> = (props) => {
                         {filteredResults.posts.map(post => {
                             const author = usersMap[post.authorId];
                             if (!author && !post.isConfession) return null;
-                            return <PostCard key={post.id} post={post} author={author} currentUser={currentUser} users={usersMap} onReaction={onReaction} onAddComment={onAddComment} onDeletePost={onDeletePost} onCreateOrOpenConversation={onCreateOrOpenConversation} onSharePostAsMessage={onSharePostAsMessage} onSharePost={onSharePost} onToggleSavePost={onToggleSavePost} groups={groups} onNavigate={onNavigate} />
+                            return <PostCard key={post.id} post={post} author={author} currentUser={currentUser} users={usersMap} onReaction={onReaction} onAddComment={onAddComment} onDeletePost={onDeletePost} onDeleteComment={onDeleteComment} onCreateOrOpenConversation={onCreateOrOpenConversation} onSharePostAsMessage={onSharePostAsMessage} onSharePost={onSharePost} onToggleSavePost={onToggleSavePost} groups={groups} onNavigate={onNavigate} />
                         })}
                     </div>
                 </div>

@@ -24,7 +24,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
 
     return (
         <div className="min-h-screen flex items-center justify-center p-4">
-            <div className="w-full max-w-md p-8 space-y-6 bg-card rounded-2xl shadow-xl border border-border animate-fade-in">
+            <div className="w-full max-w-md p-8 space-y-6 bg-card dark:bg-slate-800 rounded-2xl shadow-xl border border-border dark:border-slate-700 animate-fade-in">
                 <div className="text-center">
                     <span className="font-bold text-3xl text-primary">CampusConnect</span>
                     <h1 className="text-2xl font-bold text-foreground mt-2">Welcome Back!</h1>
@@ -41,7 +41,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
-                                className="w-full pl-10 pr-4 py-3 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition"
+                                className="w-full pl-10 pr-4 py-3 text-foreground bg-input dark:bg-slate-700 border border-border dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition"
                             />
                         </div>
                     </div>
@@ -54,7 +54,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
-                                className="w-full pl-10 pr-4 py-3 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition"
+                                className="w-full pl-10 pr-4 py-3 text-foreground bg-input dark:bg-slate-700 border border-border dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition"
                             />
                         </div>
                     </div>

@@ -124,8 +124,9 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, cu
               <label htmlFor="tag" className="text-sm font-medium text-text-muted">Role</label>
               <select id="tag" value={tag} onChange={e => setTag(e.target.value as UserTag)} className="w-full mt-1 px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
                 <option>Student</option>
-                <option>Faculty</option>
-                <option>Alumni</option>
+                <option>Teacher</option>
+                <option>HOD/Dean</option>
+                {/* Director role is special and shouldn't be selectable by regular users */}
               </select>
             </div>
 

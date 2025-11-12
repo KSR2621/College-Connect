@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { User, Post, Group, ReactionType } from '../types';
+import type { User, Post, Group, ReactionType, Comment } from '../types';
 import Header from '../components/Header';
 import PostCard from '../components/PostCard';
 import BottomNavBar from '../components/BottomNavBar';
@@ -18,6 +18,7 @@ interface EventsPageProps {
   onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;
+  onDeleteComment: (postId: string, commentId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
   onSharePost: (originalPost: Post, commentary: string, shareTarget: { type: 'feed' | 'group'; id?: string }) => void;
@@ -25,7 +26,7 @@ interface EventsPageProps {
 }
 
 const EventsPage: React.FC<EventsPageProps> = (props) => {
-  const { currentUser, users, events, groups, onNavigate, currentPath, onAddPost, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost } = props;
+  const { currentUser, users, events, groups, onNavigate, currentPath, onAddPost, onReaction, onAddComment, onDeletePost, onDeleteComment, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost } = props;
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'upcoming' | 'past'>('upcoming');
@@ -34,6 +35,8 @@ const EventsPage: React.FC<EventsPageProps> = (props) => {
     await auth.signOut();
     onNavigate('#/');
   };
+
+  const canCreateEvent = (currentUser.tag === 'Teacher' || currentUser.tag === 'HOD/Dean' || currentUser.tag === 'Director') && currentUser.isApproved !== false;
 
   const filteredEvents = useMemo(() => {
     const now = new Date();
@@ -101,7 +104,7 @@ const EventsPage: React.FC<EventsPageProps> = (props) => {
                         className="w-full bg-card border-border border rounded-full pl-10 pr-4 py-2.5 text-sm text-foreground placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                 </div>
-                {currentUser.isAdmin && (
+                {canCreateEvent && (
                     <button 
                         onClick={() => setIsCreateModalOpen(true)} 
                         className="w-full sm:w-auto bg-primary text-primary-foreground font-bold py-2.5 px-6 rounded-full hover:bg-primary/90 transition-transform transform hover:scale-105 flex items-center justify-center gap-2"
@@ -154,6 +157,7 @@ const EventsPage: React.FC<EventsPageProps> = (props) => {
                   onReaction={onReaction}
                   onAddComment={onAddComment}
                   onDeletePost={onDeletePost}
+                  onDeleteComment={onDeleteComment}
                   onCreateOrOpenConversation={onCreateOrOpenConversation}
                   onSharePostAsMessage={onSharePostAsMessage}
                   onSharePost={onSharePost}
@@ -176,7 +180,7 @@ const EventsPage: React.FC<EventsPageProps> = (props) => {
         )}
       </main>
 
-      {currentUser.isAdmin && (
+      {canCreateEvent && (
         <CreatePostModal 
           isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}

@@ -16,7 +16,7 @@ const NavLink: React.FC<{
 }> = ({ icon: Icon, label, path, onNavigate }) => (
     <a 
         onClick={() => onNavigate(path)}
-        className="flex items-center space-x-4 p-3 rounded-lg hover:bg-primary/10 hover:text-primary cursor-pointer transition-colors group"
+        className="flex items-center space-x-4 p-3 rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary cursor-pointer transition-colors group"
     >
         <Icon className="w-6 h-6 text-text-muted group-hover:text-primary transition-colors" />
         <span className="font-semibold text-foreground">{label}</span>
@@ -27,9 +27,9 @@ const NavLink: React.FC<{
 const LeftSidebar: React.FC<LeftSidebarProps> = ({ currentUser, onNavigate }) => {
   return (
     <div className="sticky top-20">
-      <div className="bg-card rounded-lg shadow-sm border border-border p-4">
+      <div className="bg-card dark:bg-slate-800 rounded-lg shadow-sm border border-border dark:border-slate-700 p-4">
         {/* User Info */}
-        <div className="flex flex-col items-center text-center pb-4 border-b border-border">
+        <div className="flex flex-col items-center text-center pb-4 border-b border-border dark:border-slate-700">
           <Avatar 
             src={currentUser.avatarUrl} 
             name={currentUser.name} 

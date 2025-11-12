@@ -114,12 +114,14 @@ const StoriesReel: React.FC<StoriesReelProps> = ({ stories, users, groups, curre
         return currentUserStory ? [currentUserStory, ...otherEntities] : otherEntities;
 
     }, [stories, users, groups, currentUser.id, currentUser.followingGroups]);
+
+    const canCreateStory = !(currentUser.tag === 'Teacher' && currentUser.isApproved === false);
     
     return (
         <div className="p-0.5 rounded-xl animated-border mb-6">
             <div className="bg-card rounded-[10px] p-4">
                 <div className="flex items-center space-x-2 overflow-x-auto pb-2 no-scrollbar">
-                    <AddStoryCircle user={currentUser} onClick={onAddStoryClick} />
+                    {canCreateStory && <AddStoryCircle user={currentUser} onClick={onAddStoryClick} />}
                     {storyEntities.map(entity => (
                         <StoryCircle 
                             key={entity.id}

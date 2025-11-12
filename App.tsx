@@ -1,7 +1,9 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { auth, db, storage, FieldValue } from './firebase';
-import type { User, Post, Group, Conversation, Message, Achievement, UserTag, SharedPostInfo, ReactionType, Story, ConfessionMood, Course, Note, Assignment, AttendanceRecord, AttendanceStatus, Notice } from './types';
+// FIX: Added Feedback type to the import list.
+import type { User, Post, Group, Conversation, Message, Achievement, UserTag, SharedPostInfo, ReactionType, Story, ConfessionMood, Course, Note, Assignment, AttendanceRecord, AttendanceStatus, Notice, PersonalNote, Feedback, DepartmentChat, Comment } from './types';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { departmentOptions } from './constants';
 
 // Pages
 import WelcomePage from './pages/WelcomePage';
@@ -16,8 +18,10 @@ import EventsPage from './pages/EventsPage';
 import ChatPage from './pages/ChatPage';
 import SearchPage from './pages/SearchPage';
 import ConfessionsPage from './pages/ConfessionsPage';
-import AdminPage from './pages/AdminPage';
+// FIX: Renamed AdminPage to DirectorPage to reflect new role hierarchy.
+import DirectorPage from './pages/DirectorPage';
 import AcademicsPage from './pages/AcademicsPage';
+import PersonalNotesPage from './pages/PersonalNotesPage';
 // FIX: Changed to named import for CourseDetailPage.
 import { CourseDetailPage } from './pages/CourseDetailPage';
 
@@ -34,6 +38,7 @@ const App: React.FC = () => {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
     const [notices, setNotices] = useState<Notice[]>([]);
+    const [departmentChats, setDepartmentChats] = useState<DepartmentChat[]>([]);
     const prevConversationsRef = useRef<Conversation[]>([]);
     const prevPostsRef = useRef<Post[]>([]);
     const remindedEventIdsRef = useRef<Set<string>>(new Set());
@@ -45,21 +50,28 @@ const App: React.FC = () => {
         return () => window.removeEventListener('hashchange', handleHashChange);
     }, []);
     
-    // Request notification permission on load
+    // Request notification permission on load using Capacitor
     useEffect(() => {
-        if ('Notification' in window && Notification.permission !== 'granted') {
-            Notification.requestPermission();
-        }
+        const requestPermissions = async () => {
+            let { display } = await LocalNotifications.checkPermissions();
+            if (display !== 'granted') {
+                ({ display } = await LocalNotifications.requestPermissions());
+            }
+            if (display !== 'granted') {
+                console.warn('Notification permissions not granted.');
+            }
+        };
+        requestPermissions();
     }, []);
 
-    // Effect for handling new message notifications
+    // Effect for handling new message notifications with Capacitor
     useEffect(() => {
         if (!currentUser || conversations.length === 0 || !document.hidden) {
             prevConversationsRef.current = conversations;
             return;
         }
     
-        conversations.forEach(convo => {
+        conversations.forEach(async convo => {
             const prevConvo = prevConversationsRef.current.find(p => p.id === convo.id);
             const prevMessagesCount = prevConvo?.messages.length || 0;
             
@@ -68,10 +80,14 @@ const App: React.FC = () => {
                 if (newMessage && newMessage.senderId !== currentUser.id) {
                     const sender = users[newMessage.senderId];
                     if (sender) {
-                         new Notification(`New message from ${sender.name}`, {
-                            body: newMessage.text,
-                            icon: sender.avatarUrl || '/vite.svg' 
-                        });
+                         await LocalNotifications.schedule({
+                            notifications: [{
+                                title: `New message from ${sender.name}`,
+                                body: newMessage.text,
+                                id: Date.now(),
+                                schedule: { at: new Date(Date.now() + 100) }, // Immediate
+                            }]
+                         });
                     }
                 }
             }
@@ -80,7 +96,7 @@ const App: React.FC = () => {
         prevConversationsRef.current = conversations;
     }, [conversations, currentUser, users]);
 
-    // Effect for new group post notifications
+    // Effect for new group post notifications with Capacitor
     useEffect(() => {
         if (!currentUser || posts.length === 0 || !document.hidden || groups.length === 0) {
             prevPostsRef.current = posts;
@@ -96,14 +112,18 @@ const App: React.FC = () => {
                 ...groups.filter(g => g.memberIds.includes(currentUser.id)).map(g => g.id)
             ]);
 
-            newPosts.forEach(post => {
+            newPosts.forEach(async post => {
                 if (post.groupId && userGroupIds.has(post.groupId) && post.authorId !== currentUser.id) {
                     const group = groups.find(g => g.id === post.groupId);
                     const author = users[post.authorId];
                     if (group && author) {
-                        new Notification(`New post in ${group.name}`, {
-                            body: `${author.name}: ${post.content.substring(0, 100).replace(/<[^>]*>?/gm, '')}...`,
-                            icon: author.avatarUrl || '/vite.svg'
+                        await LocalNotifications.schedule({
+                            notifications: [{
+                                title: `New post in ${group.name}`,
+                                body: `${author.name}: ${post.content.substring(0, 100).replace(/<[^>]*>?/gm, '')}...`,
+                                id: Date.now() + Math.random(),
+                                schedule: { at: new Date(Date.now() + 100) },
+                            }]
                         });
                     }
                 }
@@ -113,7 +133,7 @@ const App: React.FC = () => {
         prevPostsRef.current = posts;
     }, [posts, currentUser, users, groups]);
 
-    // Effect for event reminders
+    // Effect for event reminders with Capacitor
     useEffect(() => {
         if (!currentUser) return;
 
@@ -121,15 +141,19 @@ const App: React.FC = () => {
             const now = Date.now();
             const oneHour = 60 * 60 * 1000;
 
-            posts.forEach(post => {
+            posts.forEach(async post => {
                 if (post.isEvent && post.eventDetails) {
                     const eventTime = new Date(post.eventDetails.date).getTime();
                     const timeUntilEvent = eventTime - now;
 
                     if (timeUntilEvent > 0 && timeUntilEvent <= oneHour && !remindedEventIdsRef.current.has(post.id)) {
-                        new Notification(`Event Reminder: ${post.eventDetails.title}`, {
-                            body: `Starts in about an hour at ${post.eventDetails.location}.`,
-                            icon: '/vite.svg' 
+                        await LocalNotifications.schedule({
+                            notifications: [{
+                                title: `Event Reminder: ${post.eventDetails.title}`,
+                                body: `Starts in about an hour at ${post.eventDetails.location}.`,
+                                id: Date.now() + Math.random(),
+                                schedule: { at: new Date(Date.now() + 100) },
+                            }]
                         });
                         remindedEventIdsRef.current.add(post.id);
                     }
@@ -151,18 +175,16 @@ const App: React.FC = () => {
                 let userDoc = await userRef.get();
                 let userData = userDoc.data();
     
-                // Hardcoded admin check. If a user logs in with this email, they are an admin.
-                // This will create/update their user document in Firestore to reflect this.
-                if (user.email === 'admin@gmail.com' && (!userData || userData.isAdmin !== true)) {
-                    const adminData = {
-                        name: userData?.name || 'Campus Admin',
+                // Hardcoded Director check. If a user logs in with this email, they are a Director.
+                if (user.email === 'admin@gmail.com' && (!userData || userData.tag !== 'Director')) {
+                    const directorData = {
+                        name: userData?.name || 'Campus Director',
                         email: user.email,
                         department: userData?.department || 'Administration',
-                        tag: userData?.tag || 'Faculty',
-                        isAdmin: true,
+                        tag: 'Director',
                     };
                     
-                    await userRef.set(adminData, { merge: true });
+                    await userRef.set(directorData, { merge: true });
     
                     // After updating, refetch the document to ensure we have the latest data for the session.
                     userDoc = await userRef.get();
@@ -170,7 +192,14 @@ const App: React.FC = () => {
                 }
     
                 if (userDoc.exists) {
-                    setCurrentUser({ id: user.uid, ...userData } as User);
+                    const userDataWithId = { id: user.uid, ...userData } as User;
+                    if (userDataWithId.isFrozen) {
+                        alert("Your account has been suspended. Please contact the administration.");
+                        auth.signOut();
+                        setCurrentUser(null);
+                    } else {
+                        setCurrentUser(userDataWithId);
+                    }
                 } else {
                     // A user exists in Firebase Auth, but not in Firestore database.
                     // This is an inconsistent state, so we won't log them in.
@@ -187,6 +216,65 @@ const App: React.FC = () => {
         return () => unsubscribe();
     }, []);
 
+    const handleEnsureDirectorSystemChats = async (director: User, allUsers: { [key: string]: User }) => {
+        if (director.tag !== 'Director') return;
+
+        const allUsersList = Object.values(allUsers);
+        const allHods = allUsersList.filter(u => u.tag === 'HOD/Dean');
+        const allTeachersAndHods = allUsersList.filter(u => u.tag === 'Teacher' || u.tag === 'HOD/Dean');
+
+        const systemGroups = [
+            {
+                id: 'director-hods-group',
+                name: 'HOD Council',
+                participants: [director.id, ...allHods.map(h => h.id)]
+            },
+            {
+                id: 'director-all-faculty-group',
+                name: 'All Faculty',
+                participants: [director.id, ...allTeachersAndHods.map(t => t.id)]
+            },
+            ...departmentOptions.map(dept => {
+                const deptTeachers = allTeachersAndHods.filter(t => t.department === dept);
+                return {
+                    id: `director-${dept.toLowerCase().replace(/[^a-z0-9]/g, '-')}-faculty-group`,
+                    name: `${dept} Faculty`,
+                    participants: [director.id, ...deptTeachers.map(t => t.id)]
+                }
+            })
+        ];
+
+        for (const group of systemGroups) {
+            const groupRef = db.collection('conversations').doc(group.id);
+            const uniqueParticipants = Array.from(new Set(group.participants));
+
+            try {
+                const doc = await groupRef.get();
+                if (!doc.exists) {
+                    await groupRef.set({
+                        name: group.name,
+                        participantIds: uniqueParticipants,
+                        messages: [],
+                        isGroupChat: true,
+                        creatorId: 'system'
+                    });
+                } else {
+                    const existingData = doc.data() as Conversation;
+                    const existingParticipants = new Set(existingData.participantIds);
+                    const newParticipants = new Set(uniqueParticipants);
+                    if (existingParticipants.size !== newParticipants.size || !uniqueParticipants.every(id => existingParticipants.has(id))) {
+                        await groupRef.update({
+                            participantIds: uniqueParticipants
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error(`Error ensuring system chat for ${group.name}:`, error);
+            }
+        }
+    };
+
+
     useEffect(() => {
         if (!currentUser) {
             setUsers({});
@@ -196,6 +284,7 @@ const App: React.FC = () => {
             setConversations([]);
             setCourses([]);
             setNotices([]);
+            setDepartmentChats([]);
             return;
         };
 
@@ -203,18 +292,15 @@ const App: React.FC = () => {
 
         const unsubscribers = [
             db.collection('users').onSnapshot(snapshot => {
-                setUsers(prevUsers => {
-                    const newUsers = { ...prevUsers };
-                    for (const change of snapshot.docChanges()) {
-                        const user = { id: change.doc.id, ...change.doc.data() } as User;
-                        if (change.type === 'removed') {
-                            delete newUsers[user.id];
-                        } else { // added or modified
-                            newUsers[user.id] = user;
-                        }
-                    }
-                    return newUsers;
+                const newUsers : { [key: string]: User } = {};
+                snapshot.forEach(doc => {
+                    newUsers[doc.id] = { id: doc.id, ...doc.data() } as User;
                 });
+                setUsers(newUsers);
+
+                if (currentUser?.tag === 'Director' && Object.keys(newUsers).length > 0) {
+                    handleEnsureDirectorSystemChats(currentUser, newUsers);
+                }
             }),
             db.collection('posts').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
                 setPosts(prevPosts => {
@@ -293,6 +379,13 @@ const App: React.FC = () => {
                     return Array.from(coursesMap.values());
                 });
             }),
+            db.collection('departmentChats').onSnapshot(snapshot => {
+                const chatData: DepartmentChat[] = [];
+                snapshot.forEach(doc => {
+                    chatData.push({ id: doc.id, ...doc.data() } as DepartmentChat);
+                });
+                setDepartmentChats(chatData);
+            }),
         ];
 
         return () => unsubscribers.forEach(unsub => unsub());
@@ -305,7 +398,7 @@ const App: React.FC = () => {
     useEffect(() => {
         if (currentUser && users[currentUser.id]) {
             const latestUserData = users[currentUser.id];
-            // Simple stringify check to prevent infinite re-render loops if the user object hasn't changed.
+            // Simple stringify check to prevent infinite re-render loops if the user object has not changed.
             if (JSON.stringify(currentUser) !== JSON.stringify(latestUserData)) {
                 setCurrentUser(latestUserData);
             }
@@ -411,8 +504,9 @@ const App: React.FC = () => {
 
             const isAuthor = storyData.authorId === currentUser.id;
             const isGroupCreator = group && group.creatorId === currentUser.id;
+            const isDirector = currentUser.tag === 'Director';
     
-            if (!isAuthor && !isGroupCreator) {
+            if (!isAuthor && !isGroupCreator && !isDirector) {
                 alert("You can only delete your own stories or stories from groups you created.");
                 return;
             }
@@ -489,6 +583,36 @@ const App: React.FC = () => {
         });
     };
 
+    const handleDeleteComment = async (postId: string, commentId: string) => {
+        if (!currentUser) return;
+        const postRef = db.collection('posts').doc(postId);
+        try {
+            await db.runTransaction(async (transaction) => {
+                const doc = await transaction.get(postRef);
+                if (!doc.exists) throw "Post does not exist!";
+                
+                const postData = doc.data() as Post;
+                const commentToDelete = postData.comments.find(c => c.id === commentId);
+                if (!commentToDelete) return;
+                
+                const isCommentAuthor = commentToDelete.authorId === currentUser.id;
+                const isPostAuthor = postData.authorId === currentUser.id;
+                const isDirector = currentUser.tag === 'Director';
+    
+                if (!isCommentAuthor && !isPostAuthor && !isDirector) {
+                    alert("You don't have permission to delete this comment.");
+                    return;
+                }
+    
+                const updatedComments = postData.comments.filter(c => c.id !== commentId);
+                transaction.update(postRef, { comments: updatedComments });
+            });
+        } catch (error) {
+            console.error("Error deleting comment:", error);
+            alert("Could not delete comment.");
+        }
+    };
+
     const handleDeletePost = async (postId: string) => {
         if (!currentUser) {
             console.error("Delete operation failed: No current user.");
@@ -508,11 +632,11 @@ const App: React.FC = () => {
             const postToDelete = doc.data() as Omit<Post, 'id'>;
             
             const isAuthor = postToDelete.authorId === currentUser.id;
-            const isAdmin = !!currentUser.isAdmin;
+            const isDirector = currentUser.tag === 'Director';
     
             // Admins can delete any post.
             // Authors can delete their own posts, as long as it's NOT a confession.
-            const canDelete = isAdmin || (isAuthor && !postToDelete.isConfession);
+            const canDelete = isDirector || (isAuthor && !postToDelete.isConfession);
     
             if (!canDelete) {
                 console.error(`User ${currentUser.id} is not authorized to delete post ${postId}.`);
@@ -553,7 +677,7 @@ const App: React.FC = () => {
         }
     };
 
-    const handleDeleteMultipleMessages = async (conversationId: string, messageIds: string[]) => {
+    const handleDeleteMessagesForEveryone = async (conversationId: string, messageIds: string[]) => {
         if (!currentUser || messageIds.length === 0) return;
     
         const conversationRef = db.collection('conversations').doc(conversationId);
@@ -577,6 +701,36 @@ const App: React.FC = () => {
             alert("Could not delete the messages. Please try again.");
         }
     };
+
+    const handleDeleteMessagesForSelf = async (conversationId: string, messageIds: string[]) => {
+        if (!currentUser) return;
+        const conversationRef = db.collection('conversations').doc(conversationId);
+        try {
+            await db.runTransaction(async (transaction) => {
+                const doc = await transaction.get(conversationRef);
+                if (!doc.exists) {
+                    throw "Document does not exist!";
+                }
+    
+                const conversationData = doc.data() as Conversation;
+                const messagesToDelete = new Set(messageIds);
+    
+                const updatedMessages = conversationData.messages.map(msg => {
+                    if (messagesToDelete.has(msg.id)) {
+                        const deletedFor = Array.from(new Set([...(msg.deletedFor || []), currentUser.id]));
+                        return { ...msg, deletedFor };
+                    }
+                    return msg;
+                });
+    
+                transaction.update(conversationRef, { messages: updatedMessages });
+            });
+        } catch (error) {
+            console.error("Error deleting messages for self:", error);
+            alert("Could not update message status.");
+        }
+    };
+
 
     const handleDeleteConversations = async (conversationIds: string[]) => {
         if (!currentUser || conversationIds.length === 0) return;
@@ -679,6 +833,7 @@ const App: React.FC = () => {
         if (!currentUser) throw new Error("User not logged in");
     
         const existingConvo = conversations.find(c => 
+            !c.isGroupChat &&
             c.participantIds.length === 2 && 
             c.participantIds.includes(currentUser.id) && 
             c.participantIds.includes(otherUserId)
@@ -721,7 +876,10 @@ const App: React.FC = () => {
             }
             const groupData = doc.data() as Omit<Group, 'id'>;
     
-            if (groupData.creatorId !== currentUser.id) {
+            const isCreator = groupData.creatorId === currentUser.id;
+            const isDirector = currentUser.tag === 'Director';
+
+            if (!isCreator && !isDirector) {
                 alert("You are not authorized to delete this group.");
                 return;
             }
@@ -778,13 +936,16 @@ const App: React.FC = () => {
             }
             const groupData = doc.data() as Omit<Group, 'id'>;
     
-            if (groupData.creatorId !== currentUser.id) {
+            const isCreator = groupData.creatorId === currentUser.id;
+            const isDirector = currentUser.tag === 'Director';
+    
+            if (!isCreator && !isDirector) {
                 alert("You are not authorized to remove members from this group.");
                 return;
             }
             
             if (groupData.creatorId === memberId) {
-                alert("You cannot remove yourself from the group.");
+                alert("You cannot remove yourself as the creator or another admin cannot remove you.");
                 return;
             }
     
@@ -816,7 +977,7 @@ const App: React.FC = () => {
         if (!currentUser) return;
         const groupRef = db.collection('groups').doc(groupId);
         const group = groups.find(g => g.id === groupId);
-        if (group?.creatorId !== currentUser.id && !currentUser.isAdmin) {
+        if (group?.creatorId !== currentUser.id && currentUser.tag !== 'Director') {
             alert("You don't have permission to approve requests.");
             return;
         }
@@ -835,7 +996,7 @@ const App: React.FC = () => {
         if (!currentUser) return;
         const groupRef = db.collection('groups').doc(groupId);
         const group = groups.find(g => g.id === groupId);
-        if (group?.creatorId !== currentUser.id && !currentUser.isAdmin) {
+        if (group?.creatorId !== currentUser.id && currentUser.tag !== 'Director') {
             alert("You don't have permission to decline requests.");
             return;
         }
@@ -903,6 +1064,21 @@ const App: React.FC = () => {
         }
     };
 
+    const handleCreateUser = async (newUserData: Omit<User, 'id'>) => {
+        if (!currentUser || (currentUser.tag !== 'HOD/Dean' && currentUser.tag !== 'Director')) {
+            alert("You don't have permission to create users.");
+            return;
+        }
+        try {
+            await db.collection('users').add(newUserData);
+            alert(`User ${newUserData.name} created successfully. An admin must create their login credentials in the Firebase console for them to be able to log in.`);
+        } catch (error) {
+            console.error("Error creating user document:", error);
+            alert("Could not create user.");
+        }
+    };
+
+
     // --- ACADEMICS HANDLERS (Firestore Persistence) ---
     const handleCreateCourse = async (newCourseData: Omit<Course, 'id' | 'facultyId'>) => {
         if (!currentUser) return;
@@ -916,8 +1092,33 @@ const App: React.FC = () => {
             attendanceRecords: [],
             messages: [],
             personalNotes: {},
+            feedback: [], // Initialize feedback
         };
         await db.collection('courses').add(newCourse);
+    };
+
+    const handleDeleteCourse = async (courseId: string) => {
+        if (!currentUser) return;
+    
+        const courseToDelete = courses.find(c => c.id === courseId);
+        if (!courseToDelete) {
+            alert("Course not found.");
+            return;
+        }
+    
+        const canDelete = currentUser.tag === 'Director' || courseToDelete.facultyId === currentUser.id;
+    
+        if (!canDelete) {
+            alert("You don't have permission to delete this course.");
+            return;
+        }
+    
+        try {
+            await db.collection('courses').doc(courseId).delete();
+        } catch (error) {
+            console.error("Error deleting course:", error);
+            alert("Could not delete the course.");
+        }
     };
 
     const handleAddNote = async (courseId: string, noteData: Omit<Note, 'id'>) => {
@@ -997,6 +1198,21 @@ const App: React.FC = () => {
         });
     };
 
+    const handleSendDepartmentMessage = async (departmentChatId: string, text: string) => {
+        if (!currentUser) return;
+        const chatRef = db.collection('departmentChats').doc(departmentChatId);
+        const newMessage: Message = {
+            id: `msg_dept_${Date.now()}`,
+            senderId: currentUser.id,
+            text,
+            timestamp: Date.now(),
+        };
+        // Use set with merge to create the doc if it doesn't exist
+        await chatRef.set({
+            messages: FieldValue.arrayUnion(newMessage)
+        }, { merge: true });
+    };
+
     const handleUpdateCoursePersonalNote = async (courseId: string, userId: string, content: string) => {
         const courseRef = db.collection('courses').doc(courseId);
         await courseRef.update({
@@ -1004,10 +1220,23 @@ const App: React.FC = () => {
         });
     };
 
+    const handleSaveFeedback = async (courseId: string, feedbackData: Omit<Feedback, 'studentId' | 'timestamp'>) => {
+        if (!currentUser) return;
+        const newFeedback: Feedback = {
+            ...feedbackData,
+            studentId: currentUser.id,
+            timestamp: Date.now(),
+        };
+        const courseRef = db.collection('courses').doc(courseId);
+        await courseRef.update({
+            feedback: FieldValue.arrayUnion(newFeedback)
+        });
+    };
+
 
     // --- NOTICE BOARD HANDLERS ---
     const handleCreateNotice = async (noticeData: Omit<Notice, 'id' | 'authorId' | 'timestamp'>) => {
-        if (!currentUser || currentUser.tag !== 'Faculty') return;
+        if (!currentUser || currentUser.tag === 'Student') return;
         const newNotice: Omit<Notice, 'id'> = {
             ...noticeData,
             authorId: currentUser.id,
@@ -1023,7 +1252,7 @@ const App: React.FC = () => {
         if (!doc.exists) return;
         const notice = doc.data() as Omit<Notice, 'id'>;
 
-        if (notice.authorId === currentUser.id || currentUser.isAdmin) {
+        if (notice.authorId === currentUser.id || currentUser.tag === 'Director') {
             await noticeRef.delete();
         } else {
             alert("You don't have permission to delete this notice.");
@@ -1031,9 +1260,65 @@ const App: React.FC = () => {
     };
 
 
-    // --- ADMIN HANDLERS ---
+    // --- ADMIN & HOD HANDLERS ---
+    const handleApproveTeacherRequest = async (teacherId: string) => {
+        if (!currentUser || (currentUser.tag !== 'HOD/Dean' && currentUser.tag !== 'Director')) {
+            alert("You don't have permission to approve users.");
+            return;
+        }
+        try {
+            await db.collection('users').doc(teacherId).update({ isApproved: true });
+            alert("User approved successfully.");
+        } catch (error) {
+            console.error("Error approving user:", error);
+            alert("Could not approve user.");
+        }
+    };
+    
+    const handleDeclineTeacherRequest = async (teacherId: string) => {
+        if (!currentUser || (currentUser.tag !== 'HOD/Dean' && currentUser.tag !== 'Director')) {
+            alert("You don't have permission to decline users.");
+            return;
+        }
+        try {
+            await db.collection('users').doc(teacherId).delete();
+            alert("User request declined and removed.");
+        } catch (error) {
+            console.error("Error declining user request:", error);
+            alert("Could not decline user request.");
+        }
+    };
+
+    const handleApproveHodRequest = async (hodId: string) => {
+        if (currentUser?.tag !== 'Director') {
+            alert("You don't have permission to approve this role.");
+            return;
+        }
+        try {
+            await db.collection('users').doc(hodId).update({ isApproved: true });
+            alert("HOD/Dean approved successfully.");
+        } catch (error) {
+            console.error("Error approving HOD/Dean:", error);
+            alert("Could not approve HOD/Dean.");
+        }
+    };
+    
+    const handleDeclineHodRequest = async (hodId: string) => {
+        if (currentUser?.tag !== 'Director') {
+            alert("You don't have permission to decline this role.");
+            return;
+        }
+        try {
+            await db.collection('users').doc(hodId).delete();
+            alert("HOD/Dean request declined and removed.");
+        } catch (error) {
+            console.error("Error declining HOD/Dean request:", error);
+            alert("Could not decline HOD/Dean request.");
+        }
+    };
+
     const handleAdminDeleteUser = async (userId: string) => {
-        if (!currentUser?.isAdmin) return;
+        if (currentUser?.tag !== 'Director') return;
         // Note: This is a simple deletion. In a real app, you might want to handle user's content (posts, etc.)
         // or implement a "soft delete" by flagging the user as deleted.
         try {
@@ -1044,18 +1329,25 @@ const App: React.FC = () => {
         }
     };
     
-    const handleAdminToggleAdminStatus = async (userId: string, currentStatus: boolean) => {
-        if (!currentUser?.isAdmin) return;
+    const handleToggleFreezeUser = async (userId: string) => {
+        if (currentUser?.tag !== 'Director') {
+            alert("You don't have permission for this action.");
+            return;
+        }
+        const userRef = db.collection('users').doc(userId);
         try {
-            await db.collection('users').doc(userId).update({ isAdmin: !currentStatus });
+            const doc = await userRef.get();
+            if (!doc.exists) return;
+            const userData = doc.data() as User;
+            await userRef.update({ isFrozen: !userData.isFrozen });
         } catch (error) {
-            console.error("Error updating admin status:", error);
-            alert("Could not update admin status.");
+            console.error("Error toggling user freeze status:", error);
+            alert("Could not update user status.");
         }
     };
 
     const handleAdminDeletePost = async (postId: string) => {
-        if (!currentUser?.isAdmin) return;
+        if (currentUser?.tag !== 'Director') return;
         await db.collection('posts').doc(postId).delete().catch(error => {
             console.error(`Admin error deleting post ${postId}:`, error);
             alert("Could not delete the post.");
@@ -1063,7 +1355,7 @@ const App: React.FC = () => {
     };
 
     const handleAdminDeleteGroup = async (groupId: string) => {
-        if (!currentUser?.isAdmin) return;
+        if (currentUser?.tag !== 'Director') return;
         try {
             await db.collection('groups').doc(groupId).delete();
         } catch (error) {
@@ -1072,9 +1364,48 @@ const App: React.FC = () => {
         }
     };
 
+     // --- PERSONAL NOTES HANDLERS ---
+     const handleCreatePersonalNote = async (title: string, content: string) => {
+        if (!currentUser) return;
+        const newNote: PersonalNote = {
+            id: `note_${Date.now()}`,
+            title,
+            content,
+            timestamp: Date.now(),
+        };
+        await db.collection('users').doc(currentUser.id).update({
+            personalNotes: FieldValue.arrayUnion(newNote)
+        });
+    };
+
+    const handleUpdatePersonalNoteApp = async (noteId: string, title: string, content: string) => {
+        if (!currentUser || !currentUser.personalNotes) return;
+
+        const updatedNotes = currentUser.personalNotes.map(n => {
+            if (n.id === noteId) {
+                return { ...n, title, content, timestamp: n.timestamp };
+            }
+            return n;
+        });
+        
+        await db.collection('users').doc(currentUser.id).update({
+            personalNotes: updatedNotes
+        });
+    };
+
+    const handleDeletePersonalNote = async (noteId: string) => {
+        if (!currentUser || !currentUser.personalNotes) return;
+        
+        const updatedNotes = currentUser.personalNotes.filter(n => n.id !== noteId);
+        
+        await db.collection('users').doc(currentUser.id).update({
+            personalNotes: updatedNotes
+        });
+    };
+
 
     if (loading) {
-        return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-foreground">Loading...</p></div>;
+        return <div className="min-h-screen bg-background dark:bg-slate-900 flex items-center justify-center"><p className="text-foreground dark:text-slate-100">Loading...</p></div>;
     }
 
     const renderPage = () => {
@@ -1094,6 +1425,7 @@ const App: React.FC = () => {
             onReaction: handleReaction,
             onAddComment: handleAddComment,
             onDeletePost: handleDeletePost,
+            onDeleteComment: handleDeleteComment,
             onCreateOrOpenConversation: handleCreateOrOpenConversation,
             onSharePostAsMessage: handleSharePostAsMessage,
             onSharePost: handleSharePost,
@@ -1107,12 +1439,12 @@ const App: React.FC = () => {
             case 'groups': 
                 if (params[0]) {
                     const group = groups.find(g => g.id === params[0]);
-                    return group ? <GroupDetailPage group={group} currentUser={currentUser} users={users} posts={posts.filter(p => p.groupId === params[0])} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} onAddStory={handleAddStory} onJoinGroupRequest={handleJoinGroupRequest} onApproveJoinRequest={handleApproveJoinRequest} onDeclineJoinRequest={handleDeclineJoinRequest} onDeleteGroup={handleDeleteGroup} onRemoveGroupMember={handleRemoveGroupMember} onSendGroupMessage={handleSendGroupMessage} onToggleFollowGroup={handleToggleFollowGroup} {...postCardProps} /> : <div>Group not found</div>;
+                    return group ? <GroupDetailPage group={group} currentUser={currentUser} users={users} posts={posts.filter(p => p.groupId === params[0])} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} onAddStory={handleAddStory} onJoinGroupRequest={handleJoinGroupRequest} onApproveJoinRequest={handleApproveJoinRequest} onDeclineJoinRequest={handleDeclineJoinRequest} onDeleteGroup={handleDeleteGroup} onRemoveGroupMember={handleRemoveGroupMember} onSendGroupMessage={handleSendGroupMessage} onToggleFollowGroup={handleToggleFollowGroup} {...postCardProps} onDeleteComment={handleDeleteComment} /> : <div>Group not found</div>;
                 }
                 return <GroupsPage currentUser={currentUser} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onCreateGroup={handleCreateGroup} />;
             case 'events': return <EventsPage currentUser={currentUser} users={users} events={events} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} {...postCardProps} />;
             case 'opportunities': return <OpportunitiesPage currentUser={currentUser} users={users} posts={posts} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} postCardProps={postCardProps} />;
-            case 'chat': return <ChatPage currentUser={currentUser} users={users} conversations={conversations} onSendMessage={handleSendMessage} onDeleteMultipleMessages={handleDeleteMultipleMessages} onDeleteConversations={handleDeleteConversations} onCreateOrOpenConversation={handleCreateOrOpenConversation} onNavigate={handleNavigate} currentPath={currentPath} />;
+            case 'chat': return <ChatPage currentUser={currentUser} users={users} conversations={conversations} onSendMessage={handleSendMessage} onDeleteMessagesForEveryone={handleDeleteMessagesForEveryone} onDeleteMessagesForSelf={handleDeleteMessagesForSelf} onDeleteConversations={handleDeleteConversations} onCreateOrOpenConversation={handleCreateOrOpenConversation} onNavigate={handleNavigate} currentPath={currentPath} />;
             case 'search': return <SearchPage currentUser={currentUser} users={allUsersList} posts={posts} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} {...postCardProps} />;
             case 'confessions':
                 return <ConfessionsPage 
@@ -1124,6 +1456,15 @@ const App: React.FC = () => {
                     onAddPost={handleAddPost}
                     currentPath={currentPath}
                     {...postCardProps}
+                />;
+            case 'personal-notes':
+                return <PersonalNotesPage
+                    currentUser={currentUser}
+                    onNavigate={handleNavigate}
+                    currentPath={currentPath}
+                    onCreateNote={handleCreatePersonalNote}
+                    onUpdateNote={handleUpdatePersonalNoteApp}
+                    onDeleteNote={handleDeletePersonalNote}
                 />;
             case 'academics': 
                  if (params[0]) { // We have a course ID
@@ -1146,6 +1487,8 @@ const App: React.FC = () => {
                         onRemoveStudentFromCourse={handleRemoveStudentFromCourse}
                         onSendCourseMessage={handleSendCourseMessage}
                         onUpdateCoursePersonalNote={handleUpdateCoursePersonalNote}
+                        onSaveFeedback={handleSaveFeedback}
+                        onDeleteCourse={handleDeleteCourse}
                     /> : <div>Course not found</div>;
                 }
                 return <AcademicsPage 
@@ -1158,25 +1501,42 @@ const App: React.FC = () => {
                     users={users}
                     onCreateNotice={handleCreateNotice}
                     onDeleteNotice={handleDeleteNotice}
+                    onRequestToJoinCourse={handleRequestToJoinCourse}
+                    departmentChats={departmentChats}
+                    onSendDepartmentMessage={handleSendDepartmentMessage}
+                    onCreateUser={handleCreateUser}
+                    onApproveTeacherRequest={handleApproveTeacherRequest}
+                    onDeclineTeacherRequest={handleDeclineTeacherRequest}
                 />;
-            case 'admin':
-                if (!currentUser.isAdmin) {
+            case 'director':
+                if (currentUser.tag !== 'Director') {
                     handleNavigate('#/home');
                     return null;
                 }
-                return <AdminPage 
+                return <DirectorPage 
                             currentUser={currentUser} 
                             allUsers={allUsersList} 
                             allPosts={posts} 
                             allGroups={groups}
+                            allCourses={courses}
                             usersMap={users}
                             onNavigate={handleNavigate} 
                             currentPath={currentPath}
                             onDeleteUser={handleAdminDeleteUser}
-                            onToggleAdmin={handleAdminToggleAdminStatus}
                             onDeletePost={handleAdminDeletePost}
                             onDeleteGroup={handleAdminDeleteGroup}
-                            postCardProps={{...postCardProps, onDeletePost: handleAdminDeletePost}} // Pass admin delete post
+                            onApproveHodRequest={handleApproveHodRequest}
+                            onDeclineHodRequest={handleDeclineHodRequest}
+                            onApproveTeacherRequest={handleApproveTeacherRequest}
+                            onDeclineTeacherRequest={handleDeclineTeacherRequest}
+                            onToggleFreezeUser={handleToggleFreezeUser}
+                            notices={notices}
+                            onCreateNotice={handleCreateNotice}
+                            onDeleteNotice={handleDeleteNotice}
+                            onCreateCourse={handleCreateCourse}
+                            onCreateUser={handleCreateUser}
+                            onDeleteCourse={handleDeleteCourse}
+                            postCardProps={{...postCardProps, onDeletePost: handleAdminDeletePost, onDeleteComment: handleDeleteComment}}
                         />;
             default:
                 handleNavigate('#/home');

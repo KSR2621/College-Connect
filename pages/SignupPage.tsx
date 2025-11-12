@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { auth, db } from '../firebase';
 import type { UserTag } from '../types';
 import { UserIcon, MailIcon, LockIcon, BuildingIcon, CameraIcon } from '../components/Icons';
-import { yearOptions } from '../constants';
+import { yearOptions, departmentOptions } from '../constants';
 
 interface SignupPageProps {
     onNavigate: (path: string) => void;
@@ -45,6 +45,10 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        if (!department) {
+            setError('Please select a department.');
+            return;
+        }
         try {
             const { user } = await auth.createUserWithEmailAndPassword(email, password);
             if (user) {
@@ -61,7 +65,8 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                     avatarUrl,
                     bio: '',
                     interests: [],
-                    achievements: []
+                    achievements: [],
+                    isApproved: tag === 'Student' || tag === 'Director',
                 };
 
                 if (tag === 'Student') {
@@ -76,12 +81,12 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
         }
     };
 
-    const inputClasses = "w-full pl-10 pr-4 py-3 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition";
-    const selectClasses = "w-full appearance-none px-4 py-3 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition";
+    const inputClasses = "w-full pl-10 pr-4 py-3 text-foreground bg-input dark:bg-slate-700 border border-border dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition";
+    const selectClasses = "w-full appearance-none px-4 py-3 text-foreground bg-input dark:bg-slate-700 border border-border dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition";
 
     return (
         <div className="min-h-screen flex items-center justify-center p-4">
-            <div className="w-full max-w-md p-8 space-y-4 bg-card rounded-2xl shadow-xl border border-border animate-fade-in">
+            <div className="w-full max-w-md p-8 space-y-4 bg-card dark:bg-slate-800 rounded-2xl shadow-xl border border-border dark:border-slate-700 animate-fade-in">
                 <div className="text-center">
                     <span className="font-bold text-3xl text-primary">CampusConnect</span>
                     <h1 className="text-2xl font-bold text-foreground mt-2">Create Your Account</h1>
@@ -94,12 +99,12 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                             <img
                                 src={avatarPreview || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'A')}&background=random&color=fff`}
                                 alt="Avatar preview"
-                                className="w-24 h-24 rounded-full object-cover border-4 border-card shadow-md"
+                                className="w-24 h-24 rounded-full object-cover border-4 border-card dark:border-slate-800 shadow-md"
                             />
                             <button
                                 type="button"
                                 onClick={() => fileInputRef.current?.click()}
-                                className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground p-2 rounded-full border-2 border-card hover:bg-primary/90"
+                                className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground p-2 rounded-full border-2 border-card dark:border-slate-800 hover:bg-primary/90"
                                 aria-label="Upload profile picture"
                             >
                                 <CameraIcon className="w-5 h-5"/>
@@ -127,14 +132,23 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                         <input type="password" placeholder="Password (min. 6 characters)" value={password} onChange={e => setPassword(e.target.value)} required className={inputClasses} />
                     </div>
                      <div className="relative">
-                        <BuildingIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
-                        <input type="text" placeholder="Department (e.g., Computer Science)" value={department} onChange={e => setDepartment(e.target.value)} required className={inputClasses} />
+                        <BuildingIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted z-10" />
+                        <select
+                            value={department}
+                            onChange={e => setDepartment(e.target.value)}
+                            required
+                            className={`${selectClasses} pl-10`}
+                        >
+                            <option value="" disabled>Select Department</option>
+                            {departmentOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
                     </div>
                     
                     <select value={tag} onChange={e => setTag(e.target.value as UserTag)} className={selectClasses}>
-                        <option>Student</option>
-                        <option>Faculty</option>
-                        <option>Alumni</option>
+                        <option value="Student">Student</option>
+                        <option value="Teacher">Teacher</option>
+                        <option value="HOD/Dean">Dean/HOD</option>
+                        <option value="Director">Director</option>
                     </select>
 
                     {tag === 'Student' && (

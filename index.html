@@ -10,6 +10,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           colors: {
@@ -95,17 +96,6 @@
     }
   </script>
 
-    <script type="importmap">
-{
-  "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "types": "https://aistudiocdn.com/types@^0.1.1"
-  }
-}
-</script>
-    
     <style>
       /* For Webkit-based browsers (Chrome, Safari and Opera) */
       .no-scrollbar::-webkit-scrollbar {
@@ -124,6 +114,10 @@
         background-color: #f8fafc; /* bg-slate-50 */
         background-image: radial-gradient(circle at 1px 1px, #e2e8f0 1px, transparent 0); /* slate-200 dots */
         background-size: 20px 20px;
+      }
+      .dark body {
+        background-color: #0f172a; /* bg-slate-900 */
+        background-image: radial-gradient(circle at 1px 1px, #334155 1px, transparent 0); /* slate-700 dots */
       }
       
       @keyframes animated-gradient {
@@ -144,6 +138,10 @@
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.18);
+      }
+      .dark .glassmorphic-card {
+        background: rgba(30, 41, 59, 0.7); /* slate-800 */
+        border: 1px solid rgba(51, 65, 85, 0.18); /* slate-700 */
       }
       
       .gradient-text {
@@ -174,6 +172,9 @@
         border-radius: 9999px;
         background-color: #e2e8f0; /* slate-200 */
       }
+      .dark .story-ring-viewed {
+        background-color: #475569; /* slate-600 */
+      }
       .add-story-ring {
         border-radius: 9999px;
         border: 2px solid #93c5fd; /* blue-300 */
@@ -199,6 +200,10 @@
         background-color: #f8fafc; /* slate-50 */
         background-image: url("https://www.transparenttextures.com/patterns/az-subtle.png");
       }
+      .dark .chat-background-panel {
+        background-color: #0f172a; /* slate-900 */
+        background-image: url("https://www.transparenttextures.com/patterns/dark-matter.png");
+      }
     </style>
 
     <!--
@@ -211,8 +216,21 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "@capacitor/local-notifications": "https://aistudiocdn.com/@capacitor/local-notifications@^7.0.3",
+    "@capacitor/cli": "https://aistudiocdn.com/@capacitor/cli@^7.4.4",
+    "vite": "https://aistudiocdn.com/vite@^7.2.2",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.0"
+  }
+}
+</script>
 </head>
-<body class="text-foreground">
+<body class="text-foreground dark:bg-slate-900 dark:text-slate-100">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
 </body>

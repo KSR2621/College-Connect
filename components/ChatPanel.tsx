@@ -1,14 +1,15 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import type { User, Conversation } from '../types';
+import type { User, Conversation, Message } from '../types';
 import Avatar from './Avatar';
-import { SendIcon, ArrowLeftIcon, OptionsIcon, TrashIcon, CloseIcon } from './Icons';
+import { SendIcon, ArrowLeftIcon, OptionsIcon, TrashIcon, CloseIcon, UsersIcon } from './Icons';
 
 interface ChatPanelProps {
   conversation: Conversation;
   currentUser: User;
   users: { [key: string]: User };
   onSendMessage: (conversationId: string, text: string) => void;
-  onDeleteMultipleMessages: (conversationId: string, messageIds: string[]) => void;
+  onDeleteMessagesForEveryone: (conversationId: string, messageIds: string[]) => void;
+  onDeleteMessagesForSelf: (conversationId: string, messageIds: string[]) => void;
   onClose: () => void; // For mobile view to go back to list
   onNavigate: (path: string) => void;
 }
@@ -40,19 +41,52 @@ const formatDateSeparator = (timestamp: number) => {
     }
 };
 
+const DeleteMessageModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    canDeleteForEveryone: boolean;
+    onDeleteForMe: () => void;
+    onDeleteForEveryone: () => void;
+}> = ({ isOpen, onClose, canDeleteForEveryone, onDeleteForMe, onDeleteForEveryone }) => {
+    if (!isOpen) return null;
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users, onSendMessage, onDeleteMultipleMessages, onClose, onNavigate }) => {
+    return (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-xs" onClick={e => e.stopPropagation()}>
+                <h3 className="font-bold text-lg text-center mb-4 text-foreground">Delete message(s)?</h3>
+                <div className="space-y-3">
+                    {canDeleteForEveryone && (
+                        <button onClick={onDeleteForEveryone} className="w-full text-left p-3 rounded-lg hover:bg-muted text-destructive font-semibold">Delete for everyone</button>
+                    )}
+                    <button onClick={onDeleteForMe} className="w-full text-left p-3 rounded-lg hover:bg-muted font-semibold">Delete for me</button>
+                    <button onClick={onClose} className="w-full p-3 rounded-lg hover:bg-muted text-center font-semibold text-text-muted">Cancel</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users, onSendMessage, onDeleteMessagesForEveryone, onDeleteMessagesForSelf, onClose, onNavigate }) => {
   const [text, setText] = useState('');
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasLongPress = useRef(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const prevMessagesLength = useRef(conversation.messages.length);
 
-  const otherParticipantId = useMemo(() => conversation.participantIds.find(id => id !== currentUser.id), [conversation, currentUser]);
+  const isGroupChat = conversation.isGroupChat;
+  const otherParticipantId = !isGroupChat ? conversation.participantIds.find(id => id !== currentUser.id) : null;
   const otherUser = otherParticipantId ? users[otherParticipantId] : null;
+  const chatName = isGroupChat ? conversation.name : otherUser?.name;
+
   const isSelectionMode = selectedMessages.length > 0;
+
+  const visibleMessages = useMemo(() => {
+    return conversation.messages.filter(msg => !msg.deletedFor?.includes(currentUser.id));
+  }, [conversation.messages, currentUser.id]);
 
   // Effect to scroll to bottom when a new conversation is opened
   useEffect(() => {
@@ -63,13 +97,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
 
   // Effect to handle smart scrolling for new messages
   useEffect(() => {
-    const currentMessagesLength = conversation.messages.length;
+    const currentMessagesLength = visibleMessages.length;
 
     // Only run if new messages have been added
     if (currentMessagesLength > prevMessagesLength.current) {
       const messagesContainer = messagesContainerRef.current;
       if (messagesContainer) {
-        const lastMessage = conversation.messages[currentMessagesLength - 1];
+        const lastMessage = visibleMessages[currentMessagesLength - 1];
         const isFromCurrentUser = lastMessage.senderId === currentUser.id;
         
         const scrollThreshold = 150; // pixels
@@ -83,7 +117,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
     }
     // Update the ref after the check
     prevMessagesLength.current = currentMessagesLength;
-  }, [conversation.messages, currentUser.id]);
+  }, [visibleMessages, currentUser.id]);
 
 
   useEffect(() => {
@@ -129,14 +163,17 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
   };
 
-  const handleDeleteSelected = () => {
-    if (window.confirm(`Delete ${selectedMessages.length} message(s)?`)) {
-        onDeleteMultipleMessages(conversation.id, selectedMessages);
-        setSelectedMessages([]);
-    }
+  const handleDeleteTrigger = () => {
+    setIsDeleteModalOpen(true);
   };
+  
+  const canDeleteForEveryone = useMemo(() => {
+      if (selectedMessages.length === 0) return false;
+      const messagesToDelete = conversation.messages.filter(m => selectedMessages.includes(m.id));
+      return messagesToDelete.every(m => m.senderId === currentUser.id);
+  }, [selectedMessages, conversation.messages, currentUser.id]);
 
-  if (!otherUser) {
+  if (!isGroupChat && !otherUser) {
       return <div className="flex-1 flex items-center justify-center text-text-muted">User not found</div>;
   }
 
@@ -149,7 +186,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
                 <CloseIcon className="w-6 h-6" />
             </button>
             <p className="font-bold text-foreground">{selectedMessages.length} Selected</p>
-            <button onClick={handleDeleteSelected} className="p-2 rounded-full hover:bg-muted text-destructive">
+            <button onClick={handleDeleteTrigger} className="p-2 rounded-full hover:bg-muted text-destructive">
                 <TrashIcon className="w-6 h-6" />
             </button>
         </div>
@@ -159,12 +196,22 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
                 <button onClick={onClose} className="md:hidden p-1 rounded-full hover:bg-muted">
                     <ArrowLeftIcon className="w-6 h-6 text-foreground" />
                 </button>
-                <div className="cursor-pointer" onClick={() => onNavigate(`#/profile/${otherUser.id}`)}>
-                    <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="md" />
-                </div>
-                <div className="cursor-pointer flex-1 overflow-hidden" onClick={() => onNavigate(`#/profile/${otherUser.id}`)}>
-                    <p className="font-bold text-foreground truncate">{otherUser.name}</p>
-                    <p className="text-xs text-text-muted truncate">{otherUser.department}</p>
+                {isGroupChat ? (
+                    <div className="h-10 w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center flex-shrink-0">
+                        <UsersIcon className="w-6 h-6"/>
+                    </div>
+                ) : (
+                    <div className="cursor-pointer" onClick={() => onNavigate(`#/profile/${otherUser.id}`)}>
+                        <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="md" />
+                    </div>
+                )}
+                <div className={!isGroupChat && otherUser ? "cursor-pointer flex-1 overflow-hidden" : "flex-1 overflow-hidden"} onClick={!isGroupChat && otherUser ? () => onNavigate(`#/profile/${otherUser.id}`) : undefined}>
+                    <p className="font-bold text-foreground truncate">{chatName}</p>
+                    {isGroupChat ? (
+                         <p className="text-xs text-text-muted">{conversation.participantIds.length} members</p>
+                    ) : (
+                        <p className="text-xs text-text-muted truncate">{otherUser?.department}</p>
+                    )}
                 </div>
             </div>
         </div>
@@ -172,12 +219,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
 
       {/* Messages */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-2 chat-background-panel">
-        {conversation.messages.map((msg, index) => {
+        {visibleMessages.map((msg, index) => {
           const sender = users[msg.senderId];
           const isCurrentUser = msg.senderId === currentUser.id;
           const isSelected = selectedMessages.includes(msg.id);
           
-          const prevMessage = index > 0 ? conversation.messages[index - 1] : null;
+          const prevMessage = index > 0 ? visibleMessages[index - 1] : null;
           const showDateSeparator = !prevMessage || !isSameDay(msg.timestamp, prevMessage.timestamp);
 
           return (
@@ -200,6 +247,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
               >
                 {!isCurrentUser && sender && <Avatar src={sender.avatarUrl} name={sender.name} size="sm" />}
                 <div className="flex flex-col max-w-xs md:max-w-md">
+                   {!isCurrentUser && conversation.isGroupChat && sender && (
+                      <p className="text-xs text-text-muted mb-1 px-3">{sender.name}</p>
+                  )}
                   <div className={`group relative p-3 rounded-2xl transition-colors ${isSelected ? 'bg-primary/30' : (isCurrentUser ? 'bg-gradient-to-br from-primary to-secondary text-primary-foreground rounded-br-lg shadow-lg shadow-blue-500/20' : 'bg-white text-card-foreground rounded-bl-lg shadow-sm')}`}>
                       <p className="whitespace-pre-wrap break-words">{msg.text}</p>
                   </div>
@@ -227,6 +277,21 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
           </button>
         </form>
       </div>
+      <DeleteMessageModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        canDeleteForEveryone={canDeleteForEveryone}
+        onDeleteForEveryone={() => {
+            onDeleteMessagesForEveryone(conversation.id, selectedMessages);
+            setIsDeleteModalOpen(false);
+            setSelectedMessages([]);
+        }}
+        onDeleteForMe={() => {
+            onDeleteMessagesForSelf(conversation.id, selectedMessages);
+            setIsDeleteModalOpen(false);
+            setSelectedMessages([]);
+        }}
+      />
     </div>
   );
 };

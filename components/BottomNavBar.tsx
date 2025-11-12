@@ -22,7 +22,7 @@ const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentUser, onNavigate, cu
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-lg border-t border-border md:hidden z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-card/80 dark:bg-slate-900/80 backdrop-blur-lg border-t border-border dark:border-slate-800 md:hidden z-50">
       <div className="flex justify-around items-center h-16">
         {navItems.map(({ path, icon: Icon, activeIcon: ActiveIcon, label }) => {
           // Special check for profile page, as it can be /profile/some-other-id

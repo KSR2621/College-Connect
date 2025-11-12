@@ -49,12 +49,33 @@ const GroupChatWindow: React.FC<{
     onSendGroupMessage: (groupId: string, text: string) => void;
 }> = ({ group, currentUser, users, onSendGroupMessage }) => {
     const [message, setMessage] = useState('');
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const prevMessagesLength = useRef((group.messages || []).length);
     const messages = group.messages || [];
 
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages]);
+        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+        prevMessagesLength.current = messages.length;
+    }, [group.id]);
+
+    useEffect(() => {
+        const currentMessagesLength = messages.length;
+        if (currentMessagesLength > prevMessagesLength.current) {
+            const container = messagesContainerRef.current;
+            if (container) {
+                const lastMessage = messages[currentMessagesLength - 1];
+                const isFromCurrentUser = lastMessage.senderId === currentUser.id;
+                const scrollThreshold = 150;
+                const isScrolledNearBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + scrollThreshold;
+
+                if (isFromCurrentUser || isScrolledNearBottom) {
+                    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+        }
+        prevMessagesLength.current = currentMessagesLength;
+    }, [messages, currentUser.id]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -66,7 +87,7 @@ const GroupChatWindow: React.FC<{
     
     return (
         <div className="bg-card rounded-lg shadow-sm border border-border h-[60vh] flex flex-col">
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
                 {messages.length === 0 ? (
                     <p className="text-center text-text-muted mt-8">No messages yet. Start the conversation!</p>
                 ) : (

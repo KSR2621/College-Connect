@@ -47,11 +47,11 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ groups, events, currentUser
     <div className="sticky top-20 space-y-6">
       {/* Upcoming Events */}
       {upcomingEvents.length > 0 && (
-         <div className="bg-card rounded-lg shadow-sm border border-border p-4">
+         <div className="bg-card dark:bg-slate-800 rounded-lg shadow-sm border border-border dark:border-slate-700 p-4">
             <h3 className="font-bold text-foreground mb-3">Upcoming Events</h3>
             <div className="space-y-3">
                 {upcomingEvents.map(event => (
-                    <div key={event.id} className="flex items-start space-x-3 cursor-pointer p-2 -m-2 rounded-lg hover:bg-muted" onClick={() => onNavigate('#/events')}>
+                    <div key={event.id} className="flex items-start space-x-3 cursor-pointer p-2 -m-2 rounded-lg hover:bg-muted dark:hover:bg-slate-700" onClick={() => onNavigate('#/events')}>
                         <div className="flex-shrink-0 h-10 w-10 bg-secondary/10 text-secondary rounded-lg flex items-center justify-center">
                             <CalendarIcon className="w-5 h-5" />
                         </div>
@@ -62,7 +62,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ groups, events, currentUser
                     </div>
                 ))}
             </div>
-             <button onClick={() => onNavigate('#/events')} className="w-full mt-3 text-sm font-semibold text-primary hover:bg-primary/10 p-2 rounded-lg transition-colors">
+             <button onClick={() => onNavigate('#/events')} className="w-full mt-3 text-sm font-semibold text-primary hover:bg-primary/10 dark:hover:bg-primary/20 p-2 rounded-lg transition-colors">
                 View All Events
             </button>
          </div>
@@ -70,7 +70,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ groups, events, currentUser
 
       {/* People You May Know */}
        {suggestedUsers.length > 0 && (
-        <div className="bg-card rounded-lg shadow-sm border border-border p-4">
+        <div className="bg-card dark:bg-slate-800 rounded-lg shadow-sm border border-border dark:border-slate-700 p-4">
             <h3 className="font-bold text-foreground mb-3">People You May Know</h3>
             <div className="space-y-3">
                 {suggestedUsers.map(user => (
@@ -80,7 +80,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ groups, events, currentUser
                             <p className="font-semibold text-card-foreground text-sm truncate">{user.name}</p>
                             <p className="text-xs text-text-muted">{user.department}</p>
                         </div>
-                        <button onClick={() => onNavigate(`#/profile/${user.id}`)} className="text-xs font-semibold bg-muted hover:bg-border text-foreground py-1 px-3 rounded-full">
+                        <button onClick={() => onNavigate(`#/profile/${user.id}`)} className="text-xs font-semibold bg-muted dark:bg-slate-700 hover:bg-border dark:hover:bg-slate-600 text-foreground py-1 px-3 rounded-full">
                             View
                         </button>
                     </div>
@@ -91,7 +91,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ groups, events, currentUser
 
       {/* Suggested Groups */}
       {suggestedGroups.length > 0 && (
-        <div className="bg-card rounded-lg shadow-sm border border-border p-4">
+        <div className="bg-card dark:bg-slate-800 rounded-lg shadow-sm border border-border dark:border-slate-700 p-4">
           <h3 className="font-bold text-foreground mb-3">Suggested Groups</h3>
           <div className="space-y-3">
             {suggestedGroups.map(group => {
@@ -99,7 +99,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ groups, events, currentUser
               return (
                 <div 
                     key={group.id} 
-                    className="flex items-center space-x-3 cursor-pointer p-2 -m-2 rounded-lg hover:bg-muted transition-colors"
+                    className="flex items-center space-x-3 cursor-pointer p-2 -m-2 rounded-lg hover:bg-muted dark:hover:bg-slate-700 transition-colors"
                     onClick={() => onNavigate(`#/groups/${group.id}`)}
                 >
                   <div className={`flex-shrink-0 h-10 w-10 bg-gradient-to-br ${gradient} text-white rounded-lg flex items-center justify-center`}>
@@ -113,7 +113,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ groups, events, currentUser
               );
             })}
           </div>
-            <button onClick={() => onNavigate('#/groups')} className="w-full mt-3 text-sm font-semibold text-primary hover:bg-primary/10 p-2 rounded-lg transition-colors">
+            <button onClick={() => onNavigate('#/groups')} className="w-full mt-3 text-sm font-semibold text-primary hover:bg-primary/10 dark:hover:bg-primary/20 p-2 rounded-lg transition-colors">
                 View All Groups
             </button>
         </div>
