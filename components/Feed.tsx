@@ -1,7 +1,7 @@
 
 
 import React from 'react';
-import type { Post, User, Group, ReactionType } from '../types';
+import type { Post, User, Group, ReactionType, Comment } from '../types';
 import PostCard from './PostCard';
 
 interface FeedProps {
@@ -10,6 +10,7 @@ interface FeedProps {
   currentUser: User;
   onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;
+  onDeleteComment: (postId: string, commentId: string) => void;
   onDeletePost: (postId: string) => void;
   onCreateOrOpenConversation: (otherUserId: string) => Promise<string>;
   onSharePostAsMessage: (conversationId: string, authorName: string, postContent: string) => void;
@@ -20,7 +21,7 @@ interface FeedProps {
 }
 
 const Feed: React.FC<FeedProps> = (props) => {
-  const { posts, users, currentUser, onReaction, onAddComment, onDeletePost, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost, groups, onNavigate } = props;
+  const { posts, users, currentUser, onReaction, onAddComment, onDeletePost, onDeleteComment, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost, groups, onNavigate } = props;
   
   if (posts.length === 0) {
     return <div className="text-center text-text-muted mt-8">No posts to show.</div>;
@@ -42,6 +43,7 @@ const Feed: React.FC<FeedProps> = (props) => {
               onReaction={onReaction}
               onAddComment={onAddComment}
               onDeletePost={onDeletePost}
+              onDeleteComment={onDeleteComment}
               onCreateOrOpenConversation={onCreateOrOpenConversation}
               onSharePostAsMessage={onSharePostAsMessage}
               onSharePost={onSharePost}

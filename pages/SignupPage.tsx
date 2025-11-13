@@ -1,25 +1,34 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { auth, db } from '../firebase';
-import type { UserTag } from '../types';
+import type { UserTag, College } from '../types';
 import { UserIcon, MailIcon, LockIcon, BuildingIcon, CameraIcon } from '../components/Icons';
-import { yearOptions, departmentOptions } from '../constants';
+import { yearOptions } from '../constants';
 
 interface SignupPageProps {
     onNavigate: (path: string) => void;
+    colleges: College[];
 }
 
-const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
+const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, colleges }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
     const [department, setDepartment] = useState('');
     const [tag, setTag] = useState<UserTag>('Student');
     const [yearOfStudy, setYearOfStudy] = useState<number>(1);
+    const [collegeId, setCollegeId] = useState('');
     const [error, setError] = useState('');
     
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const departmentOptions = useMemo(() => {
+        if (!collegeId) return [];
+        const selectedCollege = colleges.find(c => c.id === collegeId);
+        return selectedCollege?.departments || [];
+    }, [collegeId, colleges]);
+
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -49,6 +58,10 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
             setError('Please select a department.');
             return;
         }
+        if (!collegeId) {
+            setError('Please select a college.');
+            return;
+        }
         try {
             const { user } = await auth.createUserWithEmailAndPassword(email, password);
             if (user) {
@@ -62,11 +75,12 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                     email,
                     department,
                     tag,
+                    collegeId,
                     avatarUrl,
                     bio: '',
                     interests: [],
                     achievements: [],
-                    isApproved: tag === 'Student' || tag === 'Director',
+                    isApproved: tag === 'Student',
                 };
 
                 if (tag === 'Student') {
@@ -93,6 +107,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                     <p className="text-text-muted">Join your campus community today.</p>
                 </div>
                 
+                {/* FIX: Corrected typo from `handleSubmit` to `handleSignup`. */}
                 <form onSubmit={handleSignup} className="space-y-4">
                     <div className="flex justify-center">
                         <div className="relative">
@@ -118,6 +133,16 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                             />
                         </div>
                     </div>
+                    
+                    <select
+                        value={collegeId}
+                        onChange={e => { setCollegeId(e.target.value); setDepartment(''); }}
+                        required
+                        className={selectClasses}
+                    >
+                        <option value="" disabled>Select Your College</option>
+                        {colleges.map(college => <option key={college.id} value={college.id}>{college.name}</option>)}
+                    </select>
 
                     <div className="relative">
                         <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
@@ -137,9 +162,11 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                             value={department}
                             onChange={e => setDepartment(e.target.value)}
                             required
-                            className={`${selectClasses} pl-10`}
+                            disabled={!collegeId || departmentOptions.length === 0}
+                            className={`${selectClasses} pl-10 disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
                             <option value="" disabled>Select Department</option>
+                            {collegeId && departmentOptions.length === 0 && <option disabled>This college has no departments set up.</option>}
                             {departmentOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                         </select>
                     </div>
@@ -148,7 +175,6 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                         <option value="Student">Student</option>
                         <option value="Teacher">Teacher</option>
                         <option value="HOD/Dean">Dean/HOD</option>
-                        <option value="Director">Director</option>
                     </select>
 
                     {tag === 'Student' && (

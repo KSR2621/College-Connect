@@ -1,4 +1,3 @@
-export const departmentOptions = ["Computer Science", "Mechanical", "AIDS", "Civil", "ENTC", "Electrical", "MBA"];
 export const yearOptions = [
     { val: 1, label: "1st Year" }, 
     { val: 2, label: "2nd Year" }, 

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { User, Group, Post, ReactionType } from '../types';
+import type { User, Group, Post, ReactionType, Comment } from '../types';
 import Header from '../components/Header';
 import Feed from '../components/Feed';
 import CreatePost from '../components/CreatePost';
@@ -29,6 +29,7 @@ interface GroupDetailPageProps {
   onReaction: (postId: string, reaction: ReactionType) => void;
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;
+  onDeleteComment: (postId: string, commentId: string) => void;
   onJoinGroupRequest: (groupId: string) => void;
   onApproveJoinRequest: (groupId: string, userId: string) => void;
   onDeclineJoinRequest: (groupId: string, userId: string) => void;
@@ -217,7 +218,7 @@ const GroupFollowersList: React.FC<{
 
 
 const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
-    const { group, currentUser, users, posts, groups, onNavigate, currentPath, onAddPost, onAddStory, onReaction, onAddComment, onDeletePost, onJoinGroupRequest, onApproveJoinRequest, onDeclineJoinRequest, onDeleteGroup, onSendGroupMessage, onRemoveGroupMember, onToggleFollowGroup, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost } = props;
+    const { group, currentUser, users, posts, groups, onNavigate, currentPath, onAddPost, onAddStory, onReaction, onAddComment, onDeletePost, onDeleteComment, onJoinGroupRequest, onApproveJoinRequest, onDeclineJoinRequest, onDeleteGroup, onSendGroupMessage, onRemoveGroupMember, onToggleFollowGroup, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost } = props;
     const [inviteCopied, setInviteCopied] = useState(false);
     const [showOptions, setShowOptions] = useState(false);
     const [activeTab, setActiveTab] = useState<'posts' | 'chat' | 'members' | 'followers'>('posts');
@@ -275,6 +276,7 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                             onReaction={onReaction}
                             onAddComment={onAddComment}
                             onDeletePost={onDeletePost}
+                            onDeleteComment={onDeleteComment}
                             onCreateOrOpenConversation={onCreateOrOpenConversation}
                             onSharePostAsMessage={onSharePostAsMessage}
                             onSharePost={onSharePost}

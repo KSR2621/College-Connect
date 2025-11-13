@@ -26,6 +26,7 @@ interface CourseDetailPageProps {
   onUpdateCoursePersonalNote: (courseId: string, userId: string, content: string) => void;
   onSaveFeedback: (courseId: string, feedbackData: { rating: number; comment: string; }) => void;
   onDeleteCourse: (courseId: string) => void;
+  onUpdateCourseFaculty: (courseId: string, newFacultyId: string) => void;
 }
 
 // --- MODALS --- (Scoped to this page for simplicity)
@@ -596,7 +597,7 @@ const FeedbackTab: React.FC<{
 
 // --- MAIN COMPONENT ---
 export const CourseDetailPage: React.FC<CourseDetailPageProps> = (props) => {
-    const { course, currentUser, allUsers, students, onNavigate, currentPath, onAddNote, onAddAssignment, onTakeAttendance, onRequestToJoinCourse, onManageCourseRequest, onAddStudentsToCourse, onRemoveStudentFromCourse, onSendCourseMessage, onUpdateCoursePersonalNote, onSaveFeedback, onDeleteCourse } = props;
+    const { course, currentUser, allUsers, students, onNavigate, currentPath, onAddNote, onAddAssignment, onTakeAttendance, onRequestToJoinCourse, onManageCourseRequest, onAddStudentsToCourse, onRemoveStudentFromCourse, onSendCourseMessage, onUpdateCoursePersonalNote, onSaveFeedback, onDeleteCourse, onUpdateCourseFaculty } = props;
     
     const [activeTab, setActiveTab] = useState('notes');
     const [isModalOpen, setIsModalOpen] = useState<'note' | 'assignment' | 'attendance' | 'addStudent' | null>(null);
@@ -609,7 +610,13 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = (props) => {
     const hasRequested = (course.pendingStudents || []).includes(currentUser.id);
     const facultyUser = useMemo(() => allUsers.find(u => u.id === course.facultyId), [allUsers, course.facultyId]);
 
+    const isHodOfDepartment = currentUser.tag === 'HOD/Dean' && currentUser.department === course.department;
     const canDeleteCourse = isFaculty || currentUser.tag === 'Director';
+
+    const departmentTeachers = useMemo(() => {
+        if (!isHodOfDepartment) return [];
+        return allUsers.filter(u => u.department === course.department && (u.tag === 'Teacher' || u.tag === 'HOD/Dean') && u.isApproved);
+    }, [allUsers, course.department, isHodOfDepartment]);
 
     const handleDelete = () => {
         if (window.confirm("Are you sure you want to delete this course? This is permanent and cannot be undone.")) {
@@ -629,14 +636,14 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = (props) => {
             { id: 'assignments', label: 'Assignments', icon: ClipboardListIcon },
         ];
         if (isStudent || isFaculty) { tabs.push({ id: 'attendance', label: 'Attendance', icon: CheckSquareIcon }); }
-        if (isFaculty) { tabs.push({ id: 'roster', label: 'Roster', icon: UserPlusIcon }); }
-        if (isStudent || isFaculty) {
+        if (isFaculty || isHodOfDepartment) { tabs.push({ id: 'roster', label: 'Roster', icon: UserPlusIcon }); }
+        if (isStudent || isFaculty || isHodOfDepartment) {
             tabs.push({ id: 'chat', label: 'Class Chat', icon: MessageIcon });
             tabs.push({ id: 'personalNote', label: 'My Note', icon: NotebookIcon });
             tabs.push({ id: 'feedback', label: 'Feedback', icon: StarIcon });
         }
         return tabs;
-    }, [isStudent, isFaculty]);
+    }, [isStudent, isFaculty, isHodOfDepartment]);
     
     const renderTabContent = () => {
         switch (activeTab) {
@@ -673,6 +680,25 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = (props) => {
                         </div>
                     </div>
                 </div>
+
+                {isHodOfDepartment && (
+                    <div className="bg-card p-4 rounded-lg shadow-sm border border-border mb-8">
+                        <h3 className="font-bold text-lg mb-2 text-foreground">HOD Controls</h3>
+                        <div className="flex items-center gap-2">
+                            <label htmlFor="faculty-assign" className="text-sm font-medium text-text-muted">Assign Faculty:</label>
+                            <select
+                                id="faculty-assign"
+                                value={course.facultyId}
+                                onChange={(e) => onUpdateCourseFaculty(course.id, e.target.value)}
+                                className="w-full max-w-xs bg-input border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                            >
+                                {departmentTeachers.map(teacher => (
+                                    <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                )}
                 
                  <div className="flex flex-col lg:flex-row gap-8">
                     <aside className="lg:w-64 lg:flex-shrink-0">

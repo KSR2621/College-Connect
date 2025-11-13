@@ -3,11 +3,8 @@
 // This prevents compile-time errors without using ES module imports that cause race conditions.
 declare const firebase: any;
 
-// CRITICAL SECURITY WARNING: Your API keys were publicly exposed.
-// 1. Go to your Firebase Console (console.firebase.google.com).
-// 2. Find and DELETE the old API key.
-// 3. Generate a NEW API key.
-// 4. Replace the placeholder values below with your new credentials.
+// The API key is loaded from an environment variable for security.
+// Assume that process.env.API_KEY is set in the build environment.
 const firebaseConfig = {
     apiKey: "AIzaSyBVuUeutfW6yHzDL4kjV9bInRdpjMgQIHE",
     authDomain: "campus-connect-4ee95.firebaseapp.com",

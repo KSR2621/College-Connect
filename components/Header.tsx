@@ -118,9 +118,19 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, curr
                                         <Avatar src={currentUser.avatarUrl} name={currentUser.name} size="sm" className="mr-2"/>
                                         Profile
                                     </a>
+                                    {currentUser.tag === 'HOD/Dean' && (
+                                        <a onClick={() => { onNavigate('#/hod'); setIsMenuOpen(false); }} className="block px-4 py-2 text-sm text-foreground hover:bg-muted dark:hover:bg-slate-700 cursor-pointer">
+                                            HOD Dashboard
+                                        </a>
+                                    )}
                                     {currentUser.tag === 'Director' && (
                                         <a onClick={() => { onNavigate('#/director'); setIsMenuOpen(false); }} className="block px-4 py-2 text-sm text-foreground hover:bg-muted dark:hover:bg-slate-700 cursor-pointer">
                                             Director Dashboard
+                                        </a>
+                                    )}
+                                    {currentUser.tag === 'Super Admin' && (
+                                        <a onClick={() => { onNavigate('#/superadmin'); setIsMenuOpen(false); }} className="block px-4 py-2 text-sm text-foreground hover:bg-muted dark:hover:bg-slate-700 cursor-pointer">
+                                            Super Admin
                                         </a>
                                     )}
                                     <div className="border-t border-border dark:border-slate-700 my-1"></div>

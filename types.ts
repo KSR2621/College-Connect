@@ -1,7 +1,7 @@
 import React from 'react';
 
 // FIX: Removed the 'Director/Principle' type as it was redundant. The value 'Director' is used.
-export type UserTag = 'Student' | 'Teacher' | 'HOD/Dean' | 'Director';
+export type UserTag = 'Student' | 'Teacher' | 'HOD/Dean' | 'Director' | 'Super Admin';
 export type ConfessionMood = 'love' | 'funny' | 'sad' | 'chaos' | 'deep';
 
 export type User = {
@@ -10,6 +10,7 @@ export type User = {
   email: string;
   department: string;
   tag: UserTag;
+  collegeId?: string;
   avatarUrl?: string;
   bio?: string;
   interests?: string[];
@@ -21,6 +22,13 @@ export type User = {
   personalNotes?: PersonalNote[];
   isApproved?: boolean;
   isFrozen?: boolean;
+}
+
+export type College = {
+  id: string;
+  name: string;
+  adminUids: string[];
+  departments?: string[];
 }
 
 // FIX: Added PersonalNote type to resolve error in PersonalNotesPage.
@@ -65,6 +73,7 @@ export type ReactionType = 'like' | 'love' | 'haha' | 'wow' | 'sad' | 'angry';
 export type Post = {
     id:string;
     authorId: string;
+    collegeId?: string;
     content: string; // Used for description in opportunities
     mediaUrls?: string[];
     mediaType?: 'image' | 'video';
@@ -93,6 +102,7 @@ export type Post = {
 export type Story = {
   id: string;
   authorId: string;
+  collegeId?: string;
   textContent: string;
   backgroundColor: string;
   timestamp: number;
@@ -107,6 +117,7 @@ export type Group = {
     id: string;
     name: string;
     description: string;
+    collegeId?: string;
     memberIds: string[];
     creatorId: string;
     pendingMemberIds?: string[];
@@ -125,6 +136,7 @@ export type Message = {
 export type Conversation = {
     id: string;
     participantIds: string[];
+    collegeId?: string;
     messages: Message[];
     name?: string; // For group chats
     isGroupChat?: boolean;
@@ -183,6 +195,7 @@ export type Course = {
     department: string;
     year: number;
     facultyId: string; // Added to identify the instructor
+    collegeId?: string;
     description?: string;
     notes?: Note[];
     assignments?: Assignment[];
@@ -202,6 +215,7 @@ export type Notice = {
   title: string;
   content: string; // HTML content from editor
   timestamp: number;
+  collegeId?: string;
   // FIX: Add optional properties for targeted notices to resolve type errors.
   targetDepartments?: string[];
   targetYears?: number[];
@@ -209,5 +223,8 @@ export type Notice = {
 
 export type DepartmentChat = {
     id: string; // Department name
+    collegeId?: string;
+    department?: string;
+    channel?: string;
     messages: Message[];
 };

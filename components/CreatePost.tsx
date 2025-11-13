@@ -31,7 +31,6 @@ const StyleButton: React.FC<{ onMouseDown: (e: React.MouseEvent) => void; childr
 
 
 const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isConfessionMode = false, isModalMode = false, defaultType }) => {
-  const [content, setContent] = useState('');
   const [postType, setPostType] = useState<'post' | 'event'>(defaultType || 'post');
   
   const [eventDetails, setEventDetails] = useState({ title: '', date: '', time: '', location: '', link: '' });
@@ -95,15 +94,10 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
     editorRef.current?.focus();
   };
 
-  const handleContentChange = () => {
-    if (editorRef.current) {
-        setContent(editorRef.current.innerHTML);
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    const finalContent = editorRef.current?.innerHTML || '';
     const currentTextContent = editorRef.current?.innerText.trim() || '';
 
     if (postType === 'post' && !currentTextContent && mediaDataUrls.length === 0) {
@@ -127,7 +121,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
     }
 
     onAddPost({
-      content,
+      content: finalContent,
       mediaDataUrls,
       mediaType,
       eventDetails: finalEventDetails,
@@ -136,7 +130,6 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
     });
 
     // Reset form
-    setContent('');
     if (editorRef.current) editorRef.current.innerHTML = '';
     setEventDetails({ title: '', date: '', time: '', location: '', link: '' });
     clearMedia();
@@ -195,7 +188,6 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
                     <div
                         ref={editorRef}
                         contentEditable={true}
-                        onInput={handleContentChange}
                         data-placeholder={isConfessionMode ? "Share your confession anonymously..." : (postType === 'event' ? "Describe your event..." : `What's on your mind, ${user.name.split(' ')[0]}?`)}
                         className="w-full min-h-[120px] max-h-[400px] overflow-y-auto no-scrollbar p-3 bg-transparent text-card-foreground text-lg focus:outline-none resize-y empty:before:content-[attr(data-placeholder)] empty:before:text-text-muted empty:before:cursor-text"
                     />

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import type { User, UserTag } from '../types';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import type { User, UserTag, College } from '../types';
 import { CameraIcon, CloseIcon } from './Icons';
 // FIX: Import yearOptions to dynamically generate year selection.
 import { yearOptions } from '../constants';
@@ -12,9 +12,10 @@ interface EditProfileModalProps {
     updateData: { name: string; bio: string; department: string; tag: UserTag; yearOfStudy?: number },
     avatarFile?: File | null
   ) => void;
+  colleges: College[];
 }
 
-const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, currentUser, onUpdateProfile }) => {
+const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, currentUser, onUpdateProfile, colleges }) => {
   const [name, setName] = useState(currentUser.name);
   const [bio, setBio] = useState(currentUser.bio || '');
   const [department, setDepartment] = useState(currentUser.department);
@@ -39,6 +40,11 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, cu
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
+
+  const departmentOptions = useMemo(() => {
+    const userCollege = colleges.find(c => c.id === currentUser.collegeId);
+    return userCollege?.departments || [currentUser.department]; // Fallback to current department
+  }, [colleges, currentUser.collegeId, currentUser.department]);
 
   if (!isOpen) return null;
 
@@ -117,7 +123,9 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, cu
 
             <div>
               <label htmlFor="department" className="text-sm font-medium text-text-muted">Department</label>
-              <input type="text" id="department" value={department} onChange={e => setDepartment(e.target.value)} required className="w-full mt-1 px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
+              <select id="department" value={department} onChange={e => setDepartment(e.target.value)} className="w-full mt-1 px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                {departmentOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
             </div>
 
             <div>

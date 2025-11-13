@@ -1,9 +1,11 @@
+
+
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { auth, db, storage, FieldValue } from './firebase';
 // FIX: Added Feedback type to the import list.
-import type { User, Post, Group, Conversation, Message, Achievement, UserTag, SharedPostInfo, ReactionType, Story, ConfessionMood, Course, Note, Assignment, AttendanceRecord, AttendanceStatus, Notice, PersonalNote, Feedback, DepartmentChat, Comment } from './types';
+import type { User, Post, Group, Conversation, Message, Achievement, UserTag, SharedPostInfo, ReactionType, Story, ConfessionMood, Course, Note, Assignment, AttendanceRecord, AttendanceStatus, Notice, PersonalNote, Feedback, DepartmentChat, Comment, College } from './types';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { departmentOptions } from './constants';
 
 // Pages
 import WelcomePage from './pages/WelcomePage';
@@ -19,11 +21,16 @@ import ChatPage from './pages/ChatPage';
 import SearchPage from './pages/SearchPage';
 import ConfessionsPage from './pages/ConfessionsPage';
 // FIX: Renamed AdminPage to DirectorPage to reflect new role hierarchy.
+// FIX: Changed import for DirectorPage to a default import.
 import DirectorPage from './pages/DirectorPage';
+import SuperAdminPage from './pages/SuperAdminPage';
 import AcademicsPage from './pages/AcademicsPage';
 import PersonalNotesPage from './pages/PersonalNotesPage';
 // FIX: Changed to named import for CourseDetailPage.
 import { CourseDetailPage } from './pages/CourseDetailPage';
+import HodPage from './pages/HodPage';
+
+declare const firebase: any;
 
 const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -39,6 +46,7 @@ const App: React.FC = () => {
     const [courses, setCourses] = useState<Course[]>([]);
     const [notices, setNotices] = useState<Notice[]>([]);
     const [departmentChats, setDepartmentChats] = useState<DepartmentChat[]>([]);
+    const [colleges, setColleges] = useState<College[]>([]);
     const prevConversationsRef = useRef<Conversation[]>([]);
     const prevPostsRef = useRef<Post[]>([]);
     const remindedEventIdsRef = useRef<Set<string>>(new Set());
@@ -174,9 +182,21 @@ const App: React.FC = () => {
                 const userRef = db.collection('users').doc(user.uid);
                 let userDoc = await userRef.get();
                 let userData = userDoc.data();
+
+                if (user.email === 'superadmin@gmail.com' && (!userData || userData.tag !== 'Super Admin')) {
+                    const superAdminData = {
+                        name: userData?.name || 'Super Admin',
+                        email: user.email,
+                        department: userData?.department || 'Administration',
+                        tag: 'Super Admin',
+                    };
+                    await userRef.set(superAdminData, { merge: true });
+                    userDoc = await userRef.get();
+                    userData = userDoc.data();
+                }
     
                 // Hardcoded Director check. If a user logs in with this email, they are a Director.
-                if (user.email === 'admin@gmail.com' && (!userData || userData.tag !== 'Director')) {
+                else if (user.email === 'admin@gmail.com' && (!userData || userData.tag !== 'Director')) {
                     const directorData = {
                         name: userData?.name || 'Campus Director',
                         email: user.email,
@@ -217,7 +237,13 @@ const App: React.FC = () => {
     }, []);
 
     const handleEnsureDirectorSystemChats = async (director: User, allUsers: { [key: string]: User }) => {
-        if (director.tag !== 'Director') return;
+        if (director.tag !== 'Director' || !director.collegeId) return;
+
+        const college = colleges.find(c => c.id === director.collegeId);
+        if (!college || !college.departments || college.departments.length === 0) {
+            return; // Can't create chats if departments aren't set up.
+        }
+        const departmentOptions = college.departments;
 
         const allUsersList = Object.values(allUsers);
         const allHods = allUsersList.filter(u => u.tag === 'HOD/Dean');
@@ -256,7 +282,8 @@ const App: React.FC = () => {
                         participantIds: uniqueParticipants,
                         messages: [],
                         isGroupChat: true,
-                        creatorId: 'system'
+                        creatorId: 'system',
+                        collegeId: director.collegeId,
                     });
                 } else {
                     const existingData = doc.data() as Conversation;
@@ -285,24 +312,44 @@ const App: React.FC = () => {
             setCourses([]);
             setNotices([]);
             setDepartmentChats([]);
+            // Do not clear colleges for signup page
             return;
         };
 
+        // Fetch colleges for all users, as it's needed for context (e.g., signup)
+        const unsubColleges = db.collection('colleges').onSnapshot(snapshot => {
+            const collegeData: College[] = [];
+            snapshot.forEach(doc => {
+                collegeData.push({ id: doc.id, ...doc.data() } as College);
+            });
+            setColleges(collegeData);
+        });
+
         const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
+        const isSuperAdmin = currentUser.tag === 'Super Admin';
+        const collegeId = currentUser.collegeId;
+
+        const createScopedQuery = (collectionName: string) => {
+            let query: any = db.collection(collectionName);
+            if (!isSuperAdmin && collegeId) {
+                query = query.where('collegeId', '==', collegeId);
+            }
+            return query;
+        };
 
         const unsubscribers = [
-            db.collection('users').onSnapshot(snapshot => {
+            createScopedQuery('users').onSnapshot(snapshot => {
                 const newUsers : { [key: string]: User } = {};
                 snapshot.forEach(doc => {
                     newUsers[doc.id] = { id: doc.id, ...doc.data() } as User;
                 });
                 setUsers(newUsers);
 
-                if (currentUser?.tag === 'Director' && Object.keys(newUsers).length > 0) {
+                if (currentUser?.tag === 'Director' && Object.keys(newUsers).length > 0 && colleges.length > 0) {
                     handleEnsureDirectorSystemChats(currentUser, newUsers);
                 }
             }),
-            db.collection('posts').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+            createScopedQuery('posts').onSnapshot(snapshot => {
                 setPosts(prevPosts => {
                     const postsMap = new Map(prevPosts.map(p => [p.id, p]));
                     for (const change of snapshot.docChanges()) {
@@ -314,58 +361,73 @@ const App: React.FC = () => {
                         }
                     }
                     // FIX: Explicitly type sort parameters to resolve 'unknown' type error.
-                    return Array.from(postsMap.values()).sort((a: Post, b: Post) => b.timestamp - a.timestamp);
+                    // FIX: Explicitly specify the return type of the sort function to resolve a potential type inference issue.
+                    return Array.from(postsMap.values()).sort((a: Post, b: Post): number => b.timestamp - a.timestamp);
                 });
             }),
-            db.collection('stories')
-                .where('timestamp', '>', twentyFourHoursAgo)
-                .orderBy('timestamp', 'desc')
+            createScopedQuery('stories')
                 .onSnapshot(snapshot => {
                     // For stories, which are temporary and less frequently updated, a full replace is simpler and acceptable.
                     const storiesData: Story[] = [];
                     snapshot.forEach(doc => {
-                        storiesData.push({ id: doc.id, ...doc.data() } as Story);
+                        const story = { id: doc.id, ...doc.data() } as Story;
+                        // Client-side filtering to avoid composite index requirement.
+                        if (story.timestamp > twentyFourHoursAgo) {
+                            storiesData.push(story);
+                        }
                     });
+                    storiesData.sort((a, b) => b.timestamp - a.timestamp);
                     setStories(storiesData);
             }),
-            db.collection('groups').onSnapshot(snapshot => {
+            createScopedQuery('groups').onSnapshot(snapshot => {
                  setGroups(prevGroups => {
                     const groupsMap = new Map(prevGroups.map(g => [g.id, g]));
                     for (const change of snapshot.docChanges()) {
-                        const group = { id: change.doc.id, ...change.doc.data() } as Group;
+                        // FIX: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+                        // Refactored to handle 'removed' case separately, which is cleaner and may help with type inference.
                         if (change.type === "removed") {
-                            groupsMap.delete(group.id);
+                            // FIX: Cast change.doc.id to string to fix 'unknown' type error.
+                            groupsMap.delete(change.doc.id as string);
                         } else { // added or modified
+                            // FIX: Cast change.doc.id to string to satisfy the Group type.
+                            const group = { ...change.doc.data(), id: change.doc.id as string } as Group;
                             groupsMap.set(group.id, group);
                         }
                     }
                     // Sort by name for a consistent order in lists
-                    // FIX: Explicitly type sort parameters to resolve 'unknown' type error.
-                    return Array.from(groupsMap.values()).sort((a: Group, b: Group) => a.name.localeCompare(b.name));
+                    // FIX: Explicitly type sort parameters and return type to resolve 'unknown' type error.
+                    return Array.from(groupsMap.values()).sort((a: Group, b: Group): number => a.name.localeCompare(b.name));
                 });
             }),
-            db.collection('conversations').where('participantIds', 'array-contains', currentUser.id).onSnapshot(snapshot => {
-                setConversations(prevConvos => {
-                    const convosMap = new Map(prevConvos.map(c => [c.id, c]));
-                    for (const change of snapshot.docChanges()) {
-                        const convo = { id: change.doc.id, ...change.doc.data() } as Conversation;
-                        if (change.type === "removed") {
-                            convosMap.delete(convo.id);
-                        } else { // added or modified
-                            convosMap.set(convo.id, convo);
+            (() => {
+                let convoQuery: any = db.collection('conversations').where('participantIds', 'array-contains', currentUser.id);
+                if (!isSuperAdmin && collegeId) {
+                     convoQuery = convoQuery.where('collegeId', '==', collegeId);
+                }
+                return convoQuery.onSnapshot(snapshot => {
+                    setConversations(prevConvos => {
+                        const convosMap = new Map(prevConvos.map(c => [c.id, c]));
+                        for (const change of snapshot.docChanges()) {
+                            const convo = { id: change.doc.id, ...change.doc.data() } as Conversation;
+                            if (change.type === "removed") {
+                                convosMap.delete(convo.id);
+                            } else { // added or modified
+                                convosMap.set(convo.id, convo);
+                            }
                         }
-                    }
-                    return Array.from(convosMap.values());
+                        return Array.from(convosMap.values());
+                    });
                 });
-            }),
-            db.collection('notices').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+            })(),
+            createScopedQuery('notices').onSnapshot(snapshot => {
                 const noticesData: Notice[] = [];
                 snapshot.forEach(doc => {
                     noticesData.push({ id: doc.id, ...doc.data() } as Notice);
                 });
+                noticesData.sort((a, b) => b.timestamp - a.timestamp);
                 setNotices(noticesData);
             }),
-            db.collection('courses').onSnapshot(snapshot => {
+            createScopedQuery('courses').onSnapshot(snapshot => {
                 setCourses(prevCourses => {
                     const coursesMap = new Map(prevCourses.map(c => [c.id, c]));
                     for (const change of snapshot.docChanges()) {
@@ -379,18 +441,34 @@ const App: React.FC = () => {
                     return Array.from(coursesMap.values());
                 });
             }),
-            db.collection('departmentChats').onSnapshot(snapshot => {
+            createScopedQuery('departmentChats').onSnapshot(snapshot => {
                 const chatData: DepartmentChat[] = [];
                 snapshot.forEach(doc => {
                     chatData.push({ id: doc.id, ...doc.data() } as DepartmentChat);
                 });
                 setDepartmentChats(chatData);
             }),
+             unsubColleges
         ];
 
         return () => unsubscribers.forEach(unsub => unsub());
 
     }, [currentUser]);
+    
+    // Fetch colleges for signup page when no user is logged in
+    useEffect(() => {
+        if (!currentUser) {
+            const unsub = db.collection('colleges').onSnapshot(snapshot => {
+                const collegeData: College[] = [];
+                snapshot.forEach(doc => {
+                    collegeData.push({ id: doc.id, ...doc.data() } as College);
+                });
+                setColleges(collegeData);
+            });
+            return () => unsub();
+        }
+    }, [currentUser]);
+
 
     // This effect synchronizes the `currentUser` state with the real-time `users` data map.
     // This is crucial for features like the "Follow" button to update correctly in the UI
@@ -425,6 +503,7 @@ const App: React.FC = () => {
         try {
             const newPost: Partial<Omit<Post, 'id'>> = {
                 authorId: currentUser.id,
+                collegeId: currentUser.collegeId,
                 content: postDetails.content,
                 timestamp: Date.now(),
                 reactions: {},
@@ -474,6 +553,7 @@ const App: React.FC = () => {
         if (!currentUser) return;
         const newStory: Omit<Story, 'id'> = {
             authorId: currentUser.id,
+            collegeId: currentUser.collegeId,
             textContent: storyDetails.textContent,
             backgroundColor: storyDetails.backgroundColor,
             fontFamily: storyDetails.fontFamily,
@@ -791,6 +871,7 @@ const App: React.FC = () => {
 
             const newPost: Partial<Omit<Post, 'id'>> = {
                 authorId: currentUser.id,
+                collegeId: currentUser.collegeId,
                 content: commentary,
                 timestamp: Date.now(),
                 reactions: {},
@@ -843,6 +924,7 @@ const App: React.FC = () => {
     
         const newConvo = {
             participantIds: [currentUser.id, otherUserId],
+            collegeId: currentUser.collegeId,
             messages: []
         };
     
@@ -856,6 +938,7 @@ const App: React.FC = () => {
             name: groupDetails.name,
             description: groupDetails.description,
             creatorId: currentUser.id,
+            collegeId: currentUser.collegeId,
             memberIds: [currentUser.id],
             pendingMemberIds: [],
             messages: [],
@@ -1064,18 +1147,106 @@ const App: React.FC = () => {
         }
     };
 
-    const handleCreateUser = async (newUserData: Omit<User, 'id'>) => {
+    const handleCreateUser = async (newUserData: Omit<User, 'id'>, password?: string): Promise<void> => {
         if (!currentUser || (currentUser.tag !== 'HOD/Dean' && currentUser.tag !== 'Director')) {
-            alert("You don't have permission to create users.");
-            return;
+            const errorMsg = "You don't have permission to create users.";
+            alert(errorMsg);
+            return Promise.reject(new Error(errorMsg));
         }
-        try {
-            await db.collection('users').add(newUserData);
-            alert(`User ${newUserData.name} created successfully. An admin must create their login credentials in the Firebase console for them to be able to log in.`);
-        } catch (error) {
-            console.error("Error creating user document:", error);
-            alert("Could not create user.");
+    
+        // New flow for Director creating HOD with password
+        if (currentUser.tag === 'Director' && (newUserData.tag === 'HOD/Dean' || newUserData.tag === 'Teacher') && password) {
+            try {
+                const secondaryAppName = 'secondary-auth-app';
+                let secondaryApp;
+                const existingApp = firebase.apps.find((app: any) => app.name === secondaryAppName);
+                if (existingApp) {
+                    secondaryApp = existingApp;
+                } else {
+                    const primaryConfig = firebase.app().options;
+                    secondaryApp = firebase.initializeApp(primaryConfig, secondaryAppName);
+                }
+    
+                const secondaryAuth = secondaryApp.auth();
+                const userCredential = await secondaryAuth.createUserWithEmailAndPassword(newUserData.email, password);
+                const newUser = userCredential.user;
+    
+                if (newUser) {
+                    const userDataWithCollege = {
+                        ...newUserData,
+                        collegeId: currentUser.collegeId,
+                    };
+                    await db.collection('users').doc(newUser.uid).set(userDataWithCollege);
+                    
+                    await secondaryAuth.signOut();
+                    // Success is handled by the modal, so no alert here.
+                    return Promise.resolve();
+                } else {
+                    throw new Error('Failed to create user authentication account.');
+                }
+            } catch (error: any) {
+                console.error(`Error creating user with auth (${newUserData.tag}):`, error);
+                alert(`Could not create user: ${error.message}`);
+                // Propagate the error so the modal can handle it
+                return Promise.reject(error);
+            }
+        } else {
+            // Existing flow for other user creations (HOD creating student/teacher without auth)
+            try {
+                const userDataWithCollege = {
+                    ...newUserData,
+                    collegeId: currentUser.collegeId,
+                }
+                await db.collection('users').add(userDataWithCollege);
+                alert(`User document for ${newUserData.name} created. An admin must create their Firebase login credentials for them to be able to log in.`);
+                return Promise.resolve();
+            } catch (error) {
+                console.error("Error creating user document:", error);
+                alert("Could not create user document.");
+                return Promise.reject(error);
+            }
         }
+    };
+
+    const handleCreateUsersBatch = async (usersData: Omit<User, 'id'>[]): Promise<{ successCount: number; errors: { email: string; reason: string }[] }> => {
+        if (!currentUser) {
+            throw new Error("Authentication error.");
+        }
+        const errors: { email: string; reason: string }[] = [];
+        const emailsToCreate = usersData.map(u => u.email);
+        const existingEmails = new Set<string>();
+    
+        // Chunk emails to check against Firestore 'in' query limit (30)
+        for (let i = 0; i < emailsToCreate.length; i += 30) {
+            const chunk = emailsToCreate.slice(i, i + 30);
+            const querySnapshot = await db.collection('users').where('email', 'in', chunk).get();
+            querySnapshot.forEach((doc: any) => {
+                existingEmails.add(doc.data().email);
+            });
+        }
+    
+        const validUsers: Omit<User, 'id'>[] = [];
+        usersData.forEach(user => {
+            if (existingEmails.has(user.email)) {
+                errors.push({ email: user.email, reason: 'Email already exists.' });
+            } else {
+                validUsers.push({
+                    ...user,
+                    collegeId: currentUser.collegeId, // Ensure collegeId is set
+                });
+            }
+        });
+    
+        if (validUsers.length > 0) {
+            const batch = db.batch();
+            validUsers.forEach(user => {
+                const docRef = db.collection('users').doc(); // Auto-generate ID
+                batch.set(docRef, user);
+            });
+            await batch.commit();
+        }
+    
+        return { successCount: validUsers.length, errors };
     };
 
 
@@ -1084,6 +1255,7 @@ const App: React.FC = () => {
         if (!currentUser) return;
         const newCourse: Omit<Course, 'id'> = {
             ...newCourseData,
+            collegeId: currentUser.collegeId,
             facultyId: currentUser.id,
             students: [],
             pendingStudents: [],
@@ -1198,19 +1370,37 @@ const App: React.FC = () => {
         });
     };
 
-    const handleSendDepartmentMessage = async (departmentChatId: string, text: string) => {
-        if (!currentUser) return;
-        const chatRef = db.collection('departmentChats').doc(departmentChatId);
+    const handleSendDepartmentMessage = async (department: string, channel: string, text: string) => {
+        if (!currentUser || !currentUser.collegeId) return;
+
+        const chatQuery = db.collection('departmentChats')
+            .where('collegeId', '==', currentUser.collegeId)
+            .where('department', '==', department)
+            .where('channel', '==', channel);
+
         const newMessage: Message = {
             id: `msg_dept_${Date.now()}`,
             senderId: currentUser.id,
             text,
             timestamp: Date.now(),
         };
-        // Use set with merge to create the doc if it doesn't exist
-        await chatRef.set({
-            messages: FieldValue.arrayUnion(newMessage)
-        }, { merge: true });
+
+        const querySnapshot = await chatQuery.get();
+        if (querySnapshot.empty) {
+            // Create new chat
+            await db.collection('departmentChats').add({
+                collegeId: currentUser.collegeId,
+                department,
+                channel,
+                messages: [newMessage],
+            });
+        } else {
+            // Update existing chat
+            const docRef = querySnapshot.docs[0].ref;
+            await docRef.update({
+                messages: FieldValue.arrayUnion(newMessage)
+            });
+        }
     };
 
     const handleUpdateCoursePersonalNote = async (courseId: string, userId: string, content: string) => {
@@ -1240,6 +1430,7 @@ const App: React.FC = () => {
         const newNotice: Omit<Notice, 'id'> = {
             ...noticeData,
             authorId: currentUser.id,
+            collegeId: currentUser.collegeId,
             timestamp: Date.now(),
         };
         await db.collection('notices').add(newNotice);
@@ -1364,6 +1555,51 @@ const App: React.FC = () => {
         }
     };
 
+    const handleUpdateUserRole = async (userId: string, updateData: { tag: UserTag, department: string }) => {
+        if (currentUser?.tag !== 'Director') {
+            alert("You don't have permission for this action.");
+            return;
+        }
+        try {
+            await db.collection('users').doc(userId).update(updateData);
+            alert("User role updated successfully.");
+        } catch (error) {
+            console.error("Error updating user role:", error);
+            alert("Could not update user role.");
+        }
+    };
+
+    const handleUpdateCourseFaculty = async (courseId: string, newFacultyId: string) => {
+        if (!currentUser || (currentUser.tag !== 'HOD/Dean' && currentUser.tag !== 'Director')) {
+            alert("You don't have permission for this action.");
+            return;
+        }
+
+        const course = courses.find(c => c.id === courseId);
+        const newFaculty = users[newFacultyId];
+
+        if (!course || !newFaculty) {
+            alert("Invalid course or faculty selected.");
+            return;
+        }
+
+        // HOD can only assign teachers within their own department
+        if (currentUser.tag === 'HOD/Dean' && (course.department !== currentUser.department || newFaculty.department !== currentUser.department)) {
+             alert("HODs can only assign faculty within their own department.");
+             return;
+        }
+        
+        try {
+            await db.collection('courses').doc(courseId).update({
+                facultyId: newFacultyId
+            });
+            alert("Course faculty updated successfully.");
+        } catch (error) {
+            console.error("Error updating course faculty:", error);
+            alert("Could not update faculty.");
+        }
+    };
+
      // --- PERSONAL NOTES HANDLERS ---
      const handleCreatePersonalNote = async (title: string, content: string) => {
         if (!currentUser) return;
@@ -1403,6 +1639,71 @@ const App: React.FC = () => {
         });
     };
 
+    const handleCreateCollegeAdmin = async (collegeName: string, email: string, password: string) => {
+        try {
+            const secondaryAppName = 'secondary-auth-app';
+            let secondaryApp;
+            const existingApp = firebase.apps.find((app: any) => app.name === secondaryAppName);
+            if (existingApp) {
+                secondaryApp = existingApp;
+            } else {
+                const primaryConfig = firebase.app().options;
+                secondaryApp = firebase.initializeApp(primaryConfig, secondaryAppName);
+            }
+
+            const secondaryAuth = secondaryApp.auth();
+            const userCredential = await secondaryAuth.createUserWithEmailAndPassword(email, password);
+            const newUser = userCredential.user;
+
+            if (newUser) {
+                const collegeRef = await db.collection('colleges').add({
+                    name: collegeName,
+                    adminUids: [],
+                });
+                const collegeId = collegeRef.id;
+
+                const adminData = {
+                    name: `Director of ${collegeName}`,
+                    email: email,
+                    department: 'Administration',
+                    tag: 'Director',
+                    isApproved: true,
+                    collegeId: collegeId,
+                };
+                await db.collection('users').doc(newUser.uid).set(adminData);
+                await collegeRef.update({ adminUids: [newUser.uid] });
+                
+                await secondaryAuth.signOut();
+                alert(`Successfully created college '${collegeName}' with admin user '${email}'.`);
+            } else {
+                throw new Error('Failed to create user account.');
+            }
+        } catch (error: any) {
+            console.error("Error creating college admin:", error);
+            alert(`Could not create college admin: ${error.message}`);
+            throw error;
+        }
+    };
+
+    const handleUpdateCollegeDepartments = async (collegeId: string, departments: string[]) => {
+        if (!currentUser || (currentUser.tag !== 'Director' && currentUser.tag !== 'Super Admin') ) {
+            alert("You don't have permission for this action.");
+            return;
+        }
+        if (currentUser.tag === 'Director' && currentUser.collegeId !== collegeId) {
+            alert("You can only edit your own college's departments.");
+            return;
+        }
+
+        try {
+            await db.collection('colleges').doc(collegeId).update({ departments });
+            alert("Departments updated successfully. The page will now reflect these changes.");
+        } catch (error) {
+            console.error("Error updating departments:", error);
+            alert("Could not update departments.");
+        }
+    };
+
 
     if (loading) {
         return <div className="min-h-screen bg-background dark:bg-slate-900 flex items-center justify-center"><p className="text-foreground dark:text-slate-100">Loading...</p></div>;
@@ -1416,7 +1717,7 @@ const App: React.FC = () => {
         if (!currentUser) {
             switch (path) {
                 case 'login': return <LoginPage onNavigate={handleNavigate} />;
-                case 'signup': return <SignupPage onNavigate={handleNavigate} />;
+                case 'signup': return <SignupPage onNavigate={handleNavigate} colleges={colleges}/>;
                 default: return <WelcomePage onNavigate={handleNavigate} />;
             }
         }
@@ -1435,11 +1736,12 @@ const App: React.FC = () => {
         
         switch (path) {
             case 'home': return <HomePage currentUser={currentUser} users={users} posts={posts} stories={stories} groups={groups} events={events} onNavigate={handleNavigate} onAddPost={handleAddPost} currentPath={currentPath} onAddStory={handleAddStory} onMarkStoryAsViewed={handleMarkStoryAsViewed} onDeleteStory={handleDeleteStory} onReplyToStory={handleReplyToStory} {...postCardProps} />;
-            case 'profile': return <ProfilePage profileUserId={params[0]} currentUser={currentUser} users={users} posts={posts} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} onAddAchievement={handleAddAchievement} onAddInterest={handleAddInterest} onUpdateProfile={handleUpdateProfile} {...postCardProps} />;
+            case 'profile': return <ProfilePage profileUserId={params[0]} currentUser={currentUser} users={users} posts={posts} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} onAddAchievement={handleAddAchievement} onAddInterest={handleAddInterest} onUpdateProfile={handleUpdateProfile} colleges={colleges} {...postCardProps} />;
             case 'groups': 
                 if (params[0]) {
                     const group = groups.find(g => g.id === params[0]);
-                    return group ? <GroupDetailPage group={group} currentUser={currentUser} users={users} posts={posts.filter(p => p.groupId === params[0])} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} onAddStory={handleAddStory} onJoinGroupRequest={handleJoinGroupRequest} onApproveJoinRequest={handleApproveJoinRequest} onDeclineJoinRequest={handleDeclineJoinRequest} onDeleteGroup={handleDeleteGroup} onRemoveGroupMember={handleRemoveGroupMember} onSendGroupMessage={handleSendGroupMessage} onToggleFollowGroup={handleToggleFollowGroup} {...postCardProps} onDeleteComment={handleDeleteComment} /> : <div>Group not found</div>;
+                    // FIX: Removed duplicate `onDeleteComment` prop which was causing a type error. The prop is already included in `postCardProps`.
+                    return group ? <GroupDetailPage group={group} currentUser={currentUser} users={users} posts={posts.filter(p => p.groupId === params[0])} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} onAddStory={handleAddStory} onJoinGroupRequest={handleJoinGroupRequest} onApproveJoinRequest={handleApproveJoinRequest} onDeclineJoinRequest={handleDeclineJoinRequest} onDeleteGroup={handleDeleteGroup} onRemoveGroupMember={handleRemoveGroupMember} onSendGroupMessage={handleSendGroupMessage} onToggleFollowGroup={handleToggleFollowGroup} {...postCardProps} /> : <div>Group not found</div>;
                 }
                 return <GroupsPage currentUser={currentUser} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onCreateGroup={handleCreateGroup} />;
             case 'events': return <EventsPage currentUser={currentUser} users={users} events={events} groups={groups} onNavigate={handleNavigate} currentPath={currentPath} onAddPost={handleAddPost} {...postCardProps} />;
@@ -1489,6 +1791,7 @@ const App: React.FC = () => {
                         onUpdateCoursePersonalNote={handleUpdateCoursePersonalNote}
                         onSaveFeedback={handleSaveFeedback}
                         onDeleteCourse={handleDeleteCourse}
+                        onUpdateCourseFaculty={handleUpdateCourseFaculty}
                     /> : <div>Course not found</div>;
                 }
                 return <AcademicsPage 
@@ -1503,10 +1806,11 @@ const App: React.FC = () => {
                     onDeleteNotice={handleDeleteNotice}
                     onRequestToJoinCourse={handleRequestToJoinCourse}
                     departmentChats={departmentChats}
-                    onSendDepartmentMessage={handleSendDepartmentMessage}
+                    onSendDepartmentMessage={handleSendDepartmentMessage as any}
                     onCreateUser={handleCreateUser}
                     onApproveTeacherRequest={handleApproveTeacherRequest}
                     onDeclineTeacherRequest={handleDeclineTeacherRequest}
+                    colleges={colleges}
                 />;
             case 'director':
                 if (currentUser.tag !== 'Director') {
@@ -1530,13 +1834,53 @@ const App: React.FC = () => {
                             onApproveTeacherRequest={handleApproveTeacherRequest}
                             onDeclineTeacherRequest={handleDeclineTeacherRequest}
                             onToggleFreezeUser={handleToggleFreezeUser}
+                            onUpdateUserRole={handleUpdateUserRole}
                             notices={notices}
                             onCreateNotice={handleCreateNotice}
                             onDeleteNotice={handleDeleteNotice}
                             onCreateCourse={handleCreateCourse}
                             onCreateUser={handleCreateUser}
                             onDeleteCourse={handleDeleteCourse}
+                            colleges={colleges}
+                            onUpdateCollegeDepartments={handleUpdateCollegeDepartments}
                             postCardProps={{...postCardProps, onDeletePost: handleAdminDeletePost, onDeleteComment: handleDeleteComment}}
+                        />;
+            case 'hod':
+                if (currentUser.tag !== 'HOD/Dean') {
+                    handleNavigate('#/home');
+                    return null;
+                }
+                return <HodPage
+                    currentUser={currentUser}
+                    allUsers={allUsersList}
+                    users={users}
+                    courses={courses}
+                    notices={notices}
+                    departmentChats={departmentChats}
+                    colleges={colleges}
+                    onNavigate={handleNavigate}
+                    currentPath={currentPath}
+                    onCreateCourse={handleCreateCourse}
+                    onCreateUser={handleCreateUser}
+                    onCreateUsersBatch={handleCreateUsersBatch}
+                    onApproveTeacherRequest={handleApproveTeacherRequest}
+                    onDeclineTeacherRequest={handleDeclineTeacherRequest}
+                    onCreateNotice={handleCreateNotice}
+                    onDeleteNotice={handleDeleteNotice}
+                    onSendDepartmentMessage={handleSendDepartmentMessage as any}
+                />;
+            case 'superadmin':
+                if (currentUser.tag !== 'Super Admin') {
+                    handleNavigate('#/home');
+                    return null;
+                }
+                return <SuperAdminPage 
+                            currentUser={currentUser}
+                            currentPath={currentPath}
+                            onNavigate={handleNavigate}
+                            colleges={colleges}
+                            users={users}
+                            onCreateCollegeAdmin={handleCreateCollegeAdmin}
                         />;
             default:
                 handleNavigate('#/home');

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { User, Post, Group, ReactionType, Achievement, UserTag, Comment } from '../types';
+import type { User, Post, Group, ReactionType, Achievement, UserTag, Comment, College } from '../types';
 import Header from '../components/Header';
 import Feed from '../components/Feed';
 import CreatePost from '../components/CreatePost';
@@ -17,6 +17,7 @@ interface ProfilePageProps {
   users: { [key: string]: User };
   posts: Post[];
   groups: Group[];
+  colleges: College[];
   onNavigate: (path: string) => void;
   currentPath: string;
   onAddPost: (postDetails: { content: string; mediaDataUrls?: string[] | null; mediaType?: "image" | "video" | null; eventDetails?: { title: string; date: string; location: string; link?: string; }; }) => void;
@@ -36,7 +37,7 @@ interface ProfilePageProps {
 }
 
 const ProfilePage: React.FC<ProfilePageProps> = (props) => {
-    const { profileUserId, currentUser, users, posts, groups, onNavigate, currentPath, onAddPost, onAddAchievement, onAddInterest, onUpdateProfile, onReaction, onAddComment, onDeletePost, onDeleteComment, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost, isAdminView, onBackToAdmin } = props;
+    const { profileUserId, currentUser, users, posts, groups, onNavigate, currentPath, onAddPost, onAddAchievement, onAddInterest, onUpdateProfile, onReaction, onAddComment, onDeletePost, onDeleteComment, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost, isAdminView, onBackToAdmin, colleges } = props;
 
     const [activeTab, setActiveTab] = useState<'posts' | 'groups' | 'saved'>('posts');
     const [isEditing, setIsEditing] = useState(false);
@@ -217,6 +218,7 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
                     onClose={() => setIsEditing(false)}
                     currentUser={profileUser}
                     onUpdateProfile={onUpdateProfile}
+                    colleges={colleges}
                 />
             )}
             {isOwnProfile && (
