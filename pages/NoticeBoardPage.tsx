@@ -80,4 +80,58 @@ const CreateNoticeModal: React.FC<{
                                     <label key={dept} className="flex items-center space-x-2 cursor-pointer">
                                         <input type="checkbox" checked={targetDepartments.includes(dept)} onChange={() => handleDeptToggle(dept)} className="h-4 w-4 rounded text-primary focus:ring-primary"/>
                                         <span>{dept}</span>
-                                    </
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                            <h4 className="font-semibold text-text-muted mb-2">Target Years (optional)</h4>
+                             <div className="space-y-2 p-3 bg-input rounded-lg border border-border max-h-40 overflow-y-auto no-scrollbar">
+                                {yearOptions.map(year => (
+                                    <label key={year.val} className="flex items-center space-x-2 cursor-pointer">
+                                        <input type="checkbox" checked={targetYears.includes(year.val)} onChange={() => handleYearToggle(year.val)} className="h-4 w-4 rounded text-primary focus:ring-primary"/>
+                                        <span>{year.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <p className="text-xs text-center text-text-muted">If no departments or years are selected, the notice will be visible to all students.</p>
+                </div>
+                 <div className="p-4 bg-muted/50 border-t border-border flex justify-end">
+                    <button onClick={handleSubmit} className="px-6 py-2.5 font-bold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-transform transform hover:scale-105">Post Notice</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const NoticeBoardPage: React.FC<NoticeBoardPageProps> = (props) => {
+    const { currentUser, onNavigate, currentPath, notices, users, onCreateNotice, onDeleteNotice } = props;
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    
+    const handleLogout = async () => {
+        await auth.signOut();
+        onNavigate('#/');
+    };
+
+    return (
+        <div className="bg-muted/50 min-h-screen">
+            <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
+            <main className="container mx-auto px-4 pt-8 pb-20 md:pb-8">
+                <div className="flex justify-between items-center mb-6">
+                    <h1 className="text-3xl font-bold">Notice Board</h1>
+                    <button onClick={() => setIsCreateModalOpen(true)} className="bg-primary text-primary-foreground font-bold py-2 px-4 rounded-lg flex items-center gap-2">
+                        <PlusIcon className="w-5 h-5" />
+                        New Notice
+                    </button>
+                </div>
+                <div>Notices will be displayed here.</div>
+            </main>
+            {isCreateModalOpen && <CreateNoticeModal onClose={() => setIsCreateModalOpen(false)} onCreateNotice={onCreateNotice} />}
+            <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
+        </div>
+    );
+};
+
+export default NoticeBoardPage;

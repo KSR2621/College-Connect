@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { User, UserTag, College } from '../types';
 import { CameraIcon, CloseIcon } from './Icons';
-// FIX: Import yearOptions to dynamically generate year selection.
-import { yearOptions } from '../constants';
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -141,9 +139,15 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, cu
             {tag === 'Student' && (
               <div>
                 <label htmlFor="yearOfStudy" className="text-sm font-medium text-text-muted">Year of Study</label>
-                <select id="yearOfStudy" value={yearOfStudy} onChange={e => setYearOfStudy(Number(e.target.value))} className="w-full mt-1 px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-                    {yearOptions.map(opt => <option key={opt.val} value={opt.val}>{opt.label}</option>)}
-                </select>
+                <input
+                    id="yearOfStudy"
+                    type="number"
+                    value={yearOfStudy}
+                    onChange={e => setYearOfStudy(Number(e.target.value))}
+                    className="w-full mt-1 px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="e.g. 1, 2, 3..."
+                    min="1"
+                />
               </div>
             )}
           </div>

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import type { Post, User, Group, ReactionType, ConfessionMood, Comment } from '../types';
 import Avatar from './Avatar';
@@ -155,6 +156,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
   const TRUNCATE_LENGTH = 350;
 
   const isSaved = currentUser.savedPosts?.includes(post.id);
+  const isReadOnly = currentUser.isApproved === false;
 
   const [lightboxState, setLightboxState] = useState<{ isOpen: boolean; startIndex: number }>({ isOpen: false, startIndex: 0 });
 
@@ -255,6 +257,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
 
 
   const handleAddCommentForPost = (text: string) => {
+    if (isReadOnly) return;
     onAddComment(post.id, text);
   };
   
@@ -265,6 +268,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
   }
   
   const handleShareToUser = async (userId: string) => {
+    if (isReadOnly) return;
     const originalPost = post.sharedPost ?? post;
 
     let isConfession: boolean | undefined;
@@ -297,6 +301,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
 
   // --- Reaction Handlers ---
     const handleMouseEnter = () => {
+        if (isReadOnly) return;
         if (pickerTimerRef.current) clearTimeout(pickerTimerRef.current);
         setPickerVisible(true);
     };
@@ -306,6 +311,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
         }, 300);
     };
     const handleTouchStart = () => {
+        if (isReadOnly) return;
         wasLongPress.current = false;
         pickerTimerRef.current = setTimeout(() => {
             wasLongPress.current = true;
@@ -322,6 +328,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
         if(pickerTimerRef.current) clearTimeout(pickerTimerRef.current);
     };
     const handleLikeButtonClick = () => {
+        if (isReadOnly) return;
         if (wasLongPress.current) {
             wasLongPress.current = false;
             return;
@@ -361,7 +368,8 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                 onClick={handleLikeButtonClick}
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
-                className={`flex items-center space-x-2 p-2 rounded-lg flex-1 justify-center transition-colors ${confessionClasses}`}
+                disabled={isReadOnly}
+                className={`flex items-center space-x-2 p-2 rounded-lg flex-1 justify-center transition-colors ${confessionClasses} ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
                 {buttonIcon}
             </button>
@@ -408,7 +416,11 @@ const PostCard: React.FC<PostCardProps> = (props) => {
                         <button onClick={() => onToggleSavePost(post.id)} className={`flex items-center space-x-2 p-2 rounded-lg flex-1 justify-center ${isSaved ? 'text-yellow-500' : 'text-text-muted hover:text-yellow-500'}`}>
                             {isSaved ? <BookmarkIconSolid className="w-5 h-5"/> : <BookmarkIcon className="w-5 h-5"/>}
                         </button>
-                        <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'message'})} className="flex items-center space-x-2 text-text-muted hover:text-primary p-2 rounded-lg flex-1 justify-center">
+                         <button 
+                            onClick={() => !isReadOnly && setShareModalState({isOpen: true, defaultTab: 'message'})} 
+                            disabled={isReadOnly}
+                            className={`flex items-center space-x-2 text-text-muted hover:text-primary p-2 rounded-lg flex-1 justify-center ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
                             <SendIcon className="w-5 h-5"/>
                         </button>
                     </div>
@@ -561,10 +573,18 @@ const PostCard: React.FC<PostCardProps> = (props) => {
             <button onClick={() => setShowComments(!showComments)} className="flex items-center space-x-2 text-text-muted hover:text-primary p-2 rounded-lg flex-1 justify-center">
               <CommentIcon className="w-5 h-5" />
             </button>
-            <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'share'})} className="flex items-center space-x-2 text-text-muted hover:text-primary p-2 rounded-lg flex-1 justify-center">
+            <button 
+                onClick={() => !isReadOnly && setShareModalState({isOpen: true, defaultTab: 'share'})} 
+                disabled={isReadOnly}
+                className={`flex items-center space-x-2 text-text-muted hover:text-primary p-2 rounded-lg flex-1 justify-center ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
               <RepostIcon className="w-5 h-5" />
             </button>
-             <button onClick={() => setShareModalState({isOpen: true, defaultTab: 'message'})} className="flex items-center space-x-2 text-text-muted hover:text-primary p-2 rounded-lg flex-1 justify-center">
+             <button 
+                onClick={() => !isReadOnly && setShareModalState({isOpen: true, defaultTab: 'message'})}
+                disabled={isReadOnly}
+                className={`flex items-center space-x-2 text-text-muted hover:text-primary p-2 rounded-lg flex-1 justify-center ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
               <SendIcon className="w-5 h-5" />
             </button>
           </div>
@@ -572,6 +592,7 @@ const PostCard: React.FC<PostCardProps> = (props) => {
           {/* Comment Section */}
           {showComments && (
             <div className="p-4 border-t border-border">
+              {isReadOnly && <p className="text-xs text-center text-text-muted mb-2">Comments are disabled while your account is pending approval.</p>}
               <CommentSection
                 comments={post.comments}
                 users={users}

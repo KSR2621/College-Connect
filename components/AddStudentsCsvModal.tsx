@@ -1,20 +1,20 @@
 import React, { useState, useMemo } from 'react';
 import type { User } from '../types';
-import { UploadIcon, CloseIcon, UsersIcon, TrashIcon, CheckCircleIcon, XCircleIcon } from './Icons';
+import { UploadIcon, CloseIcon, UsersIcon, CheckCircleIcon, XCircleIcon } from './Icons';
 
-interface AddTeachersCsvModalProps {
+interface AddStudentsCsvModalProps {
     isOpen: boolean;
     onClose: () => void;
     department: string;
     onCreateUsersBatch: (usersData: Omit<User, 'id'>[]) => Promise<{ successCount: number; errors: { email: string; reason: string }[] }>;
 }
 
-type ParsedTeacher = { name: string; email: string; error?: string; };
+type ParsedStudent = { name: string; email: string; year: number; error?: string; };
 type Step = 'upload' | 'preview' | 'result';
 
-const AddTeachersCsvModal: React.FC<AddTeachersCsvModalProps> = ({ isOpen, onClose, department, onCreateUsersBatch }) => {
+const AddStudentsCsvModal: React.FC<AddStudentsCsvModalProps> = ({ isOpen, onClose, department, onCreateUsersBatch }) => {
     const [step, setStep] = useState<Step>('upload');
-    const [parsedData, setParsedData] = useState<ParsedTeacher[]>([]);
+    const [parsedData, setParsedData] = useState<ParsedStudent[]>([]);
     const [fileName, setFileName] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<{ successCount: number; errors: { email: string; reason: string }[] } | null>(null);
@@ -46,36 +46,39 @@ const AddTeachersCsvModal: React.FC<AddTeachersCsvModalProps> = ({ isOpen, onClo
             let text = e.target?.result as string;
             if (!text) return;
 
-            // Remove UTF-8 BOM if present (often added by Excel)
             if (text.startsWith('\uFEFF')) {
                 text = text.substring(1);
             }
             
-            // Handle both \n and \r\n line endings
             const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
             if (lines.length < 2) {
                 alert("CSV file must have a header row and at least one data row.");
                 return;
             }
             const headerLine = lines.shift()!.trim();
-            const header = headerLine.toLowerCase().split(',');
+            const header = headerLine.toLowerCase().split(',').map(h => h.trim());
             const nameIndex = header.indexOf('name');
             const emailIndex = header.indexOf('email');
+            const yearIndex = header.indexOf('year');
 
-            if (nameIndex === -1 || emailIndex === -1) {
-                alert("CSV header must contain 'name' and 'email' columns. Please check your file and the template.");
+            if (nameIndex === -1 || emailIndex === -1 || yearIndex === -1) {
+                alert("CSV header must contain 'name', 'email', and 'year' columns. Please check your file and the template.");
                 return;
             }
 
-            const data = lines.map((line): ParsedTeacher => {
+            const data = lines.map((line): ParsedStudent => {
                 const values = line.split(',');
                 const name = values[nameIndex]?.trim() || '';
                 const email = values[emailIndex]?.trim() || '';
+                const yearStr = values[yearIndex]?.trim() || '';
+                const year = parseInt(yearStr, 10);
                 let error;
-                if (!name || !email) error = "Missing name or email.";
-                else if (!validateEmail(email)) error = "Invalid email format.";
 
-                return { name, email, error };
+                if (!name || !email || !yearStr) error = "Missing name, email, or year.";
+                else if (!validateEmail(email)) error = "Invalid email format.";
+                else if (isNaN(year) || year < 1 || year > 5) error = "Year must be a number from 1 to 5.";
+
+                return { name, email, year, error };
             });
 
             setParsedData(data);
@@ -87,7 +90,7 @@ const AddTeachersCsvModal: React.FC<AddTeachersCsvModalProps> = ({ isOpen, onClo
     const handleSubmit = async () => {
         const validUsers = parsedData.filter(p => !p.error);
         if (validUsers.length === 0) {
-            alert("No valid teachers to add. Please check your file.");
+            alert("No valid students to add. Please check your file.");
             return;
         }
         
@@ -96,7 +99,8 @@ const AddTeachersCsvModal: React.FC<AddTeachersCsvModalProps> = ({ isOpen, onClo
             name: u.name,
             email: u.email,
             department,
-            tag: 'Teacher' as 'Teacher',
+            tag: 'Student' as 'Student',
+            yearOfStudy: u.year,
         }));
         
         const res = await onCreateUsersBatch(usersData);
@@ -106,10 +110,10 @@ const AddTeachersCsvModal: React.FC<AddTeachersCsvModalProps> = ({ isOpen, onClo
     };
 
     const CsvTemplateLink = () => {
-        const csvContent = "name,email\nJane Doe,jane.doe@example.com\nJohn Smith,john.smith@example.com";
+        const csvContent = "name,email,year\nJane Doe,jane.doe@example.com,1\nJohn Smith,john.smith@example.com,2";
         const blob = new Blob([csvContent], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
-        return <a href={url} download="teacher_template.csv" className="text-sm text-primary hover:underline">Download template.csv</a>;
+        return <a href={url} download="student_template.csv" className="text-sm text-primary hover:underline">Download template.csv</a>;
     };
 
     const renderContent = () => {
@@ -117,16 +121,16 @@ const AddTeachersCsvModal: React.FC<AddTeachersCsvModalProps> = ({ isOpen, onClo
             case 'upload':
                 return (
                     <div className="text-center">
-                        <label htmlFor="csv-upload" className="cursor-pointer group">
+                        <label htmlFor="csv-upload-student" className="cursor-pointer group">
                             <div className="p-8 border-2 border-dashed border-border group-hover:border-primary group-hover:bg-primary/5 rounded-lg transition-colors">
                                 <UploadIcon className="w-12 h-12 mx-auto text-text-muted group-hover:text-primary transition-colors" />
                                 <p className="mt-4 font-semibold text-foreground">Click to upload or drag & drop</p>
                                 <p className="text-sm text-text-muted">CSV file up to 5MB</p>
                             </div>
                         </label>
-                        <input id="csv-upload" type="file" accept=".csv" className="hidden" onChange={handleFileChange}/>
+                        <input id="csv-upload-student" type="file" accept=".csv" className="hidden" onChange={handleFileChange}/>
                         <div className="mt-4 text-sm text-text-muted">
-                            <p>File must have 'name' and 'email' columns.</p>
+                            <p>File must have 'name', 'email', and 'year' columns.</p>
                             <CsvTemplateLink />
                         </div>
                     </div>
@@ -135,13 +139,14 @@ const AddTeachersCsvModal: React.FC<AddTeachersCsvModalProps> = ({ isOpen, onClo
                 return (
                     <div>
                         <p className="font-semibold text-foreground mb-2">Reviewing: <span className="font-normal">{fileName}</span></p>
-                        <p className="text-sm text-text-muted mb-4">{parsedData.filter(p => !p.error).length} valid teachers found. Any rows with errors will be skipped.</p>
+                        <p className="text-sm text-text-muted mb-4">{parsedData.filter(p => !p.error).length} valid students found. Any rows with errors will be skipped.</p>
                         <div className="max-h-64 overflow-y-auto no-scrollbar border border-border rounded-lg">
                             <table className="w-full text-sm">
                                 <thead className="sticky top-0 bg-slate-100 dark:bg-slate-700">
                                     <tr>
                                         <th className="p-2 text-left font-semibold">Name</th>
                                         <th className="p-2 text-left font-semibold">Email</th>
+                                        <th className="p-2 text-left font-semibold">Year</th>
                                         <th className="p-2 text-left font-semibold">Status</th>
                                     </tr>
                                 </thead>
@@ -150,6 +155,7 @@ const AddTeachersCsvModal: React.FC<AddTeachersCsvModalProps> = ({ isOpen, onClo
                                         <tr key={index} className="border-t border-border">
                                             <td className="p-2">{row.name}</td>
                                             <td className="p-2">{row.email}</td>
+                                            <td className="p-2">{row.year || 'N/A'}</td>
                                             <td className="p-2">
                                                 {row.error ? 
                                                     <span className="text-xs font-semibold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">{row.error}</span> : 
@@ -194,8 +200,8 @@ const AddTeachersCsvModal: React.FC<AddTeachersCsvModalProps> = ({ isOpen, onClo
     
     const getModalTitle = () => {
         switch (step) {
-            case 'upload': return 'Add Teachers via CSV';
-            case 'preview': return 'Confirm Teachers';
+            case 'upload': return 'Add Students via CSV';
+            case 'preview': return 'Confirm Students';
             case 'result': return 'Import Results';
         }
     };
@@ -216,7 +222,7 @@ const AddTeachersCsvModal: React.FC<AddTeachersCsvModalProps> = ({ isOpen, onClo
                         <>
                             <button onClick={() => setStep('upload')} className="px-4 py-2 font-semibold text-foreground bg-muted rounded-lg hover:bg-muted/80">Back</button>
                             <button onClick={handleSubmit} disabled={isLoading || parsedData.filter(p => !p.error).length === 0} className="px-6 py-2 font-bold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-wait">
-                                {isLoading ? 'Adding...' : `Add ${parsedData.filter(p => !p.error).length} Teachers`}
+                                {isLoading ? 'Adding...' : `Add ${parsedData.filter(p => !p.error).length} Students`}
                             </button>
                         </>
                     )}
@@ -227,4 +233,4 @@ const AddTeachersCsvModal: React.FC<AddTeachersCsvModalProps> = ({ isOpen, onClo
     );
 };
 
-export default AddTeachersCsvModal;
+export default AddStudentsCsvModal;

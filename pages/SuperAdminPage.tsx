@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { User, College } from '../types';
 import { BuildingIcon, MailIcon, LockIcon, PlusIcon, UsersIcon } from '../components/Icons';
@@ -109,7 +110,9 @@ const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ colleges, users, onCrea
                 <h2 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2"><UsersIcon className="w-6 h-6"/> Existing Colleges</h2>
                 <div className="space-y-3 max-h-96 overflow-y-auto no-scrollbar">
                     {colleges.length > 0 ? colleges.map(college => {
-                        const adminUser = users[college.adminUids[0]];
+                        // Safer access to adminUids
+                        const adminUid = college.adminUids && college.adminUids.length > 0 ? college.adminUids[0] : null;
+                        const adminUser = adminUid ? users[adminUid] : null;
                         return (
                             <div key={college.id} className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-border dark:border-slate-700">
                                 <p className="font-bold text-foreground">{college.name}</p>

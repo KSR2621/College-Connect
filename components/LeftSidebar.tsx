@@ -9,7 +9,7 @@ interface LeftSidebarProps {
 }
 
 const NavLink: React.FC<{
-    icon: React.FC<React.SVGProps<SVGSVGElement>>;
+    icon: React.ElementType;
     label: string;
     path: string;
     onNavigate: (path: string) => void;

@@ -1,12 +1,19 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import type { User, Course, Notice, DepartmentChat, Message, AttendanceStatus, Feedback, College } from '../types';
+import { User, Course, Notice, DepartmentChat, Message, AttendanceStatus, Feedback, College } from '../types';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
 import Avatar from '../components/Avatar';
 import { auth } from '../firebase';
-import { BookOpenIcon, CloseIcon, PlusIcon, ArrowRightIcon, SearchIcon, MegaphoneIcon, TrashIcon, MessageIcon, SendIcon, UsersIcon, CheckSquareIcon, StarIcon, UserPlusIcon, ClockIcon, UploadIcon } from '../components/Icons';
+import { 
+    BookOpenIcon, CloseIcon, PlusIcon, ArrowRightIcon, SearchIcon, MegaphoneIcon, 
+    TrashIcon, MessageIcon, SendIcon, UsersIcon, CheckSquareIcon, StarIcon, 
+    UserPlusIcon, ClockIcon, UploadIcon, BuildingIcon, ChartPieIcon, ChartBarIcon,
+    FileTextIcon, CheckCircleIcon, SettingsIcon, MenuIcon, TrendingUpIcon, ClipboardListIcon
+} from '../components/Icons';
 import { yearOptions } from '../constants';
 import AddTeachersCsvModal from '../components/AddTeachersCsvModal';
+import AddStudentsCsvModal from '../components/AddStudentsCsvModal';
 
 // --- PROPS ---
 interface HodPageProps {
@@ -27,85 +34,416 @@ interface HodPageProps {
   onApproveTeacherRequest: (teacherId: string) => void;
   onDeclineTeacherRequest: (teacherId: string) => void;
   colleges: College[];
+  onUpdateCourseFaculty: (courseId: string, newFacultyId: string) => void;
+  onUpdateCollegeClasses: (collegeId: string, department: string, classes: { [year: number]: string[] }) => void;
 }
 
-// --- MODALS & SUB-COMPONENTS ---
-const AddUserModal: React.FC<{
-    isOpen: boolean;
-    onClose: () => void;
-    role: 'Student' | 'Teacher' | null;
-    department: string;
-    onCreateUser: (userData: Omit<User, 'id'>) => Promise<void>;
-}> = ({ isOpen, onClose, role, department, onCreateUser }) => {
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [yearOfStudy, setYearOfStudy] = useState(1);
+// --- HELPER COMPONENTS ---
 
-    useEffect(() => {
-        if (isOpen) {
-            setName('');
-            setEmail('');
-            setYearOfStudy(1);
-        }
-    }, [isOpen]);
+const SidebarItem: React.FC<{ id: string; label: string; icon: React.ElementType; onClick: () => void; active: boolean }> = ({ id, label, icon: Icon, onClick, active }) => (
+    <button 
+        onClick={onClick} 
+        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${active ? 'bg-primary text-primary-foreground shadow-md' : 'text-text-muted hover:bg-white hover:text-primary'}`}
+    >
+        <Icon className="w-5 h-5" />
+        <span className="font-medium text-sm">{label}</span>
+        {active && <ArrowRightIcon className="w-4 h-4 ml-auto opacity-50" />}
+    </button>
+);
 
-    if (!isOpen || !role) return null;
+const StatCard: React.FC<{ label: string; value: number | string; icon: React.ElementType; colorClass: string; trend?: 'up' | 'down' }> = ({ label, value, icon: Icon, colorClass, trend }) => (
+    <div className="bg-white rounded-xl p-5 shadow-sm border border-border flex items-center justify-between hover:shadow-md transition-shadow">
+        <div>
+            <p className="text-text-muted text-xs uppercase font-bold tracking-wider">{label}</p>
+            <div className="flex items-baseline gap-2 mt-1">
+                <p className="text-2xl font-extrabold text-foreground">{value}</p>
+                {trend && (
+                    <span className={`text-xs font-bold ${trend === 'up' ? 'text-emerald-600' : 'text-red-600'}`}>
+                        {trend === 'up' ? '↑' : '↓'}
+                    </span>
+                )}
+            </div>
+        </div>
+        <div className={`p-3 rounded-full ${colorClass}`}>
+            <Icon className="w-6 h-6" />
+        </div>
+    </div>
+);
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        const userData: Omit<User, 'id'> = {
-            name,
-            email,
-            department,
-            tag: role,
-            bio: '',
-            interests: [],
-            achievements: [],
-            personalNotes: [],
-            isApproved: role === 'Student' || role === 'HOD/Dean',
-        };
-        if (role === 'Student') {
-            userData.yearOfStudy = yearOfStudy;
-        }
-        onCreateUser(userData).then(() => {
-            onClose();
-        });
-    };
-    
-    const inputClasses = "w-full px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary transition-colors";
-
+const SimpleLineChart: React.FC<{ data?: number[], color?: string }> = ({ data = [], color = "text-primary" }) => {
+    if (data.length < 2) return <div className="h-32 flex items-center justify-center text-text-muted text-xs">Not enough data</div>;
+    const max = Math.max(...data) || 100;
+    const min = 0;
+    const points = data.map((val, i) => {
+        const x = (i / (data.length - 1)) * 100;
+        const y = 100 - ((val - min) / (max - min || 1)) * 100;
+        return `${x},${y}`;
+    }).join(' ');
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose}>
-            <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
-                <h3 className="text-xl font-bold text-foreground mb-4">Add New {role}</h3>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Full Name" required className={inputClasses} />
-                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email Address" required className={inputClasses} />
-                    {role === 'Student' && (
-                        <select value={yearOfStudy} onChange={e => setYearOfStudy(Number(e.target.value))} className={inputClasses}>
-                            {yearOptions.map(opt => <option key={opt.val} value={opt.val}>{opt.label}</option>)}
-                        </select>
-                    )}
-                    <div className="flex justify-end gap-3 pt-4">
-                        <button type="button" onClick={onClose} className="px-4 py-2 font-semibold text-foreground bg-muted rounded-lg hover:bg-muted/80">Cancel</button>
-                        <button type="submit" className="px-4 py-2 font-bold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90">Add {role}</button>
+        <div className="relative h-32 w-full">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
+                 <polyline points={points} fill="none" stroke="currentColor" className={color} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                 {data.map((val, i) => {
+                     const x = (i / (data.length - 1)) * 100;
+                     const y = 100 - ((val - min) / (max - min || 1)) * 100;
+                     return <circle key={i} cx={x} cy={y} r="3" className="fill-white stroke-current" strokeWidth="2" />
+                 })}
+            </svg>
+        </div>
+    );
+}
+
+const SimpleBarChart: React.FC<{ data: number[], labels?: string[], color?: string }> = ({ data, labels, color = 'bg-primary' }) => (
+    <div className="flex items-end justify-between h-32 gap-2 pt-4 pb-6">
+        {data.map((h, i) => (
+            <div key={i} className="flex-1 flex flex-col justify-end h-full group relative">
+                <div className="w-full bg-slate-100 rounded-t-sm relative h-full overflow-hidden">
+                     <div className={`absolute bottom-0 left-0 right-0 rounded-t-sm transition-all duration-1000 ${color}`} style={{ height: `${Math.max(h, 5)}%` }}></div>
+                </div>
+                 <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded pointer-events-none transition-opacity z-10 whitespace-nowrap">{h}</div>
+                 {labels && <p className="text-[10px] text-text-muted text-center mt-1 truncate w-full" title={labels[i]}>{labels[i]}</p>}
+            </div>
+        ))}
+    </div>
+);
+
+
+// --- SUB-VIEWS ---
+
+const DashboardHome: React.FC<{
+    stats: any,
+    chartData: any,
+    quickActions: { label: string, icon: React.ElementType, onClick: () => void }[]
+}> = ({ stats, chartData, quickActions }) => (
+    <div className="space-y-6 animate-fade-in">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            <StatCard label="Total Students" value={stats.students} icon={UsersIcon} colorClass="bg-blue-100 text-blue-600" trend="up"/>
+            <StatCard label="Total Teachers" value={stats.teachers} icon={UserPlusIcon} colorClass="bg-purple-100 text-purple-600"/>
+            <StatCard label="Total Classes" value={stats.classes} icon={BuildingIcon} colorClass="bg-orange-100 text-orange-600"/>
+            <StatCard label="Attendance Today" value={`${stats.attendance}%`} icon={CheckSquareIcon} colorClass="bg-emerald-100 text-emerald-600" trend={stats.attendance > 75 ? 'up' : 'down'}/>
+            <StatCard label="Pending Requests" value={stats.pending} icon={ClockIcon} colorClass="bg-red-100 text-red-600"/>
+        </div>
+
+        {/* Graphs */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-border">
+                <h3 className="font-bold text-foreground mb-4 flex items-center gap-2"><TrendingUpIcon className="w-5 h-5 text-primary"/> Student Attendance Trend</h3>
+                <SimpleLineChart data={chartData.attendanceTrend} color="text-blue-500" />
+            </div>
+             <div className="bg-white p-6 rounded-xl shadow-sm border border-border">
+                <h3 className="font-bold text-foreground mb-4 flex items-center gap-2"><ChartBarIcon className="w-5 h-5 text-primary"/> Teacher Workload Distribution</h3>
+                <SimpleBarChart data={chartData.workload} labels={chartData.teacherNames} color="bg-purple-500" />
+            </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div>
+             <h3 className="text-lg font-bold text-foreground mb-4">Quick Actions</h3>
+             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+                 {quickActions.map((action, idx) => (
+                     <button key={idx} onClick={action.onClick} className="flex flex-col items-center justify-center p-4 bg-white border border-border rounded-xl hover:border-primary hover:shadow-md transition-all group">
+                         <div className="p-3 bg-primary/10 text-primary rounded-full mb-2 group-hover:scale-110 transition-transform">
+                             <action.icon className="w-6 h-6" />
+                         </div>
+                         <span className="text-sm font-semibold text-foreground">{action.label}</span>
+                     </button>
+                 ))}
+             </div>
+        </div>
+    </div>
+);
+
+const StudentManagementView: React.FC<{
+    students: User[];
+    onAddStudent: () => void;
+    onAddCsv: () => void;
+}> = ({ students, onAddStudent, onAddCsv }) => (
+    <div className="space-y-6 animate-fade-in">
+        <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-foreground">Student Management</h2>
+            <div className="flex gap-2">
+                <button onClick={onAddCsv} className="bg-white border border-border text-foreground px-4 py-2 rounded-lg font-semibold text-sm hover:bg-slate-50">Import CSV</button>
+                <button onClick={onAddStudent} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2"><PlusIcon className="w-4 h-4"/> Add Student</button>
+            </div>
+        </div>
+        <div className="bg-white rounded-xl border border-border overflow-hidden">
+             <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 border-b border-border">
+                    <tr>
+                        <th className="p-4 font-semibold text-foreground">Name</th>
+                        <th className="p-4 font-semibold text-foreground">Email</th>
+                        <th className="p-4 font-semibold text-foreground">Year</th>
+                        <th className="p-4 font-semibold text-foreground text-right">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {students.length > 0 ? students.map(student => (
+                        <tr key={student.id} className="border-b border-border last:border-0 hover:bg-slate-50/50">
+                            <td className="p-4 flex items-center gap-3">
+                                <Avatar src={student.avatarUrl} name={student.name} size="sm" />
+                                <span className="font-medium">{student.name}</span>
+                            </td>
+                            <td className="p-4 text-text-muted">{student.email}</td>
+                            <td className="p-4 text-text-muted">Year {student.yearOfStudy}</td>
+                            <td className="p-4 text-right">
+                                {!student.isRegistered ? (
+                                    <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">Invited</span>
+                                ) : (
+                                    <button className="text-primary hover:underline font-medium">View Profile</button>
+                                )}
+                            </td>
+                        </tr>
+                    )) : <tr><td colSpan={4} className="p-8 text-center text-text-muted">No students found.</td></tr>}
+                </tbody>
+            </table>
+        </div>
+    </div>
+);
+
+const TeacherManagementView: React.FC<{
+    teachers: User[];
+    onAddTeacher: () => void;
+    onAddCsv: () => void;
+    onAssign: () => void;
+}> = ({ teachers, onAddTeacher, onAddCsv, onAssign }) => (
+     <div className="space-y-6 animate-fade-in">
+        <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-foreground">Teacher Management</h2>
+            <div className="flex gap-2">
+                 <button onClick={onAssign} className="bg-white border border-border text-foreground px-4 py-2 rounded-lg font-semibold text-sm hover:bg-slate-50">Assign Classes</button>
+                 <button onClick={onAddCsv} className="bg-white border border-border text-foreground px-4 py-2 rounded-lg font-semibold text-sm hover:bg-slate-50">Import CSV</button>
+                <button onClick={onAddTeacher} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2"><PlusIcon className="w-4 h-4"/> Add Teacher</button>
+            </div>
+        </div>
+         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+             {teachers.map(teacher => (
+                 <div key={teacher.id} className="bg-white p-4 rounded-xl border border-border flex items-center gap-4">
+                     <Avatar src={teacher.avatarUrl} name={teacher.name} size="lg" />
+                     <div>
+                         <h4 className="font-bold text-foreground">{teacher.name}</h4>
+                         <p className="text-xs text-text-muted">{teacher.email}</p>
+                         <div className="flex gap-2 mt-2">
+                             <span className="text-[10px] font-bold bg-blue-50 text-blue-600 px-2 py-1 rounded">Faculty</span>
+                             {!teacher.isRegistered ? (
+                                 <span className="text-[10px] font-bold bg-amber-50 text-amber-600 px-2 py-1 rounded">Invited</span>
+                             ) : !teacher.isApproved && (
+                                 <span className="text-[10px] font-bold bg-red-50 text-red-600 px-2 py-1 rounded">Pending</span>
+                             )}
+                         </div>
+                     </div>
+                 </div>
+             ))}
+             {teachers.length === 0 && <p className="col-span-3 text-center text-text-muted py-8">No teachers found.</p>}
+         </div>
+    </div>
+);
+
+const ClassManagementView: React.FC<{
+    classes: { year: number; division: string }[];
+    onAddClass: () => void;
+    onCreateCourse: (prefilledYear?: number, prefilledDivision?: string) => void;
+}> = ({ classes, onAddClass, onCreateCourse }) => (
+     <div className="space-y-6 animate-fade-in">
+        <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-foreground">Class & Batch Management</h2>
+            <button onClick={onAddClass} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2"><PlusIcon className="w-4 h-4"/> Create Class</button>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {classes.map(({ year, division }, idx) => (
+                 <div key={idx} className="bg-white p-6 rounded-xl shadow-sm border border-border flex flex-col">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h4 className="text-xl font-bold text-foreground">{yearOptions.find(y => y.val === year)?.label || `${year}th Year`}</h4>
+                            <p className="text-sm text-text-muted">Division {division}</p>
+                        </div>
+                        <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><UsersIcon className="w-5 h-5"/></div>
                     </div>
-                </form>
+                    <button 
+                        onClick={() => onCreateCourse(year, division)}
+                        className="mt-6 text-sm font-semibold text-primary bg-primary/5 py-2 rounded-lg hover:bg-primary/10 transition-colors flex items-center justify-center gap-2"
+                    >
+                        <BookOpenIcon className="w-4 h-4"/> Assign Subjects
+                    </button>
+                </div>
+            ))}
+             {classes.length === 0 && <div className="col-span-4 text-center p-8 border-2 border-dashed border-border rounded-xl text-text-muted">No classes created yet.</div>}
+        </div>
+    </div>
+);
+
+const AttendanceManagementView: React.FC<{ courses: Course[] }> = ({ courses }) => {
+    const today = new Date();
+    const recentAttendance = courses.flatMap(c => c.attendanceRecords || []).filter(r => new Date(r.date).toDateString() === today.toDateString());
+    
+    return (
+         <div className="space-y-6 animate-fade-in">
+            <h2 className="text-2xl font-bold text-foreground">Attendance Management</h2>
+            <div className="bg-white p-6 rounded-xl border border-border shadow-sm">
+                 <h3 className="font-bold text-lg mb-4">Today's Attendance Overview</h3>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     <div className="p-4 bg-slate-50 rounded-lg border border-border">
+                         <p className="text-xs text-text-muted uppercase font-bold">Classes Conducted</p>
+                         <p className="text-2xl font-bold text-foreground mt-1">{recentAttendance.length}</p>
+                     </div>
+                      <div className="p-4 bg-slate-50 rounded-lg border border-border">
+                         <p className="text-xs text-text-muted uppercase font-bold">Present Students</p>
+                         <p className="text-2xl font-bold text-emerald-600 mt-1">
+                             {recentAttendance.reduce((acc, r) => acc + Object.values(r.records).filter(s => (s as any).status === 'present').length, 0)}
+                         </p>
+                     </div>
+                      <div className="p-4 bg-slate-50 rounded-lg border border-border">
+                         <p className="text-xs text-text-muted uppercase font-bold">Absent Students</p>
+                         <p className="text-2xl font-bold text-red-600 mt-1">
+                             {recentAttendance.reduce((acc, r) => acc + Object.values(r.records).filter(s => (s as any).status === 'absent').length, 0)}
+                         </p>
+                     </div>
+                 </div>
+            </div>
+             <p className="text-sm text-text-muted">To mark attendance, please navigate to the specific Course in 'Academics' or 'Class Management'.</p>
+        </div>
+    )
+}
+
+// --- MODALS (Reused/Wrapped) ---
+
+const AddClassModal: React.FC<{ isOpen: boolean; onClose: () => void; college: College; department: string; onSave: (collegeId: string, department: string, classes: { [year: number]: string[] }) => void; }> = ({ isOpen, onClose, college, department, onSave }) => {
+    const [year, setYear] = useState('');
+    const [division, setDivision] = useState('');
+    if (!isOpen) return null;
+    const handleSave = () => {
+        const yearNum = parseInt(year.trim(), 10);
+        if (isNaN(yearNum) || yearNum < 1 || yearNum > 4) return alert("Invalid year");
+        const divisionUpper = division.trim().toUpperCase();
+        if (!divisionUpper) return alert("Invalid division");
+        const currentClasses = college.classes?.[department] || {};
+        const yearDivisions = currentClasses[yearNum] || [];
+        if (yearDivisions.includes(divisionUpper)) return alert("Division exists");
+        onSave(college.id, department, { ...currentClasses, [yearNum]: [...yearDivisions, divisionUpper].sort() });
+        onClose();
+    };
+    return (
+        <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm space-y-4">
+                <h3 className="font-bold text-lg">Add Class</h3>
+                <input type="number" value={year} onChange={e => setYear(e.target.value)} placeholder="Year (1-4)" className="w-full p-2 border rounded" />
+                <input type="text" value={division} onChange={e => setDivision(e.target.value)} placeholder="Division (e.g. A)" className="w-full p-2 border rounded" />
+                <div className="flex justify-end gap-2"><button onClick={onClose} className="px-4 py-2 rounded hover:bg-slate-100">Cancel</button><button onClick={handleSave} className="px-4 py-2 bg-primary text-white rounded">Save</button></div>
             </div>
         </div>
     );
-};
+}
 
+const AddUserModal: React.FC<{ 
+    isOpen: boolean; 
+    onClose: () => void; 
+    role: 'Student' | 'Teacher' | null; 
+    department: string; 
+    onCreateUser: (userData: Omit<User, 'id'>) => Promise<void>;
+    availableYears?: number[];
+}> = ({ isOpen, onClose, role, department, onCreateUser, availableYears = [] }) => {
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+    const [year, setYear] = useState(availableYears[0] || 1);
+    
+    useEffect(() => {
+        if (availableYears.length > 0) {
+            setYear(availableYears[0]);
+        }
+    }, [availableYears]);
+
+    if (!isOpen || !role) return null;
+    const handleSubmit = (e: React.FormEvent) => { 
+        e.preventDefault(); 
+        // Set isApproved to false and isRegistered to false for invite-based flow
+        onCreateUser({ 
+            name, 
+            email, 
+            department, 
+            tag: role, 
+            isApproved: false, 
+            isRegistered: false,
+            yearOfStudy: role === 'Student' ? year : undefined 
+        }).then(onClose); 
+    };
+    return (
+        <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+                <h3 className="font-bold text-lg mb-4">Add {role}</h3>
+                <form onSubmit={handleSubmit} className="space-y-3">
+                    <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Name" required className="w-full p-2 border rounded" />
+                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required className="w-full p-2 border rounded" />
+                    {role === 'Student' && (
+                        <select value={year} onChange={e => setYear(Number(e.target.value))} className="w-full p-2 border rounded">
+                            {availableYears.length > 0 ? (
+                                availableYears.map(y => <option key={y} value={y}>{yearOptions.find(opt => opt.val === y)?.label || `Year ${y}`}</option>)
+                            ) : (
+                                <option value="" disabled>No years configured</option>
+                            )}
+                        </select>
+                    )}
+                    <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={onClose} className="px-4 py-2 hover:bg-slate-100 rounded">Cancel</button><button type="submit" className="px-4 py-2 bg-primary text-white rounded">Add</button></div>
+                </form>
+            </div>
+        </div>
+    )
+}
+
+const AssignFacultyModal: React.FC<{ isOpen: boolean; onClose: () => void; courses: Course[]; teachers: User[]; onSave: (courseId: string, newFacultyId: string) => void; }> = ({ isOpen, onClose, courses, teachers, onSave }) => {
+    const [changes, setChanges] = useState<{[id:string]: string}>({});
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
+                <h3 className="font-bold text-lg mb-4">Assign Faculty</h3>
+                <div className="flex-1 overflow-y-auto space-y-3 p-1">
+                    {courses.map(c => (
+                        <div key={c.id} className="flex justify-between items-center p-2 border rounded">
+                            <div><p className="font-semibold">{c.subject}</p><p className="text-xs text-muted">{c.year}th Year</p></div>
+                            <select value={changes[c.id] || c.facultyId} onChange={e => setChanges({...changes, [c.id]: e.target.value})} className="border rounded p-1 text-sm w-40">
+                                <option value="">Unassigned</option>
+                                {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                            </select>
+                        </div>
+                    ))}
+                </div>
+                <div className="flex justify-end gap-2 pt-4"><button onClick={onClose} className="px-4 py-2 hover:bg-slate-100 rounded">Cancel</button><button onClick={() => { Object.entries(changes).forEach(([c, f]) => onSave(c, f)); onClose(); }} className="px-4 py-2 bg-primary text-white rounded">Save Changes</button></div>
+            </div>
+        </div>
+    )
+}
+
+const CreateCourseModal: React.FC<{ isOpen: boolean; onClose: () => void; onCreateCourse: (course: any) => void; department: string; prefilledYear?: number; prefilledDivision?: string }> = ({ isOpen, onClose, onCreateCourse, department, prefilledYear, prefilledDivision }) => {
+    const [subject, setSubject] = useState('');
+    const [year, setYear] = useState(prefilledYear || 1);
+    if (!isOpen) return null;
+    return (
+         <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
+             <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md space-y-4">
+                 <h3 className="font-bold text-lg">Add Subject/Course</h3>
+                 <input type="text" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject Name" className="w-full p-2 border rounded" />
+                 <input type="number" value={year} onChange={e => setYear(Number(e.target.value))} disabled={!!prefilledYear} className="w-full p-2 border rounded" placeholder="Year" />
+                 <div className="flex justify-end gap-2"><button onClick={onClose} className="px-4 py-2 hover:bg-slate-100 rounded">Cancel</button><button onClick={() => { onCreateCourse({ subject, year, department, division: prefilledDivision }); onClose(); }} className="px-4 py-2 bg-primary text-white rounded">Create</button></div>
+             </div>
+         </div>
+    )
+}
+
+// Reusing/Defining CreateNoticeModal for HOD page consistency
 const CreateNoticeModal: React.FC<{
+    isOpen: boolean;
     onClose: () => void;
     onCreateNotice: (noticeData: Omit<Notice, 'id' | 'authorId' | 'timestamp'>) => void;
     departmentOptions: string[];
-}> = ({ onClose, onCreateNotice, departmentOptions }) => {
+    availableYears: number[];
+}> = ({ isOpen, onClose, onCreateNotice, departmentOptions, availableYears }) => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [targetDepartments, setTargetDepartments] = useState<string[]>([]);
     const [targetYears, setTargetYears] = useState<number[]>([]);
     const editorRef = useRef<HTMLDivElement>(null);
+
+    if (!isOpen) return null;
 
     const handleInput = () => setContent(editorRef.current?.innerHTML || '');
     const applyStyle = (command: string) => {
@@ -130,642 +468,291 @@ const CreateNoticeModal: React.FC<{
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose}>
-            <div className="bg-card rounded-lg shadow-xl w-full max-w-2xl flex flex-col h-full max-h-[90vh]" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center p-4" onClick={onClose}>
+            <div className="bg-card rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col h-full max-h-[90vh] border border-border" onClick={e => e.stopPropagation()}>
                 <div className="p-4 border-b border-border flex justify-between items-center">
-                    <h3 className="text-xl font-bold text-foreground">Post a New Notice</h3>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg-muted"><CloseIcon className="w-5 h-5"/></button>
+                    <h3 className="text-xl font-bold text-foreground">Post Announcement</h3>
+                    <button onClick={onClose} className="p-2 rounded-full hover:bg-muted text-muted-foreground"><CloseIcon className="w-5 h-5"/></button>
                 </div>
-                <div className="flex-1 p-4 space-y-4 overflow-y-auto no-scrollbar">
-                    <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Notice Title" className="w-full text-xl font-bold bg-input border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"/>
-                    <div className="border border-border rounded-lg">
-                        <div className="p-2 border-b border-border flex items-center gap-2">
-                             <button onMouseDown={e => { e.preventDefault(); applyStyle('bold'); }} className="font-bold w-8 h-8 rounded hover:bg-muted">B</button>
-                             <button onMouseDown={e => { e.preventDefault(); applyStyle('italic'); }} className="italic w-8 h-8 rounded hover:bg-muted">I</button>
-                             <button onMouseDown={e => { e.preventDefault(); applyStyle('insertUnorderedList'); }} className="w-8 h-8 rounded hover:bg-muted">UL</button>
+                <div className="flex-1 p-6 space-y-6 overflow-y-auto custom-scrollbar">
+                    <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Notice Title" className="w-full text-xl font-bold bg-transparent border-b border-border py-2 focus:outline-none focus:border-primary placeholder:text-muted-foreground text-foreground"/>
+                    
+                    <div className="border border-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-primary/20 transition-shadow">
+                        <div className="p-2 border-b border-border bg-muted/50 flex items-center gap-2">
+                             <button onMouseDown={e => { e.preventDefault(); applyStyle('bold'); }} className="font-bold w-8 h-8 rounded hover:bg-muted text-foreground">B</button>
+                             <button onMouseDown={e => { e.preventDefault(); applyStyle('italic'); }} className="italic w-8 h-8 rounded hover:bg-muted text-foreground">I</button>
+                             <button onMouseDown={e => { e.preventDefault(); applyStyle('insertUnorderedList'); }} className="w-8 h-8 rounded hover:bg-muted text-foreground">UL</button>
                         </div>
-                        <div ref={editorRef} contentEditable onInput={handleInput} data-placeholder="Write your notice here..." className="w-full min-h-[150px] p-3 text-foreground bg-input focus:outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-text-muted"/>
+                        <div ref={editorRef} contentEditable onInput={handleInput} data-placeholder="Type your message..." className="w-full min-h-[200px] p-4 text-foreground bg-input focus:outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground"/>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <h4 className="font-semibold text-text-muted mb-2">Target Departments (optional)</h4>
-                            <div className="space-y-2 p-3 bg-input rounded-lg border border-border max-h-40 overflow-y-auto no-scrollbar">
-                                {departmentOptions.map(dept => (
-                                    <label key={dept} className="flex items-center space-x-2 cursor-pointer">
-                                        <input type="checkbox" checked={targetDepartments.includes(dept)} onChange={() => handleDeptToggle(dept)} className="h-4 w-4 rounded text-primary focus:ring-primary"/>
-                                        <span>{dept}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                        <div>
-                            <h4 className="font-semibold text-text-muted mb-2">Target Years (optional)</h4>
-                             <div className="space-y-2 p-3 bg-input rounded-lg border border-border max-h-40 overflow-y-auto no-scrollbar">
-                                {yearOptions.map(year => (
-                                    <label key={year.val} className="flex items-center space-x-2 cursor-pointer">
-                                        <input type="checkbox" checked={targetYears.includes(year.val)} onChange={() => handleYearToggle(year.val)} className="h-4 w-4 rounded text-primary focus:ring-primary"/>
-                                        <span>{year.label}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                    <p className="text-xs text-center text-text-muted">If no departments or years are selected, the notice will be visible to all students.</p>
-                </div>
-                 <div className="p-4 bg-muted/50 border-t border-border flex justify-end">
-                    <button onClick={handleSubmit} className="px-6 py-2.5 font-bold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-transform transform hover:scale-105">Post Notice</button>
-                </div>
-            </div>
-        </div>
-    );
-};
 
-const UserList: React.FC<{ users: User[]; onNavigate: (path: string) => void }> = ({ users, onNavigate }) => {
-    if (users.length === 0) {
-        return <div className="text-center bg-card rounded-lg border border-border p-12 text-text-muted"><p>No users found for the current filter.</p></div>;
-    }
-    return (
-        <div className="bg-card rounded-lg shadow-sm p-4 border border-border">
-            <div className="space-y-3">
-                {users.map(user => (
-                    <div key={user.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted cursor-pointer" onClick={() => onNavigate(`#/profile/${user.id}`)}>
-                        <div className="flex items-center space-x-3">
-                            <Avatar src={user.avatarUrl} name={user.name} size="md" />
+                    <div className="bg-muted/30 p-4 rounded-xl border border-border">
+                        <h4 className="text-sm font-bold text-muted-foreground uppercase mb-3">Target Audience (Optional)</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <p className="font-semibold text-card-foreground">{user.name}</p>
-                                <p className="text-sm text-text-muted">{user.email}</p>
+                                <span className="text-xs font-semibold text-muted-foreground mb-2 block">Departments</span>
+                                <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
+                                    {departmentOptions.map(dept => (
+                                        <label key={dept} className="flex items-center space-x-2 cursor-pointer group">
+                                            <input type="checkbox" checked={targetDepartments.includes(dept)} onChange={() => handleDeptToggle(dept)} className="h-4 w-4 rounded text-primary focus:ring-primary border-border bg-input"/>
+                                            <span className="text-sm text-foreground group-hover:text-primary transition-colors">{dept}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <span className="text-xs font-semibold text-muted-foreground mb-2 block">Years</span>
+                                 <div className="space-y-2">
+                                    {availableYears.map(year => (
+                                        <label key={year} className="flex items-center space-x-2 cursor-pointer group">
+                                            <input type="checkbox" checked={targetYears.includes(year)} onChange={() => handleYearToggle(year)} className="h-4 w-4 rounded text-primary focus:ring-primary border-border bg-input"/>
+                                            <span className="text-sm text-foreground group-hover:text-primary transition-colors">
+                                                {yearOptions.find(y => y.val === year)?.label || `Year ${year}`}
+                                            </span>
+                                        </label>
+                                    ))}
+                                    {availableYears.length === 0 && <p className="text-xs text-muted-foreground">No years configured.</p>}
+                                </div>
                             </div>
                         </div>
                     </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-const HodOverviewTab: React.FC<{ analytics: any, users: { [key:string]: User }, onApprove: (id: string) => void, onDecline: (id: string) => void }> = ({ analytics, users, onApprove, onDecline }) => {
-    const StatCard: React.FC<{ title: string; icon: React.FC<any>; children: React.ReactNode }> = ({ title, icon: Icon, children }) => (
-        <div className="bg-card p-5 rounded-lg shadow-sm border border-border">
-            <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-text-muted">{title}</p>
-                <Icon className="w-6 h-6 text-primary"/>
-            </div>
-            <div className="text-3xl font-bold text-foreground mt-2 flex items-baseline">{children}</div>
-        </div>
-    );
-
-    return (
-        <div className="space-y-8">
-            {analytics.pendingTeachers.length > 0 && (
-                <div className="bg-blue-50 border-l-4 border-blue-500 text-blue-800 p-4 rounded-r-lg shadow-md" role="alert">
-                    <div className="flex items-center mb-3">
-                        <UserPlusIcon className="w-6 h-6 text-blue-500 mr-3"/>
-                        <p className="font-bold text-lg">Pending Teacher Approvals ({analytics.pendingTeachers.length})</p>
-                    </div>
-                    <div className="space-y-3">
-                        {analytics.pendingTeachers.map((teacher: User) => (
-                            <div key={teacher.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-white rounded-lg border border-blue-200">
-                                <div className="flex items-center space-x-3">
-                                    <Avatar src={teacher.avatarUrl} name={teacher.name} size="md" />
-                                    <div>
-                                        <p className="font-bold text-blue-900">{teacher.name}</p>
-                                        <p className="text-sm text-blue-700">{teacher.email}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center space-x-2 mt-3 sm:mt-0 self-end sm:self-center">
-                                    <button onClick={() => onApprove(teacher.id)} className="bg-emerald-500/20 text-emerald-700 font-semibold py-1 px-3 rounded-full text-xs hover:bg-emerald-500/30">Approve</button>
-                                    <button onClick={() => onDecline(teacher.id)} className="bg-red-500/20 text-red-700 font-semibold py-1 px-3 rounded-full text-xs hover:bg-red-500/30">Decline</button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
                 </div>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-                <StatCard title="Total Courses" icon={BookOpenIcon}>{analytics.totalCourses}</StatCard>
-                <StatCard title="Total Teachers" icon={UsersIcon}>{analytics.totalTeachers}</StatCard>
-                <StatCard title="Total Students" icon={UsersIcon}>{analytics.totalStudents}</StatCard>
-                <StatCard title="Today's Attendance" icon={CheckSquareIcon}>{analytics.overallAttendance}<span className="text-lg">%</span></StatCard>
-                <StatCard title="Avg. Feedback" icon={StarIcon}>
-                    {analytics.averageFeedback > 0 ? (
-                        <div className="flex items-baseline gap-1">
-                            {analytics.averageFeedback.toFixed(1)}
-                            <StarIcon className="w-6 h-6 text-amber-400 fill-current -mt-1" />
-                        </div>
-                    ) : (
-                        <span className="text-2xl">N/A</span>
-                    )}
-                </StatCard>
-            </div>
-
-            {analytics.totalPendingRequests > 0 && (
-                <div className="bg-amber-50 border-l-4 border-amber-500 text-amber-800 p-4 rounded-r-lg" role="alert">
-                    <div className="flex">
-                        <div className="py-1"><UserPlusIcon className="w-6 h-6 text-amber-500 mr-4"/></div>
-                        <div>
-                            <p className="font-bold">Action Required</p>
-                            <p className="text-sm">There are {analytics.totalPendingRequests} pending student request(s) to join courses in your department.</p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            <div className="bg-card rounded-lg shadow-sm border border-border p-6">
-                 <h3 className="text-xl font-bold text-foreground mb-4">Today's Class Attendance</h3>
-                 <div className="space-y-3">
-                    {analytics.coursesWithAttendance.length > 0 ? analytics.coursesWithAttendance.map((course: any) => {
-                        const attendance = course.attendanceToday;
-                        const percentage = attendance && attendance.total > 0 ? (attendance.present / attendance.total) * 100 : 0;
-                        const teacher = users[course.facultyId];
-                        return (
-                             <div key={course.id} className="p-3 bg-slate-50 rounded-lg border border-border">
-                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                                    <div>
-                                        <p className="font-bold text-foreground">{course.subject}</p>
-                                        <p className="text-sm text-text-muted">Taught by {teacher?.name || 'Unknown'}</p>
-                                    </div>
-                                    {attendance ? (
-                                        <div className="w-full sm:w-48 mt-2 sm:mt-0">
-                                             <div className="flex justify-between items-baseline mb-1">
-                                                <span className="text-sm font-semibold text-primary">{Math.round(percentage)}%</span>
-                                                <span className="text-xs text-text-muted">{attendance.present} / {attendance.total} present</span>
-                                            </div>
-                                            <div className="w-full bg-slate-200 rounded-full h-2.5">
-                                                <div className="bg-primary h-2.5 rounded-full" style={{ width: `${percentage}%` }}></div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm text-text-muted mt-2 sm:mt-0">No record for today</p>
-                                    )}
-                                </div>
-                            </div>
-                        )
-                    }) : (
-                        <p className="text-sm text-text-muted text-center py-4">No attendance has been recorded for any course in this department today.</p>
-                    )}
-                 </div>
-            </div>
-
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-card rounded-lg shadow-sm border border-border p-6">
-                    <h3 className="text-xl font-bold text-foreground mb-4">Top Enrolled Courses</h3>
-                    <div className="space-y-3">
-                        {analytics.topCourses.map((course: Course) => {
-                            const teacher = users[course.facultyId];
-                            return (
-                                <div key={course.id} className="p-3 bg-slate-50 rounded-lg border border-border">
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <p className="font-bold text-foreground">{course.subject}</p>
-                                            <p className="text-sm text-text-muted">Taught by {teacher?.name || 'Unknown'}</p>
-                                        </div>
-                                        <div className="text-center flex-shrink-0 ml-4">
-                                            <p className="font-bold text-lg text-primary">{course.students?.length || 0}</p>
-                                            <p className="text-xs text-text-muted">Students</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                <div className="bg-card rounded-lg shadow-sm border border-border p-6">
-                    <h3 className="text-xl font-bold text-foreground mb-4">Teacher Workload</h3>
-                    <div className="space-y-3">
-                        {analytics.teacherWorkload.map(({ teacherId, courseCount }: { teacherId: string, courseCount: number }) => {
-                            const teacher = users[teacherId];
-                            if (!teacher) return null;
-                            return (
-                                <div key={teacherId} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-border">
-                                    <div className="flex items-center gap-3">
-                                        <Avatar src={teacher.avatarUrl} name={teacher.name} size="md" />
-                                        <div>
-                                            <p className="font-bold text-foreground">{teacher.name}</p>
-                                        </div>
-                                    </div>
-                                     <div className="text-center flex-shrink-0 ml-4">
-                                        <p className="font-bold text-lg text-primary">{courseCount}</p>
-                                        <p className="text-xs text-text-muted">Course{courseCount !== 1 && 's'}</p>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            </div>
-        </div>
-    )
-};
-
-const HodDepartmentChat: React.FC<{
-    currentUser: User;
-    departmentChats: DepartmentChat[];
-    users: { [key: string]: User };
-    onSendDepartmentMessage: (department: string, channel: string, text: string) => void;
-}> = ({ currentUser, departmentChats, users, onSendDepartmentMessage }) => {
-    const channels = ['Teachers', '1st Year', '2nd Year', '3rd Year', '4th Year'];
-    const [selectedChannel, setSelectedChannel] = useState(channels[0]);
-    const [text, setText] = useState('');
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-
-    const activeChat = useMemo(() => departmentChats.find(c => c.department === currentUser.department && c.channel === selectedChannel), [departmentChats, currentUser.department, selectedChannel]);
-    const messages = useMemo(() => activeChat?.messages || [], [activeChat]);
-
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (text.trim()) {
-            onSendDepartmentMessage(currentUser.department, selectedChannel, text.trim());
-            setText('');
-        }
-    };
-
-    return (
-        <div className="bg-card rounded-lg shadow-sm border border-border h-[75vh] flex animate-fade-in">
-            <div className="w-1/3 border-r border-border flex flex-col">
-                <div className="p-4 border-b border-border">
-                    <h3 className="font-bold text-foreground">Chat Channels</h3>
-                </div>
-                <div className="flex-1 overflow-y-auto no-scrollbar">
-                    {channels.map(channel => (
-                        <button
-                            key={channel}
-                            onClick={() => setSelectedChannel(channel)}
-                            className={`w-full text-left p-3 font-semibold text-sm transition-colors ${selectedChannel === channel ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}
-                        >
-                            {channel}
-                        </button>
-                    ))}
-                </div>
-            </div>
-            <div className="w-2/3 flex flex-col">
-                <div className="p-4 border-b border-border">
-                    <h3 className="font-bold text-foreground truncate">{selectedChannel} - {currentUser.department}</h3>
-                </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
-                    {messages.length > 0 ? messages.map(msg => {
-                        const sender = users[msg.senderId];
-                        if (!sender) return null;
-                        const isCurrentUser = msg.senderId === currentUser.id;
-                        return (
-                            <div key={msg.id} className={`flex items-start gap-3 ${isCurrentUser ? 'justify-end' : ''}`}>
-                                {!isCurrentUser && <Avatar src={sender.avatarUrl} name={sender.name} size="sm" />}
-                                <div className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}>
-                                    {!isCurrentUser && <p className="text-xs text-text-muted mb-1">{sender.name}</p>}
-                                    <div className={`max-w-xs md:max-w-md p-3 rounded-lg ${isCurrentUser ? 'bg-primary text-primary-foreground' : 'bg-muted text-card-foreground'}`}><p className="whitespace-pre-wrap break-words">{msg.text}</p></div>
-                                    <p className="text-xs text-text-muted mt-1 px-1">{new Date(msg.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
-                                </div>
-                            </div>
-                        );
-                    }) : <p className="text-center text-text-muted mt-8">No messages in this channel yet.</p>}
-                    <div ref={messagesEndRef} />
-                </div>
-                <div className="p-4 border-t border-border bg-slate-50">
-                    <form onSubmit={handleSubmit} className="flex items-center space-x-3">
-                        <input
-                            type="text"
-                            value={text}
-                            onChange={(e) => setText(e.target.value)}
-                            placeholder={`Message ${selectedChannel}...`}
-                            className="flex-1 bg-white border border-border rounded-full px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary text-foreground transition"
-                        />
-                        <button type="submit" className="p-2.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50" disabled={!text.trim()}>
-                            <SendIcon className="w-5 h-5" />
-                        </button>
-                    </form>
+                 <div className="p-4 border-t border-border flex justify-end gap-3">
+                    <button onClick={onClose} className="px-5 py-2.5 font-semibold text-foreground hover:bg-muted rounded-lg transition-colors">Cancel</button>
+                    <button onClick={handleSubmit} className="px-6 py-2.5 font-bold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 shadow-lg shadow-primary/20 transition-transform transform hover:scale-105">
+                        Publish Notice
+                    </button>
                 </div>
             </div>
         </div>
     );
 };
 
-const CourseCard: React.FC<{ course: Course; onNavigate: (path: string) => void; }> = ({ course, onNavigate }) => {
-    const yearLabel = yearOptions.find(y => y.val === course.year)?.label || `${course.year}th Year`;
-    return (
-        <div className="bg-card p-0.5 rounded-xl animated-border group cursor-pointer" onClick={() => onNavigate(`#/academics/${course.id}`)}>
-            <div className="bg-card rounded-[10px] shadow-card hover:shadow-card-hover transition-all duration-300 border border-border flex flex-col h-full hover:-translate-y-1">
-                <div className="p-5 flex-1 flex flex-col">
-                    <h3 className="text-xl font-bold text-foreground">{course.subject}</h3>
-                    <p className="text-sm font-semibold text-primary mt-1">{yearLabel} &bull; {course.department}</p>
-                    {course.description && (<p className="text-sm text-text-muted mt-3 pt-3 border-t border-border/50 flex-grow">{course.description}</p>)}
-                </div>
-                <div className="bg-muted/50 group-hover:bg-primary/10 transition-colors duration-300 p-3 mt-auto text-center font-semibold text-sm text-primary flex items-center justify-center gap-2">
-                    View Details <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </div>
-            </div>
-        </div>
-    );
-};
 
-const CourseGrid: React.FC<{ courses: Course[], onNavigate: (path: string) => void, emptyState?: { title: string, subtitle: string } }> = ({ courses, onNavigate, emptyState }) => {
-    if (courses.length === 0) {
-        if (!emptyState) return null;
-        return (
-             <div className="text-center bg-card rounded-lg border border-border p-12 text-text-muted">
-                <h3 className="text-lg font-semibold text-foreground">{emptyState.title}</h3>
-                <p className="mt-2">{emptyState.subtitle}</p>
-            </div>
-        )
-    }
-    return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {courses.map(course => <CourseCard key={course.id} course={course} onNavigate={onNavigate} />)}
-        </div>
-    )
-};
+// --- MAIN HOD PAGE ---
 
-const NoticeCard: React.FC<{ notice: Notice; author: User | undefined; currentUser: User; onDelete: (noticeId: string) => void; }> = ({ notice, author, currentUser, onDelete }) => {
-    const canDelete = notice.authorId === currentUser.id || currentUser.tag === 'Director';
-    const isTargeted = (notice.targetDepartments && notice.targetDepartments.length > 0) || (notice.targetYears && notice.targetYears.length > 0);
-
-    return (
-        <div className="bg-card rounded-xl shadow-card hover:shadow-card-hover transition-all duration-300 border border-border flex overflow-hidden animate-fade-in group hover:-translate-y-1">
-            <div className={`w-2 flex-shrink-0 bg-gradient-to-b ${isTargeted ? 'from-secondary to-accent' : 'from-primary to-blue-400'}`}></div>
-            <div className="flex-1 p-5">
-                <div className="flex justify-between items-start gap-4">
-                    <div className="flex items-center gap-3">
-                        <div className={`flex-shrink-0 h-10 w-10 rounded-lg flex items-center justify-center text-white bg-gradient-to-br ${isTargeted ? 'from-secondary to-accent' : 'from-primary to-blue-400'}`}>
-                            <MegaphoneIcon className="w-6 h-6"/>
-                        </div>
-                        <h3 className="text-xl font-bold text-foreground flex-1">{notice.title}</h3>
-                    </div>
-                    {canDelete && 
-                        <button onClick={() => onDelete(notice.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive/70 hover:text-destructive">
-                            <TrashIcon className="w-5 h-5"/>
-                        </button>
-                    }
-                </div>
-
-                {author && (
-                    <div className="flex items-center space-x-3 mt-4 pt-3 border-t border-border/50 text-sm text-text-muted">
-                        <Avatar src={author.avatarUrl} name={author.name} size="sm" />
-                        <div>
-                            <span className="font-semibold text-foreground">{author.name}</span>
-                            <span className="mx-1">&bull;</span>
-                            <span>{new Date(notice.timestamp).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                        </div>
-                    </div>
-                )}
-                
-                <div className="prose prose-sm max-w-none mt-4 text-card-foreground" dangerouslySetInnerHTML={{ __html: notice.content }} />
-            
-                {(notice.targetDepartments && notice.targetDepartments.length > 0 || notice.targetYears && notice.targetYears.length > 0) && (
-                    <div className="mt-4 pt-3 border-t border-border/50">
-                        <h5 className="text-xs font-bold text-text-muted uppercase mb-2">TARGETED TO</h5>
-                        <div className="flex flex-wrap gap-2 text-xs">
-                            {notice.targetDepartments?.map(d => <span key={d} className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">{d}</span>)}
-                            {notice.targetYears?.map(y => <span key={y} className="bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-medium">{yearOptions.find(yo => yo.val === y)?.label}</span>)}
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
-
-
-// --- MAIN HOD DASHBOARD COMPONENT ---
 const HodPage: React.FC<HodPageProps> = (props) => {
-    const { currentUser, allUsers, users, courses, onNavigate, onCreateCourse, onCreateUser, onApproveTeacherRequest, onDeclineTeacherRequest, currentPath, onCreateUsersBatch } = props;
-    const [activeTab, setActiveTab] = useState<'overview' | 'courses' | 'teachers' | 'students' | 'departmentChat' | 'noticeBoard'>('overview');
-    const [isAddCourseModalOpen, setIsAddCourseModalOpen] = useState(false);
-    const [isCreateNoticeModalOpen, setIsCreateNoticeModalOpen] = useState(false);
+    const { currentUser, allUsers, courses, onNavigate, onCreateCourse, onCreateUser, onApproveTeacherRequest, onDeclineTeacherRequest, currentPath, onCreateUsersBatch, onUpdateCourseFaculty, colleges, onUpdateCollegeClasses, onCreateNotice, onDeleteNotice } = props;
+    
+    const [activeSection, setActiveSection] = useState('dashboard');
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    
+    // Modals State
+    const [isAddClassModalOpen, setIsAddClassModalOpen] = useState(false);
+    const [isAssignFacultyModalOpen, setIsAssignFacultyModalOpen] = useState(false);
     const [addUserModalState, setAddUserModalState] = useState<{ isOpen: boolean; role: 'Student' | 'Teacher' | null }>({ isOpen: false, role: null });
     const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
+    const [isStudentCsvModalOpen, setIsStudentCsvModalOpen] = useState(false);
+    const [courseCreationContext, setCourseCreationContext] = useState<{ isOpen: boolean; prefilledYear?: number; prefilledDivision?: string }>({ isOpen: false });
+    const [isCreateNoticeModalOpen, setIsCreateNoticeModalOpen] = useState(false);
 
-     const handleLogout = async () => {
-        await auth.signOut();
-        onNavigate('#/');
+    const handleLogout = async () => { await auth.signOut(); onNavigate('#/'); };
+    const college = colleges.find(c => c.id === currentUser.collegeId);
+    
+    const collegeClasses = college?.classes || {};
+    const myDept = currentUser.department;
+
+    // Years available in this HOD's department
+    const myDeptYears = useMemo(() => {
+        if (!collegeClasses[myDept]) return [];
+        return Object.keys(collegeClasses[myDept]).map(Number).sort((a, b) => a - b);
+    }, [collegeClasses, myDept]);
+
+    // All years available across college (for notices)
+    const allCollegeYears = useMemo(() => {
+        const yearsSet = new Set<number>();
+        Object.values(collegeClasses).forEach(deptClasses => {
+            Object.keys(deptClasses).forEach(y => yearsSet.add(Number(y)));
+        });
+        return Array.from(yearsSet).sort((a, b) => a - b);
+    }, [collegeClasses]);
+
+    const deptStudents = allUsers.filter(u => u.tag === 'Student' && u.department === myDept);
+    const deptTeachers = allUsers.filter(u => (u.tag === 'Teacher' || u.tag === 'HOD/Dean') && u.department === myDept);
+    const deptCourses = courses.filter(c => c.department === myDept);
+    // Only show in pending if they have registered (signed up) but are not approved
+    const pendingTeachers = deptTeachers.filter(u => !u.isApproved && u.isRegistered);
+    const pendingStudents = deptStudents.filter(u => !u.isApproved && u.isRegistered);
+    
+    const deptClasses = useMemo(() => {
+        if (!college?.classes || !college.classes[myDept]) return [];
+        const classes: { year: number; division: string }[] = [];
+        for (const yearStr in college.classes[myDept]) {
+            const year = parseInt(yearStr, 10);
+            college.classes[myDept][year].forEach(division => classes.push({ year, division }));
+        }
+        return classes.sort((a, b) => a.year - b.year || a.division.localeCompare(b.division));
+    }, [college, myDept]);
+
+    // Stats Calculation
+    const stats = {
+        students: deptStudents.length,
+        teachers: deptTeachers.length,
+        classes: deptClasses.length,
+        attendance: 85, // Placeholder real calculation logic needed
+        pending: pendingTeachers.length + pendingStudents.length
+    };
+    
+    const chartData = {
+        attendanceTrend: [78, 82, 80, 85, 84, 88, 85], // Mock data
+        workload: deptTeachers.slice(0, 5).map(t => courses.filter(c => c.facultyId === t.id).length * 20),
+        teacherNames: deptTeachers.slice(0, 5).map(t => t.name)
     };
 
-    const departmentAnalytics = useMemo(() => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayTimestamp = today.getTime();
-
-        const allDepartmentCourses = courses.filter(c => c.department === currentUser.department);
-        const allUsersInDept = allUsers.filter(u => u.department === currentUser.department);
-        const teacherLikeUsers = allUsersInDept.filter(u => u.tag === 'Teacher' || u.tag === 'HOD/Dean');
-        const pendingTeachers = teacherLikeUsers.filter(t => t.isApproved === false);
-        const allTeachersInDept = teacherLikeUsers.filter(t => t.isApproved !== false);
-        const teacherIds = new Set(allTeachersInDept.map(t => t.id));
-        
-        let teacherCourseCount: { [key: string]: number } = {};
-        allTeachersInDept.forEach(t => teacherCourseCount[t.id] = 0);
-        allDepartmentCourses.forEach(course => {
-            if (teacherIds.has(course.facultyId)) {
-                teacherCourseCount[course.facultyId] = (teacherCourseCount[course.facultyId] || 0) + 1;
-            }
-        });
-        
-        const teacherWorkload = Object.entries(teacherCourseCount)
-            .sort(([, countA], [, countB]) => countB - countA)
-            .map(([teacherId, courseCount]) => ({ teacherId, courseCount }));
-
-        const yearFilteredCourses = selectedYear === 'all'
-            ? allDepartmentCourses
-            : allDepartmentCourses.filter(c => c.year === selectedYear);
-
-        const studentIds = new Set<string>();
-        let totalPresentToday = 0;
-        let totalStudentsInClassToday = 0;
-        let totalPendingRequests = 0;
-        const allFeedbacks: Feedback[] = [];
-
-        const coursesWithAttendance = yearFilteredCourses.map(course => {
-            course.students?.forEach(sId => studentIds.add(sId));
-            totalPendingRequests += course.pendingStudents?.length || 0;
-            if (course.feedback) allFeedbacks.push(...course.feedback);
-
-            const todaysRecord = course.attendanceRecords?.find(r => {
-                const recordDate = new Date(r.date);
-                recordDate.setHours(0, 0, 0, 0);
-                return recordDate.getTime() === todayTimestamp;
-            });
-
-            if (todaysRecord) {
-                // FIX: Property 'status' does not exist on type 'unknown'. Explicitly type 'rec'.
-                const presentCount = Object.values(todaysRecord.records).filter((rec: { status: AttendanceStatus }) => rec.status === 'present').length;
-                const totalInClass = course.students?.length || 0;
-                totalPresentToday += presentCount;
-                totalStudentsInClassToday += totalInClass;
-                return { ...course, attendanceToday: { present: presentCount, total: totalInClass }};
-            }
-            return { ...course, attendanceToday: null };
-        });
-
-        const overallAttendance = totalStudentsInClassToday > 0 ? (totalPresentToday / totalStudentsInClassToday) * 100 : 0;
-        const allStudentsInDept = Array.from(studentIds).map(id => users[id]).filter(Boolean);
-        const averageFeedback = allFeedbacks.length > 0 ? allFeedbacks.reduce((sum, fb) => sum + fb.rating, 0) / allFeedbacks.length : 0;
-        const topCourses = [...yearFilteredCourses].sort((a, b) => (b.students?.length || 0) - (a.students?.length || 0)).slice(0, 5);
-
-        return {
-            totalCourses: yearFilteredCourses.length,
-            totalStudents: studentIds.size,
-            overallAttendance: Math.round(overallAttendance),
-            coursesWithAttendance,
-            allStudentsInDept,
-            totalPendingRequests,
-            averageFeedback,
-            topCourses,
-            totalTeachers: teacherIds.size,
-            allTeachersInDept,
-            teacherWorkload,
-            pendingTeachers,
-        };
-    }, [courses, currentUser.department, users, allUsers, selectedYear]);
-
-    const tabs = [
-        { id: 'overview', label: 'Overview', icon: BookOpenIcon },
-        { id: 'courses', label: 'Courses', icon: BookOpenIcon },
-        { id: 'teachers', label: 'Teachers', icon: UsersIcon },
-        { id: 'students', label: 'Students', icon: UsersIcon },
-        { id: 'departmentChat', label: 'Department Chat', icon: MessageIcon },
-        { id: 'noticeBoard', label: 'Notice Board', icon: MegaphoneIcon },
+    const quickActions = [
+        { label: 'Add Student', icon: UserPlusIcon, onClick: () => setAddUserModalState({ isOpen: true, role: 'Student' }) },
+        { label: 'Add Teacher', icon: UserPlusIcon, onClick: () => setAddUserModalState({ isOpen: true, role: 'Teacher' }) },
+        { label: 'Create Class', icon: BuildingIcon, onClick: () => setIsAddClassModalOpen(true) },
+        { label: 'Assign Faculty', icon: UsersIcon, onClick: () => setIsAssignFacultyModalOpen(true) },
+        { label: 'Post Notice', icon: MegaphoneIcon, onClick: () => setIsCreateNoticeModalOpen(true) },
     ];
 
-    const yearFilters: (number | 'all')[] = ['all', 1, 2, 3, 4];
-    
-    const renderTabContent = () => {
-        const lowercasedSearch = searchTerm.toLowerCase();
-        switch (activeTab) {
-            case 'courses':
-                const filteredCourses = departmentAnalytics.coursesWithAttendance.filter(c => c.subject.toLowerCase().includes(lowercasedSearch));
-                return <CourseGrid courses={filteredCourses} onNavigate={onNavigate} emptyState={{ title: "No courses found", subtitle: "No courses match the current filters." }} />;
-            case 'teachers':
-                const filteredTeachers = departmentAnalytics.allTeachersInDept.filter(t => t.name.toLowerCase().includes(lowercasedSearch));
-                return <>
-                    {departmentAnalytics.pendingTeachers.length > 0 && (
-                        <div className="bg-blue-50 border-l-4 border-blue-500 text-blue-800 p-4 rounded-r-lg shadow-md mb-8" role="alert">
-                            <div className="flex items-center mb-3">
-                                <UserPlusIcon className="w-6 h-6 text-blue-500 mr-3"/>
-                                <p className="font-bold text-lg">Pending Teacher Approvals ({departmentAnalytics.pendingTeachers.length})</p>
-                            </div>
-                            <div className="space-y-3">
-                                {departmentAnalytics.pendingTeachers.map((teacher: User) => (
-                                    <div key={teacher.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-white rounded-lg border border-blue-200">
-                                        <div className="flex items-center space-x-3">
-                                            <Avatar src={teacher.avatarUrl} name={teacher.name} size="md" />
-                                            <div>
-                                                <p className="font-bold text-blue-900">{teacher.name}</p>
-                                                <p className="text-sm text-blue-700">{teacher.email}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center space-x-2 mt-3 sm:mt-0 self-end sm:self-center">
-                                            <button onClick={() => onApproveTeacherRequest(teacher.id)} className="bg-emerald-500/20 text-emerald-700 font-semibold py-1 px-3 rounded-full text-xs hover:bg-emerald-500/30">Approve</button>
-                                            <button onClick={() => onDeclineTeacherRequest(teacher.id)} className="bg-red-500/20 text-red-700 font-semibold py-1 px-3 rounded-full text-xs hover:bg-red-500/30">Decline</button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                    <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
-                        <h2 className="text-xl font-bold">Approved Teachers ({departmentAnalytics.allTeachersInDept.length})</h2>
-                        <div className="flex gap-2">
-                             <button onClick={() => setIsCsvModalOpen(true)} className="bg-primary/10 text-primary font-bold py-2 px-4 rounded-full hover:bg-primary/20 transition-transform transform hover:scale-105 inline-flex items-center justify-center gap-2 text-sm"><UploadIcon className="w-5 h-5"/>Add via CSV</button>
-                            <button onClick={() => setAddUserModalState({ isOpen: true, role: 'Teacher' })} className="bg-primary text-primary-foreground font-bold py-2 px-4 rounded-full hover:bg-primary/90 transition-transform transform hover:scale-105 inline-flex items-center justify-center gap-2 text-sm"><PlusIcon className="w-5 h-5"/>Add New Teacher</button>
-                        </div>
-                    </div>
-                    <UserList users={filteredTeachers} onNavigate={onNavigate} />
-                </>;
-            case 'students':
-                const filteredStudents = departmentAnalytics.allStudentsInDept.filter(s => s.name.toLowerCase().includes(lowercasedSearch));
-                return <>
-                    <button onClick={() => setAddUserModalState({ isOpen: true, role: 'Student' })} className="w-full sm:w-auto mb-4 bg-primary text-primary-foreground font-bold py-2.5 px-6 rounded-full hover:bg-primary/90 transition-transform transform hover:scale-105 inline-flex items-center justify-center gap-2"><PlusIcon className="w-5 h-5"/>Add New Student</button>
-                    <UserList users={filteredStudents} onNavigate={onNavigate} />
-                </>;
-            case 'departmentChat':
-                 return <HodDepartmentChat currentUser={currentUser} departmentChats={props.departmentChats} users={users} onSendDepartmentMessage={props.onSendDepartmentMessage} />;
-            case 'noticeBoard':
-                 const filteredNotices = props.notices.filter(n => n.title.toLowerCase().includes(lowercasedSearch) || n.content.toLowerCase().includes(lowercasedSearch));
-                 return <div className="space-y-6">
-                    <button onClick={() => setIsCreateNoticeModalOpen(true)} className="w-full sm:w-auto bg-primary text-primary-foreground font-bold py-2.5 px-6 rounded-full hover:bg-primary/90 transition-transform transform hover:scale-105 inline-flex items-center justify-center gap-2"><PlusIcon className="w-5 h-5"/>Post New Notice</button>
-                    {filteredNotices.map(notice => <NoticeCard key={notice.id} notice={notice} author={users[notice.authorId]} currentUser={currentUser} onDelete={props.onDeleteNotice} />)}
-                 </div>;
-            case 'overview':
-            default: return <HodOverviewTab analytics={departmentAnalytics} users={users} onApprove={onApproveTeacherRequest} onDecline={onDeclineTeacherRequest} />;
-        }
-    };
-    
-    const collegeDepartments = useMemo(() => {
-        const college = props.colleges.find(c => c.id === currentUser.collegeId);
-        return college?.departments || [];
-    }, [props.colleges, currentUser.collegeId]);
-
     return (
-         <div className="bg-slate-50 min-h-screen">
-            <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
-            <main className="container mx-auto px-4 pt-8 pb-20 md:pb-8">
-                <div className="animate-fade-in">
-                    <div className="relative bg-card p-8 rounded-2xl shadow-lg border border-border overflow-hidden mb-8">
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/10 opacity-50"></div>
-                        <div className="relative z-10 text-center">
-                            <div className="w-16 h-16 bg-primary text-primary-foreground rounded-2xl mx-auto flex items-center justify-center mb-4">
-                                <BookOpenIcon className="w-8 h-8"/>
-                            </div>
-                            <h1 className="text-4xl md:text-5xl font-extrabold text-foreground">HOD Dashboard</h1>
-                            <p className="mt-3 text-lg text-text-muted max-w-2xl mx-auto">Manage your department: {currentUser.department}.</p>
+        <div className="bg-slate-50 min-h-screen flex flex-col">
+             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
+             
+             {/* Mobile Header */}
+             <div className="md:hidden bg-white border-b border-border p-4 flex justify-between items-center sticky top-16 z-30">
+                <span className="font-bold text-lg capitalize text-foreground">{activeSection.replace('_', ' ')}</span>
+                <button onClick={() => setMobileMenuOpen(true)} className="p-2 rounded-lg hover:bg-muted text-foreground"><MenuIcon className="w-6 h-6" /></button>
+            </div>
+
+            <div className="flex flex-1 overflow-hidden w-full relative">
+                {/* Sidebar */}
+                <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-border transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                    <div className="p-6 h-full overflow-y-auto">
+                         <div className="flex justify-between items-center mb-6 md:hidden">
+                            <h2 className="text-xl font-bold">Menu</h2>
+                            <button onClick={() => setMobileMenuOpen(false)}><CloseIcon className="w-6 h-6" /></button>
+                        </div>
+                        <div className="space-y-1">
+                            <SidebarItem id="dashboard" label="Dashboard" icon={ChartPieIcon} onClick={() => {setActiveSection('dashboard'); setMobileMenuOpen(false);}} active={activeSection === 'dashboard'} />
+                            <div className="pt-4 pb-2 text-xs font-bold text-text-muted uppercase tracking-wider">Management</div>
+                            <SidebarItem id="students" label="Student Management" icon={UsersIcon} onClick={() => {setActiveSection('students'); setMobileMenuOpen(false);}} active={activeSection === 'students'} />
+                            <SidebarItem id="teachers" label="Faculty Management" icon={UserPlusIcon} onClick={() => {setActiveSection('teachers'); setMobileMenuOpen(false);}} active={activeSection === 'teachers'} />
+                            <SidebarItem id="classes" label="Class & Batch" icon={BuildingIcon} onClick={() => {setActiveSection('classes'); setMobileMenuOpen(false);}} active={activeSection === 'classes'} />
+                            <SidebarItem id="attendance" label="Attendance" icon={CheckSquareIcon} onClick={() => {setActiveSection('attendance'); setMobileMenuOpen(false);}} active={activeSection === 'attendance'} />
+                            <div className="pt-4 pb-2 text-xs font-bold text-text-muted uppercase tracking-wider">Academics</div>
+                            <SidebarItem id="academics" label="Academics & Courses" icon={BookOpenIcon} onClick={() => {setActiveSection('academics'); setMobileMenuOpen(false);}} active={activeSection === 'academics'} />
+                            <SidebarItem id="exams" label="Exams & Results" icon={ClipboardListIcon} onClick={() => {setActiveSection('exams'); setMobileMenuOpen(false);}} active={activeSection === 'exams'} />
+                            <SidebarItem id="reports" label="Department Reports" icon={FileTextIcon} onClick={() => {setActiveSection('reports'); setMobileMenuOpen(false);}} active={activeSection === 'reports'} />
+                            <div className="pt-4 pb-2 text-xs font-bold text-text-muted uppercase tracking-wider">System</div>
+                            <SidebarItem id="approvals" label="Approvals" icon={CheckCircleIcon} onClick={() => {setActiveSection('approvals'); setMobileMenuOpen(false);}} active={activeSection === 'approvals'} />
+                            <SidebarItem id="settings" label="Settings" icon={SettingsIcon} onClick={() => {setActiveSection('settings'); setMobileMenuOpen(false);}} active={activeSection === 'settings'} />
                         </div>
                     </div>
-                    <div className="border-b border-border flex justify-center mb-6">
-                        <nav className="-mb-px flex space-x-6 overflow-x-auto no-scrollbar" aria-label="Tabs">
-                        {tabs.map(tab => (
-                            <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex-shrink-0 flex items-center space-x-2 transition-colors duration-200 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === tab.id ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'}`}><tab.icon className="w-5 h-5"/><span>{tab.label}</span></button>
-                        ))}
-                        </nav>
-                    </div>
+                </aside>
 
-                    {activeTab !== 'departmentChat' && (
-                        <div className="my-6 p-2 bg-card rounded-lg border border-border flex flex-wrap items-center justify-center gap-2">
-                            <span className="font-semibold text-sm mr-2 text-text-muted">Filter by Year:</span>
-                            {yearFilters.map(year => (
-                                <button
-                                    key={year}
-                                    onClick={() => setSelectedYear(year)}
-                                    className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${
-                                        selectedYear === year 
-                                        ? 'bg-primary text-primary-foreground shadow' 
-                                        : 'bg-muted text-text-muted hover:bg-border'
-                                    }`}
-                                >
-                                    {year === 'all' ? 'All Years' : `${year}${['st','nd','rd','th'][year-1] || 'th'} Year`}
-                                </button>
-                            ))}
+                {/* Main Content */}
+                <main className="flex-1 p-4 md:p-8 overflow-y-auto h-[calc(100vh-112px)] md:h-[calc(100vh-64px)]">
+                    {activeSection === 'dashboard' && <DashboardHome stats={stats} chartData={chartData} quickActions={quickActions} />}
+                    {activeSection === 'students' && <StudentManagementView students={deptStudents} onAddStudent={() => setAddUserModalState({isOpen: true, role: 'Student'})} onAddCsv={() => setIsStudentCsvModalOpen(true)} />}
+                    {activeSection === 'teachers' && <TeacherManagementView teachers={deptTeachers} onAddTeacher={() => setAddUserModalState({isOpen: true, role: 'Teacher'})} onAddCsv={() => setIsCsvModalOpen(true)} onAssign={() => setIsAssignFacultyModalOpen(true)} />}
+                    {activeSection === 'classes' && <ClassManagementView classes={deptClasses} onAddClass={() => setIsAddClassModalOpen(true)} onCreateCourse={(y, d) => setCourseCreationContext({ isOpen: true, prefilledYear: y, prefilledDivision: d })} />}
+                    {activeSection === 'attendance' && <AttendanceManagementView courses={deptCourses} />}
+                    {activeSection === 'academics' && (
+                         <div className="space-y-6 animate-fade-in">
+                             <div className="flex justify-between">
+                                 <h2 className="text-2xl font-bold">Academics</h2>
+                                 <button onClick={() => setCourseCreationContext({isOpen: true})} className="bg-primary text-white px-4 py-2 rounded flex items-center gap-2"><PlusIcon className="w-4 h-4"/> Add Subject</button>
+                             </div>
+                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                 {deptCourses.map(c => (
+                                     <div key={c.id} className="bg-white p-4 rounded-xl border shadow-sm">
+                                         <h4 className="font-bold text-lg">{c.subject}</h4>
+                                         <p className="text-sm text-muted">Year {c.year} {c.division ? `(Div ${c.division})` : ''}</p>
+                                         <p className="text-xs mt-2 bg-slate-100 inline-block px-2 py-1 rounded">{deptTeachers.find(t => t.id === c.facultyId)?.name || 'Unassigned'}</p>
+                                     </div>
+                                 ))}
+                             </div>
+                         </div>
+                    )}
+                    {activeSection === 'approvals' && (
+                        <div className="space-y-8 animate-fade-in">
+                             <div className="flex items-center gap-3 mb-6">
+                                 <div className="p-2 bg-primary/10 rounded-lg text-primary"><CheckCircleIcon className="w-6 h-6" /></div>
+                                 <h2 className="text-2xl font-bold text-foreground">Pending Approvals</h2>
+                             </div>
+
+                             {/* Faculty Approvals */}
+                             <div className="bg-white rounded-xl border border-border p-6 shadow-sm">
+                                 <h3 className="text-lg font-bold text-foreground mb-4 flex justify-between items-center">
+                                     Faculty Requests
+                                     <span className="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full">{pendingTeachers.length}</span>
+                                 </h3>
+                                 {pendingTeachers.length > 0 ? (
+                                     <div className="grid grid-cols-1 gap-3">
+                                         {pendingTeachers.map(t => (
+                                             <div key={t.id} className="flex flex-col sm:flex-row justify-between items-center p-4 bg-slate-50 rounded-xl border border-border gap-4">
+                                                 <div className="flex items-center gap-4 w-full sm:w-auto">
+                                                     <Avatar src={t.avatarUrl} name={t.name} size="md" />
+                                                     <div>
+                                                         <p className="font-bold text-foreground">{t.name}</p>
+                                                         <p className="text-xs text-muted-foreground">{t.email} • {t.tag}</p>
+                                                     </div>
+                                                 </div>
+                                                 <div className="flex gap-2 w-full sm:w-auto">
+                                                     <button onClick={() => onApproveTeacherRequest(t.id)} className="flex-1 sm:flex-none px-4 py-2 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors shadow-sm">Approve</button>
+                                                     <button onClick={() => onDeclineTeacherRequest(t.id)} className="flex-1 sm:flex-none px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors">Decline</button>
+                                                 </div>
+                                             </div>
+                                         ))}
+                                     </div>
+                                 ) : <p className="text-muted-foreground text-sm py-2 italic">No pending faculty requests.</p>}
+                             </div>
+
+                             {/* Student Approvals */}
+                             <div className="bg-white rounded-xl border border-border p-6 shadow-sm">
+                                 <h3 className="text-lg font-bold text-foreground mb-4 flex justify-between items-center">
+                                     Student Requests
+                                     <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">{pendingStudents.length}</span>
+                                 </h3>
+                                 {pendingStudents.length > 0 ? (
+                                     <div className="grid grid-cols-1 gap-3">
+                                         {pendingStudents.map(s => (
+                                             <div key={s.id} className="flex flex-col sm:flex-row justify-between items-center p-4 bg-slate-50 rounded-xl border border-border gap-4">
+                                                 <div className="flex items-center gap-4 w-full sm:w-auto">
+                                                     <Avatar src={s.avatarUrl} name={s.name} size="md" />
+                                                     <div>
+                                                         <p className="font-bold text-foreground">{s.name}</p>
+                                                         <p className="text-xs text-muted-foreground">{s.email}</p>
+                                                         <div className="flex gap-2 mt-1">
+                                                             <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Year {s.yearOfStudy}</span>
+                                                         </div>
+                                                     </div>
+                                                 </div>
+                                                 <div className="flex gap-2 w-full sm:w-auto">
+                                                     <button onClick={() => onApproveTeacherRequest(s.id)} className="flex-1 sm:flex-none px-4 py-2 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors shadow-sm">Approve</button>
+                                                     <button onClick={() => onDeclineTeacherRequest(s.id)} className="flex-1 sm:flex-none px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors">Decline</button>
+                                                 </div>
+                                             </div>
+                                         ))}
+                                     </div>
+                                 ) : <p className="text-muted-foreground text-sm py-2 italic">No pending student requests.</p>}
+                             </div>
                         </div>
                     )}
-
-                    {activeTab !== 'overview' && activeTab !== 'departmentChat' && (
-                        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
-                            <div className="relative w-full sm:flex-1 sm:max-w-md"><SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" /><input type="text" placeholder={`Search in ${activeTab}...`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-card border border-border rounded-full pl-11 pr-4 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"/></div>
-                            {activeTab === 'courses' && <button onClick={() => setIsAddCourseModalOpen(true)} className="w-full sm:w-auto bg-primary text-primary-foreground font-bold py-2.5 px-6 rounded-full hover:bg-primary/90 transition-transform transform hover:scale-105 inline-flex items-center justify-center gap-2"><PlusIcon className="w-5 h-5"/>Add New Course</button>}
+                     {/* Placeholders for other sections */}
+                    {['exams', 'reports', 'settings'].includes(activeSection) && (
+                        <div className="flex flex-col items-center justify-center h-64 text-center">
+                            <SettingsIcon className="w-12 h-12 text-muted mb-4" />
+                            <h3 className="text-xl font-bold">{activeSection.charAt(0).toUpperCase() + activeSection.slice(1)} Module</h3>
+                            <p className="text-muted">This module is under development.</p>
                         </div>
                     )}
-                    
-                    <div className="animate-fade-in">
-                        {renderTabContent()}
-                    </div>
-                </div>
-            </main>
+                </main>
+            </div>
+            
+            {/* Modals */}
+             {college && <AddClassModal isOpen={isAddClassModalOpen} onClose={() => setIsAddClassModalOpen(false)} college={college} department={myDept} onSave={onUpdateCollegeClasses} />}
+            <AddUserModal isOpen={addUserModalState.isOpen} onClose={() => setAddUserModalState({isOpen: false, role: null})} role={addUserModalState.role} department={myDept} onCreateUser={onCreateUser as any} availableYears={myDeptYears} />
+            <AddTeachersCsvModal isOpen={isCsvModalOpen} onClose={() => setIsCsvModalOpen(false)} department={myDept} onCreateUsersBatch={onCreateUsersBatch} />
+            <AddStudentsCsvModal isOpen={isStudentCsvModalOpen} onClose={() => setIsStudentCsvModalOpen(false)} department={myDept} onCreateUsersBatch={onCreateUsersBatch} />
+            <CreateCourseModal isOpen={courseCreationContext.isOpen} onClose={() => setCourseCreationContext({ isOpen: false })} onCreateCourse={onCreateCourse} department={myDept} prefilledYear={courseCreationContext.prefilledYear} prefilledDivision={courseCreationContext.prefilledDivision} />
+            <AssignFacultyModal isOpen={isAssignFacultyModalOpen} onClose={() => setIsAssignFacultyModalOpen(false)} courses={deptCourses} teachers={deptTeachers} onSave={onUpdateCourseFaculty} />
+            <CreateNoticeModal isOpen={isCreateNoticeModalOpen} onClose={() => setIsCreateNoticeModalOpen(false)} onCreateNotice={onCreateNotice} departmentOptions={college?.departments || []} availableYears={allCollegeYears} />
+
             <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
-
-            <AddUserModal isOpen={addUserModalState.isOpen} onClose={() => setAddUserModalState({isOpen: false, role: null})} role={addUserModalState.role} department={currentUser.department} onCreateUser={onCreateUser} />
-            {isCsvModalOpen && (
-                <AddTeachersCsvModal
-                    isOpen={isCsvModalOpen}
-                    onClose={() => setIsCsvModalOpen(false)}
-                    department={currentUser.department}
-                    onCreateUsersBatch={onCreateUsersBatch}
-                />
-            )}
-            {isCreateNoticeModalOpen && <CreateNoticeModal onClose={() => setIsCreateNoticeModalOpen(false)} onCreateNotice={props.onCreateNotice} departmentOptions={collegeDepartments} />}
         </div>
     );
 };

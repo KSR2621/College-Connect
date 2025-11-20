@@ -19,7 +19,7 @@ interface CreatePostProps {
   defaultType?: 'post' | 'event';
 }
 
-const StyleButton: React.FC<{ onMouseDown: (e: React.MouseEvent) => void; children: React.ReactNode; }> = ({ onMouseDown, children }) => (
+const StyleButton: React.FC<{ onMouseDown: (e: React.MouseEvent) => void; children: React.ReactNode }> = ({ onMouseDown, children }) => (
     <button 
       type="button" 
       onMouseDown={onMouseDown} // Use onMouseDown to prevent the editor from losing focus

@@ -21,6 +21,7 @@ export type User = {
   // FIX: Added personalNotes property to User type to resolve error in PersonalNotesPage.
   personalNotes?: PersonalNote[];
   isApproved?: boolean;
+  isRegistered?: boolean; // Tracks if the user has set a password/completed signup
   isFrozen?: boolean;
 }
 
@@ -29,6 +30,11 @@ export type College = {
   name: string;
   adminUids: string[];
   departments?: string[];
+  classes?: {
+    [department: string]: {
+        [year: number]: string[]; // array of division names
+    }
+  };
 }
 
 // FIX: Added PersonalNote type to resolve error in PersonalNotesPage.
@@ -194,6 +200,7 @@ export type Course = {
     subject: string;
     department: string;
     year: number;
+    division?: string;
     facultyId: string; // Added to identify the instructor
     collegeId?: string;
     description?: string;

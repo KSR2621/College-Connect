@@ -1,34 +1,24 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { auth, db } from '../firebase';
-import type { UserTag, College } from '../types';
-import { UserIcon, MailIcon, LockIcon, BuildingIcon, CameraIcon } from '../components/Icons';
-import { yearOptions } from '../constants';
+
+import React, { useState, useRef } from 'react';
+import { auth, db, storage } from '../firebase';
+import type { User } from '../types';
+import { MailIcon, LockIcon, CameraIcon, ArrowLeftIcon, CheckCircleIcon } from '../components/Icons';
 
 interface SignupPageProps {
     onNavigate: (path: string) => void;
-    colleges: College[];
 }
 
-const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, colleges }) => {
+const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
+    const [step, setStep] = useState<'verifyEmail' | 'completeProfile'>('verifyEmail');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [name, setName] = useState('');
-    const [department, setDepartment] = useState('');
-    const [tag, setTag] = useState<UserTag>('Student');
-    const [yearOfStudy, setYearOfStudy] = useState<number>(1);
-    const [collegeId, setCollegeId] = useState('');
     const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     
+    const [preRegisteredUser, setPreRegisteredUser] = useState<User | null>(null);
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const departmentOptions = useMemo(() => {
-        if (!collegeId) return [];
-        const selectedCollege = colleges.find(c => c.id === collegeId);
-        return selectedCollege?.departments || [];
-    }, [collegeId, colleges]);
-
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -41,164 +31,265 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate, colleges }) => {
             setAvatarPreview(URL.createObjectURL(file));
         }
     };
+    
+    const handleVerifyEmail = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
+        try {
+            // 1. Check if email exists in DB (Invited by Teacher/HOD)
+            const userQuery = await db.collection('users').where('email', '==', email.toLowerCase()).limit(1).get();
+            
+            if (userQuery.empty) {
+                setError('This email has not been invited. Please contact your department head or teacher to be added.');
+                setIsLoading(false);
+                return;
+            }
+            
+            const userDoc = userQuery.docs[0];
+            const userData = { id: userDoc.id, ...userDoc.data() } as User;
+            
+            // 2. Check if user has already registered (set a password)
+            if (userData.isRegistered) {
+                setError('An account with this email already exists. Please log in.');
+                setIsLoading(false);
+                return;
+            }
+            
+            // Found valid invite
+            setPreRegisteredUser(userData);
+            setStep('completeProfile');
 
-    const fileToBase64 = (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = error => reject(error);
-        });
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        if (!department) {
-            setError('Please select a department.');
+        
+        if (!preRegisteredUser) {
+            setError('Session expired. Please verify your email again.');
+            setStep('verifyEmail');
             return;
         }
-        if (!collegeId) {
-            setError('Please select a college.');
+
+        if (password.length < 6) {
+            setError('Password must be at least 6 characters long.');
             return;
         }
+
+        setIsLoading(true);
         try {
-            const { user } = await auth.createUserWithEmailAndPassword(email, password);
-            if (user) {
-                let avatarUrl = '';
-                if (avatarFile) {
-                    avatarUrl = await fileToBase64(avatarFile);
-                }
-
-                const userData: any = {
-                    name,
-                    email,
-                    department,
-                    tag,
-                    collegeId,
-                    avatarUrl,
-                    bio: '',
-                    interests: [],
-                    achievements: [],
-                    isApproved: tag === 'Student',
-                };
-
-                if (tag === 'Student') {
-                    userData.yearOfStudy = yearOfStudy;
-                }
-
-                await db.collection('users').doc(user.uid).set(userData);
-                onNavigate('#/home');
+            // 1. Create the user in Firebase Auth
+            const { user } = await auth.createUserWithEmailAndPassword(preRegisteredUser.email, password);
+            if (!user) {
+                throw new Error("Could not create user account.");
             }
+
+            // 2. Prepare new user data based on the invite doc
+            // IMPORTANT: Keep isApproved as false (read-only mode) until HOD approves
+            const userDataForNewDoc: Omit<User, 'id'> = {
+                ...preRegisteredUser,
+                isApproved: false, 
+                isRegistered: true, 
+            };
+            delete (userDataForNewDoc as any).id; // Remove the old temp ID
+
+            // 3. Upload Avatar (if selected)
+            if (avatarFile) {
+                try {
+                    const storageRef = storage.ref().child(`avatars/${user.uid}`);
+                    const snapshot = await storageRef.put(avatarFile);
+                    userDataForNewDoc.avatarUrl = await snapshot.ref.getDownloadURL();
+                } catch (uploadErr) {
+                    console.warn("Failed to upload avatar, proceeding without it.", uploadErr);
+                }
+            }
+
+            // 4. Create the new user document with the correct UID from Firebase Auth
+            await db.collection('users').doc(user.uid).set(userDataForNewDoc);
+
+            // 5. Delete the old "invite" document to clean up
+            try {
+                await db.collection('users').doc(preRegisteredUser.id).delete();
+            } catch (deleteErr) {
+                console.warn("Could not delete old invite document. Ignoring.", deleteErr);
+            }
+
+            // 6. Navigate to Home (User will be in Read-Only mode)
+            onNavigate('#/home');
+
         } catch (err: any) {
-            setError(err.message);
+            if (err.code === 'auth/email-already-in-use') {
+                setError('An account with this email already exists.');
+            } else if (err.code === 'auth/weak-password') {
+                setError('The password is too weak.');
+            } else {
+                setError(err.message || 'An error occurred during signup.');
+            }
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    const inputClasses = "w-full pl-10 pr-4 py-3 text-foreground bg-input dark:bg-slate-700 border border-border dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition";
-    const selectClasses = "w-full appearance-none px-4 py-3 text-foreground bg-input dark:bg-slate-700 border border-border dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition";
-
     return (
-        <div className="min-h-screen flex items-center justify-center p-4">
-            <div className="w-full max-w-md p-8 space-y-4 bg-card dark:bg-slate-800 rounded-2xl shadow-xl border border-border dark:border-slate-700 animate-fade-in">
-                <div className="text-center">
-                    <span className="font-bold text-3xl text-primary">CampusConnect</span>
-                    <h1 className="text-2xl font-bold text-foreground mt-2">Create Your Account</h1>
-                    <p className="text-text-muted">Join your campus community today.</p>
+        <div className="min-h-screen flex w-full bg-background font-sans">
+             {/* Left Side - Branding */}
+             <div className="hidden lg:flex lg:w-1/2 relative bg-secondary overflow-hidden items-center justify-center">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-700 to-fuchsia-800 opacity-90"></div>
+                 <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+                    <div className="absolute top-[20%] left-[10%] w-[40%] h-[40%] rounded-full bg-white/10 blur-3xl animate-pulse" style={{ animationDuration: '4s' }}></div>
+                    <div className="absolute bottom-[20%] right-[10%] w-[40%] h-[40%] rounded-full bg-white/10 blur-3xl animate-pulse" style={{ animationDelay: '1s', animationDuration: '5s' }}></div>
                 </div>
-                
-                {/* FIX: Corrected typo from `handleSubmit` to `handleSignup`. */}
-                <form onSubmit={handleSignup} className="space-y-4">
-                    <div className="flex justify-center">
-                        <div className="relative">
-                            <img
-                                src={avatarPreview || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'A')}&background=random&color=fff`}
-                                alt="Avatar preview"
-                                className="w-24 h-24 rounded-full object-cover border-4 border-card dark:border-slate-800 shadow-md"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => fileInputRef.current?.click()}
-                                className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground p-2 rounded-full border-2 border-card dark:border-slate-800 hover:bg-primary/90"
-                                aria-label="Upload profile picture"
-                            >
-                                <CameraIcon className="w-5 h-5"/>
-                            </button>
-                            <input
-                                type="file"
-                                accept="image/*"
-                                ref={fileInputRef}
-                                onChange={handleFileChange}
-                                className="hidden"
-                            />
-                        </div>
-                    </div>
-                    
-                    <select
-                        value={collegeId}
-                        onChange={e => { setCollegeId(e.target.value); setDepartment(''); }}
-                        required
-                        className={selectClasses}
-                    >
-                        <option value="" disabled>Select Your College</option>
-                        {colleges.map(college => <option key={college.id} value={college.id}>{college.name}</option>)}
-                    </select>
 
-                    <div className="relative">
-                        <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
-                        <input type="text" placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} required className={inputClasses} />
-                    </div>
-                    <div className="relative">
-                         <MailIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
-                        <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required className={inputClasses} />
-                    </div>
-                    <div className="relative">
-                        <LockIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
-                        <input type="password" placeholder="Password (min. 6 characters)" value={password} onChange={e => setPassword(e.target.value)} required className={inputClasses} />
-                    </div>
-                     <div className="relative">
-                        <BuildingIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted z-10" />
-                        <select
-                            value={department}
-                            onChange={e => setDepartment(e.target.value)}
-                            required
-                            disabled={!collegeId || departmentOptions.length === 0}
-                            className={`${selectClasses} pl-10 disabled:opacity-50 disabled:cursor-not-allowed`}
-                        >
-                            <option value="" disabled>Select Department</option>
-                            {collegeId && departmentOptions.length === 0 && <option disabled>This college has no departments set up.</option>}
-                            {departmentOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                        </select>
-                    </div>
-                    
-                    <select value={tag} onChange={e => setTag(e.target.value as UserTag)} className={selectClasses}>
-                        <option value="Student">Student</option>
-                        <option value="Teacher">Teacher</option>
-                        <option value="HOD/Dean">Dean/HOD</option>
-                    </select>
+                <div className="relative z-10 p-12 text-white max-w-lg">
+                     <div className="mb-8 bg-white/10 w-16 h-16 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/20 shadow-lg">
+                        <CheckCircleIcon className="w-10 h-10 text-white" />
+                     </div>
+                    <h1 className="text-5xl font-bold mb-6 tracking-tight drop-shadow-md">Join the Community</h1>
+                    <p className="text-xl font-light text-blue-50 leading-relaxed opacity-90">
+                        Access your courses, groups, and connect with your campus. You must be invited by a teacher to join.
+                    </p>
+                </div>
+            </div>
 
-                    {tag === 'Student' && (
-                        <div>
-                            <label className="text-sm font-medium text-text-muted">Year of Study</label>
-                            <select value={yearOfStudy} onChange={e => setYearOfStudy(Number(e.target.value))} className={`mt-1 ${selectClasses}`}>
-                                {yearOptions.map(opt => <option key={opt.val} value={opt.val}>{opt.label}</option>)}
-                            </select>
+            {/* Right Side - Form */}
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-900">
+                <div className="w-full max-w-md bg-card p-8 rounded-2xl shadow-xl border border-border/50 transition-all duration-300">
+                     {step === 'completeProfile' && (
+                        <button onClick={() => setStep('verifyEmail')} className="flex items-center text-sm text-text-muted hover:text-primary mb-6 transition-colors font-medium">
+                            <ArrowLeftIcon className="w-4 h-4 mr-1.5"/>
+                            Back to verification
+                        </button>
+                    )}
+                    
+                    <div className="mb-8">
+                        <h2 className="text-3xl font-extrabold text-foreground tracking-tight">
+                            {step === 'verifyEmail' ? 'Activate Account' : 'Set Password'}
+                        </h2>
+                        <p className="mt-2 text-sm text-text-muted">
+                            {step === 'verifyEmail' 
+                                ? 'Enter your university email to find your invite.' 
+                                : 'Set a password to access your dashboard.'}
+                        </p>
+                    </div>
+
+                    {error && (
+                         <div className="mb-6 rounded-xl bg-destructive/10 p-4 animate-fade-in border border-destructive/20">
+                            <div className="flex items-start">
+                                <div className="flex-shrink-0 mt-0.5">
+                                    <svg className="h-5 w-5 text-destructive" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                                </div>
+                                <div className="ml-3">
+                                    <p className="text-sm text-destructive font-medium">{error}</p>
+                                    {error.includes('already exists') && (
+                                        <button 
+                                            type="button"
+                                            onClick={() => onNavigate('#/login')}
+                                            className="mt-2 text-sm font-bold text-destructive hover:text-destructive/80 underline"
+                                        >
+                                            Go to Login Page
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     )}
 
-                    {error && <p className="text-sm text-center text-destructive">{error}</p>}
-                    
-                    <button type="submit" className="w-full px-4 py-3 font-bold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-transform transform hover:scale-105">
-                        Sign Up
-                    </button>
-                </form>
+                    {step === 'verifyEmail' && (
+                        <form onSubmit={handleVerifyEmail} className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">Email Address</label>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <MailIcon className="h-5 w-5 text-text-muted group-focus-within:text-primary transition-colors" />
+                                    </div>
+                                    <input
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                        placeholder="your.email@university.edu"
+                                        className="appearance-none block w-full pl-10 pr-3 py-3 border border-border rounded-xl bg-input text-foreground placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 sm:text-sm"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <button type="submit" disabled={isLoading} className="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none shadow-lg shadow-primary/30">
+                                    {isLoading ? 'Checking Invite...' : 'Find Invite'}
+                                </button>
+                            </div>
+                        </form>
+                    )}
 
-                <p className="text-sm text-center text-text-muted">
-                    Already have an account?{' '}
-                    <a onClick={() => onNavigate('#/login')} className="font-medium text-primary hover:underline cursor-pointer">
-                        Log in
-                    </a>
-                </p>
+                    {step === 'completeProfile' && preRegisteredUser && (
+                        <form onSubmit={handleSignup} className="space-y-6">
+                            <div className="flex flex-col items-center">
+                                <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                                    <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-card shadow-lg ring-2 ring-border group-hover:ring-primary transition-all">
+                                        <img
+                                            src={avatarPreview || `https://ui-avatars.com/api/?name=${encodeURIComponent(preRegisteredUser.name)}&background=random`}
+                                            alt="Avatar preview"
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                    <div className="absolute bottom-1 right-1 bg-primary text-primary-foreground p-2 rounded-full shadow-md group-hover:scale-110 transition-transform">
+                                        <CameraIcon className="w-4 h-4"/>
+                                    </div>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        ref={fileInputRef}
+                                        onChange={handleFileChange}
+                                        className="hidden"
+                                    />
+                                </div>
+                                <p className="text-xs text-text-muted mt-2">Tap to add profile photo (Optional)</p>
+                            </div>
+
+                            <div className="text-center bg-muted/50 p-3 rounded-lg border border-border">
+                                <h3 className="text-lg font-bold text-foreground">{preRegisteredUser.name}</h3>
+                                <p className="text-sm text-text-muted">{preRegisteredUser.department} &bull; {preRegisteredUser.tag}</p>
+                                <p className="text-xs text-text-muted mt-1">Account status: Invited</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">Create Password</label>
+                                 <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <LockIcon className="h-5 w-5 text-text-muted group-focus-within:text-primary transition-colors" />
+                                    </div>
+                                    <input
+                                        type="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        required
+                                        placeholder="Choose a secure password (min 6 chars)"
+                                        className="appearance-none block w-full pl-10 pr-3 py-3 border border-border rounded-xl bg-input text-foreground placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 sm:text-sm"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <button type="submit" disabled={isLoading} className="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none shadow-lg shadow-primary/30">
+                                    {isLoading ? 'Activating...' : 'Activate Account'}
+                                </button>
+                            </div>
+                        </form>
+                    )}
+
+                    <div className="mt-6 pt-6 border-t border-border text-center">
+                         <p className="text-sm text-text-muted">
+                            Already activated?{' '}
+                            <a onClick={() => onNavigate('#/login')} className="font-semibold text-primary hover:text-primary/80 cursor-pointer transition-colors hover:underline">
+                                Log in
+                            </a>
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     );

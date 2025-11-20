@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { User, Post, Group, ReactionType, Story, FeedPreferences, ConfessionMood, Comment } from '../types';
 import Header from '../components/Header';
@@ -11,7 +12,7 @@ import LeftSidebar from '../components/LeftSidebar';
 import RightSidebar from '../components/RightSidebar';
 import InlineCreatePost from '../components/InlineCreatePost';
 import { auth } from '../firebase';
-import { BriefcaseIcon, CalendarIcon, CloseIcon, GhostIcon, PostIcon, PlusIcon, UsersIcon } from '../components/Icons';
+import { BriefcaseIcon, CalendarIcon, CloseIcon, GhostIcon, PostIcon, PlusIcon, UsersIcon, LockIcon } from '../components/Icons';
 
 interface HomePageProps {
   currentUser: User;
@@ -62,7 +63,8 @@ const HomePage: React.FC<HomePageProps> = (props) => {
     const mainContentRef = useRef<HTMLDivElement>(null);
 
     // Determine if the current user has posting privileges
-    const canPost = !(currentUser.tag === 'Teacher' && currentUser.isApproved === false);
+    // Read-only users cannot post
+    const canPost = currentUser.isApproved !== false;
 
     useEffect(() => {
         // Load user's sort order from local storage on component mount
@@ -165,7 +167,7 @@ const HomePage: React.FC<HomePageProps> = (props) => {
 
     // === RENDER ===
     return (
-        <div className="bg-slate-50 dark:bg-slate-900 min-h-screen">
+        <div className="bg-background min-h-screen">
             <Header 
                 currentUser={currentUser} 
                 onLogout={handleLogout} 
@@ -173,8 +175,18 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                 currentPath={props.currentPath}
             />
             
+            {/* Pending Approval Banner */}
+            {currentUser.isApproved === false && (
+                <div className="bg-amber-100 border-b border-amber-200 px-4 py-3 flex items-center justify-center text-center sticky top-16 z-30">
+                     <LockIcon className="w-5 h-5 text-amber-600 mr-2" />
+                     <span className="text-sm font-medium text-amber-800">
+                        Your account is in <b>Read-Only Mode</b> until approved by your department head. You cannot post or interact yet.
+                     </span>
+                </div>
+            )}
+            
             {showNewPostsBanner && (
-                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 animate-fade-in">
+                <div className="fixed top-24 left-1/2 -translate-x-1/2 z-40 animate-fade-in">
                     <button onClick={handleShowNewPosts} className="bg-primary text-primary-foreground font-bold py-2 px-5 rounded-full shadow-lg hover:bg-primary/90 transition-transform transform hover:scale-105">
                         New Posts Available
                     </button>
@@ -206,8 +218,8 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                             <div className="flex justify-between items-center mb-4">
                                 <h2 className="text-xl font-bold text-foreground">Feed</h2>
                                 <div className="flex items-center space-x-1">
-                                    <button onClick={() => handleSortOrderChange('forYou')} className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${sortOrder === 'forYou' ? 'bg-primary/10 text-primary' : 'text-text-muted hover:bg-muted dark:hover:bg-slate-700'}`}>For You</button>
-                                    <button onClick={() => handleSortOrderChange('latest')} className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${sortOrder === 'latest' ? 'bg-primary/10 text-primary' : 'text-text-muted hover:bg-muted dark:hover:bg-slate-700'}`}>Latest</button>
+                                    <button onClick={() => handleSortOrderChange('forYou')} className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${sortOrder === 'forYou' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}>For You</button>
+                                    <button onClick={() => handleSortOrderChange('latest')} className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${sortOrder === 'latest' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}>Latest</button>
                                 </div>
                             </div>
 

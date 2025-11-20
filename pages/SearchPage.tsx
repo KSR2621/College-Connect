@@ -27,7 +27,7 @@ interface SearchPageProps {
   onToggleSavePost: (postId: string) => void;
 }
 
-const filterTabs: { id: 'all' | 'people' | 'posts' | 'groups', label: string, icon: React.FC<React.SVGProps<SVGSVGElement>> }[] = [
+const filterTabs: { id: 'all' | 'people' | 'posts' | 'groups', label: string, icon: React.ElementType }[] = [
     { id: 'all', label: 'All', icon: SearchIcon },
     { id: 'people', label: 'People', icon: UsersIcon },
     { id: 'posts', label: 'Posts', icon: PostIcon },
