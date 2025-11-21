@@ -91,7 +91,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
             }
 
             // 2. Prepare new user data based on the invite doc
-            // IMPORTANT: Keep isApproved as false (read-only mode) until HOD approves
+            // IMPORTANT: Keep isApproved as false (read-only mode) until HOD approves. Set isRegistered to true.
             const userDataForNewDoc: Omit<User, 'id'> = {
                 ...preRegisteredUser,
                 isApproved: false, 

@@ -132,10 +132,11 @@ const App: React.FC = () => {
                             auth.signOut();
                             return;
                         }
-                        // Removed: Check for isApproved === false. Unapproved users can now log in (Read-Only).
+                        // Allow unapproved users to log in (Read-Only Mode)
                         setCurrentUser(userWithId);
                         setLoading(false);
                     } else {
+                        // User authenticated but no doc? Should not happen in normal flow unless deleted
                         auth.signOut();
                         setLoading(false);
                     }
@@ -384,15 +385,31 @@ const App: React.FC = () => {
     const handleUpdateUserRole = async (userId: string, data: any) => {
         await db.collection('users').doc(userId).update(data);
     };
-    const handleCreateUser = async (userData: Omit<User, 'id'>) => {
-        // Create the user document. For invited users, isRegistered should be false.
-        // For students/teachers added by admins, they are 'invited' first.
-        await db.collection('users').add({ 
-            ...userData, 
-            collegeId: currentUser.collegeId,
-            isRegistered: false,
-            isApproved: false 
-        });
+    const handleCreateUser = async (userData: Omit<User, 'id'>, password?: string) => {
+        // If password is provided, create Auth user immediately (Director adding HOD)
+        if (password) {
+            try {
+                const { user } = await auth.createUserWithEmailAndPassword(userData.email, password);
+                await db.collection('users').doc(user.uid).set({
+                    ...userData,
+                    collegeId: currentUser.collegeId,
+                    isRegistered: true, // Pre-registered
+                    isApproved: true,   // Director creations are automatically approved
+                });
+            } catch (e) {
+                console.error("Error creating user with password:", e);
+                throw e;
+            }
+        } else {
+            // Invited users (Students/Teachers added by Faculty/HOD)
+            // Creates a "shadow" user doc to be claimed later
+            await db.collection('users').add({ 
+                ...userData, 
+                collegeId: currentUser.collegeId,
+                isRegistered: false,
+                isApproved: false 
+            });
+        }
     };
     const handleCreateUsersBatch = async (usersData: Omit<User, 'id'>[]) => {
         const batch = db.batch();
