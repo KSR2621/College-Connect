@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo } from 'react';
 import type { User, College } from '../types';
 import { BuildingIcon, MailIcon, LockIcon, PlusIcon, UsersIcon, CheckCircleIcon, XCircleIcon } from '../components/Icons';
@@ -47,7 +45,7 @@ const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ colleges, users, onCrea
   };
   
   const pendingDirectors = useMemo(() => {
-      return Object.values(users || {}).filter(u => u.tag === 'Director' && !u.isApproved && u.isRegistered);
+      return (Object.values(users || {}) as User[]).filter(u => u.tag === 'Director' && !u.isApproved && u.isRegistered);
   }, [users]);
   
   const inputClasses = "w-full pl-10 pr-4 py-3 text-foreground bg-input dark:bg-slate-700 border border-border dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition";

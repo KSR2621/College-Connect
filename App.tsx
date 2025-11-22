@@ -340,6 +340,9 @@ const App: React.FC = () => {
     const handleCreateCourse = async (data: any) => {
         await db.collection('courses').add({ ...data, facultyId: currentUser.id, collegeId: currentUser.collegeId, students: [], pendingStudents: [], notes: [], assignments: [], attendanceRecords: [], messages: [], feedback: [] });
     };
+    const handleUpdateCourse = async (courseId: string, data: any) => {
+        await db.collection('courses').doc(courseId).update(data);
+    };
     const handleAddNote = async (cid: string, note: any) => { await db.collection('courses').doc(cid).update({ notes: FieldValue.arrayUnion({ ...note, id: Date.now().toString() }) }); };
     const handleAddAssignment = async (cid: string, ass: any) => { await db.collection('courses').doc(cid).update({ assignments: FieldValue.arrayUnion({ ...ass, id: Date.now().toString() }) }); };
     const handleTakeAttendance = async (cid: string, data: any) => { await db.collection('courses').doc(cid).update({ attendanceRecords: FieldValue.arrayUnion({ ...data, date: Date.now() }) }); };
@@ -520,6 +523,7 @@ const App: React.FC = () => {
                        currentPath={currentPath}
                        courses={courses}
                        onCreateCourse={handleCreateCourse}
+                       onUpdateCourse={handleUpdateCourse}
                        notices={notices}
                        users={users}
                        allUsers={Object.values(users)}
@@ -622,6 +626,7 @@ const App: React.FC = () => {
                 currentPath={currentPath}
                 courses={courses}
                 onCreateCourse={handleCreateCourse}
+                onUpdateCourse={handleUpdateCourse}
                 notices={notices}
                 users={users}
                 allUsers={Object.values(users)}
