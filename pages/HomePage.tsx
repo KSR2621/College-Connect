@@ -180,7 +180,13 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                 <div className="bg-amber-100 border-b border-amber-200 px-4 py-3 flex items-center justify-center text-center sticky top-16 z-30">
                      <LockIcon className="w-5 h-5 text-amber-600 mr-2" />
                      <span className="text-sm font-medium text-amber-800">
-                        Your account is in <b>Read-Only Mode</b> until approved by your department head. You cannot post or interact yet.
+                        Your account is in <b>Read-Only Mode</b> until {
+                            currentUser.tag === 'Director' 
+                                ? 'approved by the Administrator' 
+                                : currentUser.tag === 'HOD/Dean' 
+                                    ? 'approved by the Director' 
+                                    : 'approved by your department head'
+                        }. You cannot post or interact yet.
                      </span>
                 </div>
             )}

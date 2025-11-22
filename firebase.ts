@@ -6,13 +6,12 @@ declare const firebase: any;
 // The API key is loaded from an environment variable for security.
 // Assume that process.env.API_KEY is set in the build environment.
 const firebaseConfig = {
-    apiKey: "AIzaSyBVuUeutfW6yHzDL4kjV9bInRdpjMgQIHE",
-    authDomain: "campus-connect-4ee95.firebaseapp.com",
-    projectId: "campus-connect-4ee95",
-    storageBucket: "campus-connect-4ee95.firebasestorage.app",
-    messagingSenderId: "1051195816127",
-    appId: "1:1051195816127:web:598b4cc3a135765a6eee0a",
-    measurementId: "G-VWTVTQS5CS"
+     apiKey: "AIzaSyAx-inII44CzYbx1v39cwd4hcDCpjnPQYs",
+  authDomain: "open-gemini-7029y.firebaseapp.com",
+  projectId: "open-gemini-7029y",
+  storageBucket: "open-gemini-7029y.firebasestorage.app",
+  messagingSenderId: "867736048644",
+  appId: "1:867736048644:web:bab56f7a3c691b9a8dd151"
 };
 
 // Initialize Firebase

@@ -1,4 +1,10 @@
 
+
+
+
+
+
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { User, Post, Group, ReactionType, Course, Notice, UserTag, College } from '../types';
 import Header from '../components/Header';
@@ -61,23 +67,23 @@ const SimpleBarChart: React.FC<{ data: number[], labels?: string[], color?: stri
     <div className="flex items-end justify-between h-32 gap-2 pt-4 pb-6">
         {data.map((h, i) => (
             <div key={i} className="flex-1 flex flex-col justify-end h-full group relative">
-                <div className="w-full bg-slate-100 rounded-t-sm relative h-full overflow-hidden">
+                <div className="w-full bg-muted/30 rounded-t-sm relative h-full overflow-hidden">
                      <div 
                         className={`absolute bottom-0 left-0 right-0 rounded-t-sm transition-all duration-1000 ${color}`} 
-                        style={{ height: `${Math.max(h, 5)}%` }} // Min height for visibility
+                        style={{ height: `${Math.max(h || 0, 5)}%` }} // Min height for visibility, safeguard undefined
                     ></div>
                 </div>
-                 <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded pointer-events-none transition-opacity z-10 whitespace-nowrap">
+                 <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs px-2 py-1 rounded shadow-md pointer-events-none transition-opacity z-10 whitespace-nowrap border border-border">
                     {h} {labels ? `- ${labels[i]}` : ''}
                  </div>
-                 {labels && <p className="text-[10px] text-text-muted text-center mt-1 truncate w-full" title={labels[i]}>{labels[i]}</p>}
+                 {labels && <p className="text-[10px] text-muted-foreground text-center mt-1 truncate w-full" title={labels[i]}>{labels[i]}</p>}
             </div>
         ))}
     </div>
 );
 
 const SimpleLineChart: React.FC<{ data?: number[], color?: string }> = ({ data = [], color = "text-primary" }) => {
-    if (data.length < 2) return <div className="h-32 flex items-center justify-center text-text-muted text-xs">Not enough data for trend</div>;
+    if (data.length < 2) return <div className="h-32 flex items-center justify-center text-muted-foreground text-xs">Not enough data for trend</div>;
     
     const max = Math.max(...data) || 100;
     const min = 0;
@@ -96,54 +102,17 @@ const SimpleLineChart: React.FC<{ data?: number[], color?: string }> = ({ data =
                  {data.map((val, i) => {
                      const x = (i / (data.length - 1)) * 100;
                      const y = 100 - ((val - min) / (range || 1)) * 100;
-                     return <circle key={i} cx={x} cy={y} r="3" className="fill-white stroke-current" strokeWidth="2" />
+                     return <circle key={i} cx={x} cy={y} r="3" className="fill-card stroke-current" strokeWidth="2" />
                  })}
             </svg>
         </div>
     );
 }
 
-const DonutChart: React.FC<{ data: { label: string, value: number, color: string }[] }> = ({ data }) => {
-    const total = data.reduce((acc, curr) => acc + curr.value, 0);
-    
-    if (total === 0) return <div className="h-32 flex items-center justify-center text-text-muted">No data available</div>;
-
-    let currentAngle = 0;
-    const gradientParts = data.map(item => {
-        const percentage = (item.value / total) * 100;
-        const start = currentAngle;
-        currentAngle += percentage;
-        return `${item.color} ${start}% ${currentAngle}%`;
-    }).join(', ');
-
-    return (
-        <div className="flex flex-col sm:flex-row items-center gap-6 justify-center">
-            <div 
-                className="w-32 h-32 rounded-full relative flex-shrink-0"
-                style={{ background: `conic-gradient(${gradientParts})` }}
-            >
-                <div className="absolute inset-4 bg-white rounded-full flex items-center justify-center">
-                    <span className="text-xl font-bold text-text-muted">Total<br/>{total}</span>
-                </div>
-            </div>
-            <div className="space-y-2">
-                {data.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-sm">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                        <span className="text-text-muted">{item.label}:</span>
-                        <span className="font-bold">{item.value}</span>
-                        <span className="text-xs text-text-muted">({((item.value/total)*100).toFixed(0)}%)</span>
-                    </div>
-                ))}
-            </div>
-        </div>
-    )
-}
-
 const SidebarItem: React.FC<{ id: string; label: string; icon: React.ElementType; onClick: () => void; active: boolean }> = ({ id, label, icon: Icon, onClick, active }) => (
     <button 
         onClick={onClick} 
-        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${active ? 'bg-primary text-primary-foreground shadow-md' : 'text-text-muted hover:bg-white hover:text-primary'}`}
+        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${active ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
     >
         <Icon className="w-5 h-5" />
         <span className="font-medium text-sm">{label}</span>
@@ -152,13 +121,13 @@ const SidebarItem: React.FC<{ id: string; label: string; icon: React.ElementType
 );
 
 const StatCard: React.FC<{ label: string; value: number | string; icon: React.ElementType; colorClass: string; trend?: 'up' | 'down' }> = ({ label, value, icon: Icon, colorClass, trend }) => (
-    <div className="bg-white rounded-xl p-5 shadow-sm border border-border flex items-center justify-between hover:shadow-md transition-shadow">
+    <div className="bg-card rounded-xl p-5 shadow-sm border border-border flex items-center justify-between hover:shadow-md transition-shadow">
         <div>
-            <p className="text-text-muted text-xs uppercase font-bold tracking-wider">{label}</p>
+            <p className="text-muted-foreground text-xs uppercase font-bold tracking-wider">{label}</p>
             <div className="flex items-baseline gap-2 mt-1">
-                <p className="text-2xl font-extrabold text-foreground">{value}</p>
+                <p className="text-2xl font-extrabold text-card-foreground">{value}</p>
                 {trend && (
-                    <span className={`text-xs font-bold ${trend === 'up' ? 'text-emerald-600' : 'text-red-600'}`}>
+                    <span className={`text-xs font-bold ${trend === 'up' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                         {trend === 'up' ? '↑' : '↓'}
                     </span>
                 )}
@@ -171,9 +140,9 @@ const StatCard: React.FC<{ label: string; value: number | string; icon: React.El
 );
 
 const GraphCard: React.FC<{ title: string; children: React.ReactNode; onViewDetails?: () => void; className?: string }> = ({ title, children, onViewDetails, className = '' }) => (
-    <div className={`bg-white rounded-xl p-6 shadow-sm border border-border flex flex-col ${className}`}>
+    <div className={`bg-card rounded-xl p-6 shadow-sm border border-border flex flex-col ${className}`}>
         <div className="flex justify-between items-center mb-6">
-            <h3 className="font-bold text-foreground text-lg">{title}</h3>
+            <h3 className="font-bold text-card-foreground text-lg">{title}</h3>
             {onViewDetails && <button onClick={onViewDetails} className="text-xs text-primary hover:underline font-semibold">View Details</button>}
         </div>
         <div className="flex-1 w-full">{children}</div>
@@ -193,32 +162,32 @@ const DashboardHome: React.FC<{
     <div className="space-y-8 animate-fade-in">
          {/* Top Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-            <StatCard label="Total Depts" value={stats.deptCount} icon={BuildingIcon} colorClass="bg-blue-100 text-blue-600" />
-            <StatCard label="Total HODs" value={stats.hodCount} icon={UserPlusIcon} colorClass="bg-purple-100 text-purple-600" />
-            <StatCard label="Total Faculty" value={stats.facultyCount} icon={UsersIcon} colorClass="bg-emerald-100 text-emerald-600" />
-            <StatCard label="Total Students" value={stats.studentCount} icon={UsersIcon} colorClass="bg-amber-100 text-amber-600" trend="up" />
-            <StatCard label="Pending" value={stats.pendingApprovals} icon={ClockIcon} colorClass="bg-red-100 text-red-600" />
+            <StatCard label="Total Depts" value={stats.deptCount} icon={BuildingIcon} colorClass="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" />
+            <StatCard label="Total HODs" value={stats.hodCount} icon={UserPlusIcon} colorClass="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400" />
+            <StatCard label="Total Faculty" value={stats.facultyCount} icon={UsersIcon} colorClass="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" />
+            <StatCard label="Total Students" value={stats.studentCount} icon={UsersIcon} colorClass="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400" trend="up" />
+            <StatCard label="Pending" value={stats.pendingApprovals} icon={ClockIcon} colorClass="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400" />
         </div>
 
         {/* Quick Actions */}
         <div>
             <h3 className="text-lg font-bold text-foreground mb-4">Quick Actions</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <button onClick={openDeptModal} className="flex items-center justify-center p-4 bg-white border border-border rounded-xl hover:border-primary hover:shadow-sm transition-all group">
+                <button onClick={openDeptModal} className="flex items-center justify-center p-4 bg-card border border-border rounded-xl hover:border-primary hover:shadow-sm transition-all group">
                     <PlusIcon className="w-5 h-5 text-primary mr-2 group-hover:scale-110 transition-transform" />
-                    <span className="font-semibold text-foreground">Add Department</span>
+                    <span className="font-semibold text-card-foreground">Add Department</span>
                 </button>
-                <button onClick={openHodModal} className="flex items-center justify-center p-4 bg-white border border-border rounded-xl hover:border-primary hover:shadow-sm transition-all group">
+                <button onClick={openHodModal} className="flex items-center justify-center p-4 bg-card border border-border rounded-xl hover:border-primary hover:shadow-sm transition-all group">
                     <UserPlusIcon className="w-5 h-5 text-primary mr-2 group-hover:scale-110 transition-transform" />
-                    <span className="font-semibold text-foreground">Add HOD</span>
+                    <span className="font-semibold text-card-foreground">Add HOD</span>
                 </button>
-                <button onClick={() => setActiveSection('reports')} className="flex items-center justify-center p-4 bg-white border border-border rounded-xl hover:border-primary hover:shadow-sm transition-all group">
+                <button onClick={() => setActiveSection('reports')} className="flex items-center justify-center p-4 bg-card border border-border rounded-xl hover:border-primary hover:shadow-sm transition-all group">
                     <FileTextIcon className="w-5 h-5 text-primary mr-2 group-hover:scale-110 transition-transform" />
-                    <span className="font-semibold text-foreground">View Reports</span>
+                    <span className="font-semibold text-card-foreground">View Reports</span>
                 </button>
-                 <button onClick={() => setActiveSection('approvals')} className="flex items-center justify-center p-4 bg-white border border-border rounded-xl hover:border-primary hover:shadow-sm transition-all group">
+                 <button onClick={() => setActiveSection('approvals')} className="flex items-center justify-center p-4 bg-card border border-border rounded-xl hover:border-primary hover:shadow-sm transition-all group">
                     <CheckCircleIcon className="w-5 h-5 text-primary mr-2 group-hover:scale-110 transition-transform" />
-                    <span className="font-semibold text-foreground">Approvals ({stats.pendingApprovals})</span>
+                    <span className="font-semibold text-card-foreground">Approvals ({stats.pendingApprovals})</span>
                 </button>
             </div>
         </div>
@@ -234,18 +203,18 @@ const DepartmentsView: React.FC<{
     <div className="space-y-6 animate-fade-in">
         <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-foreground">Department Management</h2>
-            <button onClick={openAddModal} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2">
+            <button onClick={openAddModal} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-primary/90">
                 <PlusIcon className="w-4 h-4" /> Add Department
             </button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {departments.map(dept => (
-                 <div key={dept} className="bg-white p-5 rounded-xl shadow-sm border border-border flex flex-col group hover:shadow-md transition-all">
-                    <h4 className="font-bold text-lg text-foreground mb-1">{dept}</h4>
-                    <p className="text-xs text-text-muted uppercase tracking-wide mb-4">Department</p>
+                 <div key={dept} className="bg-card p-5 rounded-xl shadow-sm border border-border flex flex-col group hover:shadow-md transition-all">
+                    <h4 className="font-bold text-lg text-card-foreground mb-1">{dept}</h4>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-4">Department</p>
                     <div className="mt-auto pt-4 border-t border-border flex justify-end gap-2">
-                        <button onClick={() => onEdit(dept)} className="text-xs font-semibold text-primary hover:bg-primary/10 px-3 py-1.5 rounded-md">Edit</button>
-                        <button onClick={() => onDelete(dept)} className="text-xs font-semibold text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-md">Delete</button>
+                        <button onClick={() => onEdit(dept)} className="text-xs font-semibold text-primary hover:bg-primary/10 px-3 py-1.5 rounded-md transition-colors">Edit</button>
+                        <button onClick={() => onDelete(dept)} className="text-xs font-semibold text-destructive hover:bg-destructive/10 px-3 py-1.5 rounded-md transition-colors">Delete</button>
                     </div>
                  </div>
             ))}
@@ -263,7 +232,7 @@ const HodsView: React.FC<{
     <div className="space-y-6 animate-fade-in">
          <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-foreground">HOD Management</h2>
-            <button onClick={() => openAddModal()} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2">
+            <button onClick={() => openAddModal()} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-primary/90">
                 <UserPlusIcon className="w-4 h-4" /> Add HOD
             </button>
         </div>
@@ -273,27 +242,27 @@ const HodsView: React.FC<{
              {departments.map(dept => {
                  const hod = hodsMap[dept];
                  return (
-                     <div key={dept} className="bg-white p-4 rounded-xl shadow-sm border border-border">
+                     <div key={dept} className="bg-card p-4 rounded-xl shadow-sm border border-border">
                          <div className="flex justify-between items-start mb-2">
-                            <h4 className="font-bold text-lg">{dept}</h4>
-                            {!hod && <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">Vacant</span>}
+                            <h4 className="font-bold text-lg text-card-foreground">{dept}</h4>
+                            {!hod && <span className="bg-destructive/10 text-destructive text-xs font-bold px-2 py-1 rounded">Vacant</span>}
                          </div>
                          {hod ? (
                              <div>
                                  <div className="flex items-center gap-3 mb-3">
                                      <Avatar src={hod.avatarUrl} name={hod.name} size="md" />
                                      <div>
-                                         <p className="font-semibold text-sm">{hod.name}</p>
-                                         <p className="text-xs text-text-muted">{hod.email}</p>
+                                         <p className="font-semibold text-sm text-card-foreground">{hod.name}</p>
+                                         <p className="text-xs text-muted-foreground">{hod.email}</p>
                                      </div>
                                  </div>
                                  <div className="flex gap-2">
-                                     <button onClick={() => onViewDashboard(hod.id)} className="flex-1 text-xs font-semibold text-primary bg-primary/10 py-2 rounded">View Dashboard</button>
-                                     <button onClick={() => onRemove(hod.id)} className="flex-1 text-xs font-semibold text-red-600 bg-red-50 py-2 rounded">Remove</button>
+                                     <button onClick={() => onViewDashboard(hod.id)} className="flex-1 text-xs font-semibold text-primary bg-primary/10 py-2 rounded hover:bg-primary/20">View Dashboard</button>
+                                     <button onClick={() => onRemove(hod.id)} className="flex-1 text-xs font-semibold text-destructive bg-destructive/10 py-2 rounded hover:bg-destructive/20">Remove</button>
                                  </div>
                              </div>
                          ) : (
-                             <button onClick={() => openAddModal(dept)} className="w-full text-sm font-bold text-primary border border-primary rounded py-2 mt-2">Assign HOD</button>
+                             <button onClick={() => openAddModal(dept)} className="w-full text-sm font-bold text-primary border border-primary rounded py-2 mt-2 hover:bg-primary/10">Assign HOD</button>
                          )}
                      </div>
                  )
@@ -301,9 +270,9 @@ const HodsView: React.FC<{
         </div>
 
          {/* Desktop Table View */}
-         <div className="hidden md:block bg-white rounded-xl shadow-sm border border-border overflow-hidden">
+         <div className="hidden md:block bg-card rounded-xl shadow-sm border border-border overflow-hidden">
             <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 border-b border-border">
+                <thead className="bg-muted/50 border-b border-border">
                     <tr>
                         <th className="p-4 font-semibold text-foreground">Name</th>
                         <th className="p-4 font-semibold text-foreground">Department</th>
@@ -315,22 +284,22 @@ const HodsView: React.FC<{
                     {departments.map(dept => {
                         const hod = hodsMap[dept];
                         return (
-                            <tr key={dept} className="border-b border-border last:border-0 hover:bg-slate-50/50">
+                            <tr key={dept} className="border-b border-border last:border-0 hover:bg-muted/30">
                                 <td className="p-4">
                                     {hod ? (
                                         <div className="flex items-center gap-3">
                                             <Avatar src={hod.avatarUrl} name={hod.name} size="sm" />
-                                            <span className="font-medium">{hod.name}</span>
+                                            <span className="font-medium text-card-foreground">{hod.name}</span>
                                         </div>
-                                    ) : <span className="text-text-muted italic">Vacant</span>}
+                                    ) : <span className="text-muted-foreground italic">Vacant</span>}
                                 </td>
-                                <td className="p-4 font-medium text-foreground">{dept}</td>
-                                <td className="p-4 text-text-muted">{hod?.email || '-'}</td>
+                                <td className="p-4 font-medium text-card-foreground">{dept}</td>
+                                <td className="p-4 text-muted-foreground">{hod?.email || '-'}</td>
                                 <td className="p-4 text-right">
                                     {hod ? (
                                         <div className="flex justify-end gap-2">
-                                            <button onClick={() => onViewDashboard(hod.id)} className="text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded hover:bg-primary/20">View Dashboard</button>
-                                            <button onClick={() => onRemove(hod.id)} className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded hover:bg-red-100">Remove</button>
+                                            <button onClick={() => onViewDashboard(hod.id)} className="text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded hover:bg-primary/20 transition-colors">View Dashboard</button>
+                                            <button onClick={() => onRemove(hod.id)} className="text-xs font-semibold text-destructive bg-destructive/10 px-2 py-1 rounded hover:bg-destructive/20 transition-colors">Remove</button>
                                         </div>
                                     ) : (
                                         <button onClick={() => openAddModal(dept)} className="text-xs font-bold text-primary hover:underline">Assign</button>
@@ -357,13 +326,13 @@ const FacultyView: React.FC<{
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h2 className="text-2xl font-bold text-foreground">Faculty & Staff Overview</h2>
                 <div className="relative w-full sm:w-auto">
-                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input 
                         type="text" 
                         placeholder="Search faculty..." 
                         value={search} 
                         onChange={(e) => setSearch(e.target.value)} 
-                        className="w-full sm:w-64 pl-10 pr-4 py-2 bg-white border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full sm:w-64 pl-10 pr-4 py-2 bg-input border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                     />
                 </div>
             </div>
@@ -371,17 +340,17 @@ const FacultyView: React.FC<{
             {filtered.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filtered.map(faculty => (
-                        <div key={faculty.id} className="flex items-center justify-between p-4 rounded-xl bg-white border border-border hover:shadow-sm transition-all">
+                        <div key={faculty.id} className="flex items-center justify-between p-4 rounded-xl bg-card border border-border hover:shadow-sm transition-all">
                             <div className="flex items-center space-x-3 overflow-hidden">
                                 <Avatar src={faculty.avatarUrl} name={faculty.name} size="md" />
                                 <div className="min-w-0">
-                                    <p className="font-semibold text-foreground truncate">{faculty.name}</p>
-                                    <p className="text-xs text-text-muted truncate">{faculty.department}</p>
+                                    <p className="font-semibold text-card-foreground truncate">{faculty.name}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{faculty.department}</p>
                                 </div>
                             </div>
                             <button 
                                 onClick={() => onViewDashboard(faculty.id)} 
-                                className="ml-2 px-3 py-1.5 text-xs font-bold text-primary bg-primary/5 border border-primary/10 rounded-md hover:bg-primary/10 transition-all"
+                                className="ml-2 px-3 py-1.5 text-xs font-bold text-primary bg-primary/10 border border-primary/10 rounded-md hover:bg-primary/20 transition-all"
                             >
                                 View
                             </button>
@@ -389,7 +358,7 @@ const FacultyView: React.FC<{
                     ))}
                 </div>
             ) : (
-                <p className="text-center text-text-muted p-8">No faculty members found.</p>
+                <p className="text-center text-muted-foreground p-8">No faculty members found.</p>
             )}
         </div>
     );
@@ -412,13 +381,13 @@ const StudentsView: React.FC<{
              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h2 className="text-2xl font-bold text-foreground">Students Overview</h2>
                 <div className="relative w-full sm:w-auto">
-                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input 
                         type="text" 
                         placeholder="Search students..." 
                         value={search} 
                         onChange={(e) => setSearch(e.target.value)} 
-                        className="w-full sm:w-64 pl-10 pr-4 py-2 bg-white border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full sm:w-64 pl-10 pr-4 py-2 bg-input border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                     />
                 </div>
             </div>
@@ -426,30 +395,30 @@ const StudentsView: React.FC<{
             {/* Mobile Card View */}
              <div className="md:hidden space-y-3">
                  {students.length > 0 ? students.map(student => (
-                     <div key={student.id} className="bg-white p-4 rounded-xl shadow-sm border border-border">
+                     <div key={student.id} className="bg-card p-4 rounded-xl shadow-sm border border-border">
                          <div className="flex justify-between items-start mb-2">
                              <div className="flex items-center gap-3">
                                  <Avatar src={student.avatarUrl} name={student.name} size="md" />
                                  <div>
-                                     <p className="font-bold text-sm text-foreground">{student.name}</p>
-                                     <p className="text-xs text-text-muted">{student.email}</p>
+                                     <p className="font-bold text-sm text-card-foreground">{student.name}</p>
+                                     <p className="text-xs text-muted-foreground">{student.email}</p>
                                  </div>
                              </div>
-                             <span className="text-xs font-semibold bg-slate-100 px-2 py-1 rounded text-slate-600">Year {student.yearOfStudy}</span>
+                             <span className="text-xs font-semibold bg-muted px-2 py-1 rounded text-muted-foreground">Year {student.yearOfStudy}</span>
                          </div>
                          <div className="flex justify-between items-end mt-2">
-                             <p className="text-xs font-medium text-primary bg-primary/5 px-2 py-1 rounded">{student.department}</p>
-                             <button onClick={() => { if(window.confirm(`Delete student ${student.name}?`)) onDeleteUser(student.id); }} className="text-xs font-semibold text-red-600 bg-red-50 px-3 py-1.5 rounded">Remove</button>
+                             <p className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded">{student.department}</p>
+                             <button onClick={() => { if(window.confirm(`Delete student ${student.name}?`)) onDeleteUser(student.id); }} className="text-xs font-semibold text-destructive bg-destructive/10 px-3 py-1.5 rounded hover:bg-destructive/20">Remove</button>
                          </div>
                      </div>
-                 )) : <p className="text-center text-text-muted py-4">No students found.</p>}
+                 )) : <p className="text-center text-muted-foreground py-4">No students found.</p>}
              </div>
 
             {/* Desktop Table View */}
-            <div className="hidden md:block bg-white rounded-xl shadow-sm border border-border overflow-hidden">
+            <div className="hidden md:block bg-card rounded-xl shadow-sm border border-border overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-50 border-b border-border">
+                        <thead className="bg-muted/50 border-b border-border">
                             <tr>
                                 <th className="p-4 font-semibold text-foreground">Name</th>
                                 <th className="p-4 font-semibold text-foreground">Email</th>
@@ -460,22 +429,22 @@ const StudentsView: React.FC<{
                         </thead>
                         <tbody>
                             {students.length > 0 ? students.map(student => (
-                                <tr key={student.id} className="border-b border-border last:border-0 hover:bg-slate-50/50">
+                                <tr key={student.id} className="border-b border-border last:border-0 hover:bg-muted/30">
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
                                             <Avatar src={student.avatarUrl} name={student.name} size="sm" />
-                                            <span className="font-medium">{student.name}</span>
+                                            <span className="font-medium text-card-foreground">{student.name}</span>
                                         </div>
                                     </td>
-                                    <td className="p-4 text-text-muted">{student.email}</td>
-                                    <td className="p-4 text-text-muted">{student.department}</td>
-                                    <td className="p-4 text-text-muted">{student.yearOfStudy}</td>
+                                    <td className="p-4 text-muted-foreground">{student.email}</td>
+                                    <td className="p-4 text-muted-foreground">{student.department}</td>
+                                    <td className="p-4 text-muted-foreground">{student.yearOfStudy}</td>
                                     <td className="p-4 text-right">
-                                        <button onClick={() => { if(window.confirm(`Delete student ${student.name}?`)) onDeleteUser(student.id); }} className="text-xs font-semibold text-red-600 bg-red-50 px-3 py-1 rounded hover:bg-red-100">Remove</button>
+                                        <button onClick={() => { if(window.confirm(`Delete student ${student.name}?`)) onDeleteUser(student.id); }} className="text-xs font-semibold text-destructive bg-destructive/10 px-3 py-1 rounded hover:bg-destructive/20 transition-colors">Remove</button>
                                     </td>
                                 </tr>
                             )) : (
-                                <tr><td colSpan={5} className="p-8 text-center text-text-muted">No students found.</td></tr>
+                                <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No students found.</td></tr>
                             )}
                         </tbody>
                     </table>
@@ -499,39 +468,39 @@ const ApprovalsView: React.FC<{
             {pendingUsers.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {pendingUsers.map(user => (
-                        <div key={user.id} className="bg-white p-4 rounded-xl shadow-sm border border-border flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div key={user.id} className="bg-card p-4 rounded-xl shadow-sm border border-border flex flex-col sm:flex-row justify-between items-center gap-4">
                             <div className="flex items-center space-x-3 w-full">
                                 <Avatar src={user.avatarUrl} name={user.name} size="md" />
                                 <div>
-                                    <p className="font-bold text-foreground">{user.name}</p>
-                                    <p className="text-sm text-text-muted">{user.department} &bull; {user.tag}</p>
-                                    <p className="text-xs text-text-muted">{user.email}</p>
+                                    <p className="font-bold text-card-foreground">{user.name}</p>
+                                    <p className="text-sm text-muted-foreground">{user.department} &bull; {user.tag}</p>
+                                    <p className="text-xs text-muted-foreground">{user.email}</p>
                                 </div>
                             </div>
                             <div className="flex gap-2 flex-shrink-0 w-full sm:w-auto">
                                 <button 
-                                    onClick={() => onApprove(user.id, user.tag === 'HOD/Dean' ? 'hod' : 'teacher')} 
-                                    className="flex-1 sm:flex-none bg-emerald-500 text-white font-semibold py-2 px-4 rounded-lg text-sm hover:bg-emerald-600 shadow-sm flex items-center justify-center gap-1"
+                                    onClick={(e) => { e.stopPropagation(); onApprove(user.id, user.tag === 'HOD/Dean' ? 'hod' : 'teacher'); }}
+                                    className="flex-1 sm:flex-none bg-emerald-500 text-white font-semibold py-2 px-4 rounded-lg text-sm hover:bg-emerald-600 shadow-sm flex items-center justify-center gap-1 transition-colors"
                                 >
                                     <CheckCircleIcon className="w-4 h-4" /> Approve
                                 </button>
                                 <button 
-                                    onClick={() => onDecline(user.id, user.tag === 'HOD/Dean' ? 'hod' : 'teacher')} 
-                                    className="flex-1 sm:flex-none bg-red-500 text-white font-semibold py-2 px-4 rounded-lg text-sm hover:bg-red-600 shadow-sm flex items-center justify-center gap-1"
+                                    onClick={(e) => { e.stopPropagation(); if(window.confirm('Reject this request?')) onDecline(user.id, user.tag === 'HOD/Dean' ? 'hod' : 'teacher'); }}
+                                    className="flex-1 sm:flex-none bg-destructive text-destructive-foreground font-semibold py-2 px-4 rounded-lg text-sm hover:bg-destructive/90 shadow-sm flex items-center justify-center gap-1 transition-colors"
                                 >
-                                    <XCircleIcon className="w-4 h-4" /> Decline
+                                    <XCircleIcon className="w-4 h-4" /> Reject
                                 </button>
                             </div>
                         </div>
                     ))}
                 </div>
             ) : (
-                 <div className="flex flex-col items-center justify-center h-64 text-center bg-white rounded-xl border border-border">
-                    <div className="bg-emerald-100 p-4 rounded-full mb-3">
-                        <CheckCircleIcon className="w-8 h-8 text-emerald-600" />
+                 <div className="flex flex-col items-center justify-center h-64 text-center bg-card rounded-xl border border-border">
+                    <div className="bg-emerald-100 dark:bg-emerald-900/30 p-4 rounded-full mb-3">
+                        <CheckCircleIcon className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
                     </div>
                     <h3 className="text-lg font-bold text-foreground">All Caught Up!</h3>
-                    <p className="text-text-muted">There are no pending requests at the moment.</p>
+                    <p className="text-muted-foreground">There are no pending requests at the moment.</p>
                 </div>
             )}
         </div>
@@ -665,27 +634,27 @@ const AnalyticsDashboard: React.FC<{
                          <p className="text-blue-100 text-xs font-bold uppercase">Total Students</p>
                          <p className="text-3xl font-extrabold mt-1">{totalStudents}</p>
                     </div>
-                    <div className="col-span-1 sm:col-span-2 bg-white rounded-xl p-4 border border-border shadow-sm">
-                         <p className="text-text-muted text-xs font-bold uppercase">Total Faculty</p>
+                    <div className="col-span-1 sm:col-span-2 bg-card rounded-xl p-4 border border-border shadow-sm">
+                         <p className="text-muted-foreground text-xs font-bold uppercase">Total Faculty</p>
                          <p className="text-3xl font-extrabold text-foreground mt-1">{totalFaculty}</p>
                     </div>
-                    <div className="col-span-1 sm:col-span-2 bg-white rounded-xl p-4 border border-border shadow-sm">
-                         <p className="text-text-muted text-xs font-bold uppercase">Departments</p>
+                    <div className="col-span-1 sm:col-span-2 bg-card rounded-xl p-4 border border-border shadow-sm">
+                         <p className="text-muted-foreground text-xs font-bold uppercase">Departments</p>
                          <p className="text-3xl font-extrabold text-foreground mt-1">{departments.length}</p>
                     </div>
-                    <div className="col-span-1 sm:col-span-2 bg-white rounded-xl p-4 border border-border shadow-sm">
-                         <p className="text-text-muted text-xs font-bold uppercase">Avg Attendance</p>
+                    <div className="col-span-1 sm:col-span-2 bg-card rounded-xl p-4 border border-border shadow-sm">
+                         <p className="text-muted-foreground text-xs font-bold uppercase">Avg Attendance</p>
                          <div className="flex items-baseline gap-1 mt-1">
                             <p className={`text-3xl font-extrabold ${avgAttendance >= 75 ? 'text-emerald-600' : 'text-amber-500'}`}>{avgAttendance}%</p>
                          </div>
                     </div>
-                     <div className="col-span-1 sm:col-span-2 bg-white rounded-xl p-4 border border-border shadow-sm">
-                         <p className="text-text-muted text-xs font-bold uppercase">Pending Staff</p>
+                     <div className="col-span-1 sm:col-span-2 bg-card rounded-xl p-4 border border-border shadow-sm">
+                         <p className="text-muted-foreground text-xs font-bold uppercase">Pending Staff</p>
                          <p className="text-3xl font-extrabold text-amber-500 mt-1">{pendingApprovals}</p>
                     </div>
-                     <div className="col-span-1 sm:col-span-2 bg-red-50 rounded-xl p-4 border border-red-100 shadow-sm">
-                         <p className="text-red-600 text-xs font-bold uppercase">At Risk (Att &lt; 60%)</p>
-                         <p className="text-3xl font-extrabold text-red-600 mt-1">{riskCount}</p>
+                     <div className="col-span-1 sm:col-span-2 bg-destructive/10 rounded-xl p-4 border border-destructive/20 shadow-sm">
+                         <p className="text-destructive text-xs font-bold uppercase">At Risk (Att &lt; 60%)</p>
+                         <p className="text-3xl font-extrabold text-destructive mt-1">{riskCount}</p>
                     </div>
                 </div>
             </div>
@@ -697,7 +666,7 @@ const AnalyticsDashboard: React.FC<{
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`pb-2 text-sm font-medium transition-colors relative ${activeTab === tab.id ? 'text-primary' : 'text-text-muted hover:text-foreground'}`}
+                            className={`pb-2 text-sm font-medium transition-colors relative ${activeTab === tab.id ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                         >
                             {tab.label}
                             {activeTab === tab.id && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-md"></span>}
@@ -719,19 +688,19 @@ const AnalyticsDashboard: React.FC<{
                              {atRiskStudents.length > 0 ? (
                                  <div className="space-y-3">
                                     {atRiskStudents.map((s, i) => (
-                                        <div key={i} className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100">
+                                        <div key={i} className="flex items-center justify-between p-3 bg-destructive/10 rounded-lg border border-destructive/20">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 bg-red-200 rounded-full flex items-center justify-center text-red-700 font-bold text-xs">{i+1}</div>
+                                                <div className="w-8 h-8 bg-destructive/20 rounded-full flex items-center justify-center text-destructive font-bold text-xs">{i+1}</div>
                                                 <div>
                                                     <p className="font-bold text-foreground text-sm">{s.name}</p>
-                                                    <p className="text-xs text-text-muted">{s.dept}</p>
+                                                    <p className="text-xs text-muted-foreground">{s.dept}</p>
                                                 </div>
                                             </div>
-                                            <span className="font-bold text-red-600">{s.percentage}%</span>
+                                            <span className="font-bold text-destructive">{s.percentage}%</span>
                                         </div>
                                     ))}
                                  </div>
-                             ) : <p className="text-center text-text-muted py-4">No students currently flagged at critical risk.</p>}
+                             ) : <p className="text-center text-muted-foreground py-4">No students currently flagged at critical risk.</p>}
                         </GraphCard>
                     </div>
                 )}
@@ -751,16 +720,16 @@ const AnalyticsDashboard: React.FC<{
                                     return (
                                         <div key={i}>
                                             <div className="flex justify-between text-sm mb-1">
-                                                <span>{d.label}</span>
+                                                <span className="text-foreground">{d.label}</span>
                                                 <span className="font-bold text-primary">{totalAssignments} Assignments</span>
                                             </div>
-                                            <div className="w-full bg-slate-100 rounded-full h-2">
+                                            <div className="w-full bg-muted/30 rounded-full h-2">
                                                 <div className="bg-primary h-2 rounded-full" style={{ width: `${Math.min((totalAssignments / 20) * 100, 100)}%` }}></div>
                                             </div>
                                         </div>
                                     )
                                 })}
-                                {allCourses.every(c => !c.assignments || c.assignments.length === 0) && <p className="text-center text-text-muted">No assignments created yet.</p>}
+                                {allCourses.every(c => !c.assignments || c.assignments.length === 0) && <p className="text-center text-muted-foreground">No assignments created yet.</p>}
                              </div>
                          </GraphCard>
                     </div>
@@ -771,12 +740,10 @@ const AnalyticsDashboard: React.FC<{
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <GraphCard title="Student Distribution by Year">
                              <div className="flex justify-center py-6">
-                                 <DonutChart data={[
-                                     { label: '1st Year', value: allUsers.filter(u => u.tag === 'Student' && u.yearOfStudy === 1).length, color: '#60A5FA' },
-                                     { label: '2nd Year', value: allUsers.filter(u => u.tag === 'Student' && u.yearOfStudy === 2).length, color: '#34D399' },
-                                     { label: '3rd Year', value: allUsers.filter(u => u.tag === 'Student' && u.yearOfStudy === 3).length, color: '#FBBF24' },
-                                     { label: '4th Year', value: allUsers.filter(u => u.tag === 'Student' && u.yearOfStudy === 4).length, color: '#F87171' },
-                                 ]} />
+                                 <div className="relative w-32 h-32 rounded-full bg-muted/20 flex items-center justify-center border border-border">
+                                     {/* Placeholder for donut chart visualization */}
+                                     <span className="text-xs font-bold text-muted-foreground">No Data</span>
+                                 </div>
                              </div>
                         </GraphCard>
                         <GraphCard title="Department Wise Student Strength">
@@ -784,10 +751,10 @@ const AnalyticsDashboard: React.FC<{
                                  {deptStats.map((d, i) => (
                                      <div key={d.label}>
                                          <div className="flex justify-between text-sm mb-1">
-                                             <span className="font-medium">{d.label}</span>
-                                             <span className="text-text-muted">{d.students} Students</span>
+                                             <span className="font-medium text-foreground">{d.label}</span>
+                                             <span className="text-muted-foreground">{d.students} Students</span>
                                          </div>
-                                         <div className="w-full bg-slate-100 rounded-full h-2">
+                                         <div className="w-full bg-muted/30 rounded-full h-2">
                                              <div className="bg-primary h-2 rounded-full" style={{ width: `${(d.students / (Math.max(...deptStats.map(x=>x.students)) || 1)) * 100}%` }}></div>
                                          </div>
                                      </div>
@@ -804,15 +771,15 @@ const AnalyticsDashboard: React.FC<{
                              <div className="space-y-4">
                                  {facultyLoad.length > 0 ? facultyLoad.map((f, i) => (
                                      <div key={i} className="flex items-center gap-4">
-                                         <div className="w-48 text-sm font-semibold text-foreground truncate">{f.name} <span className="text-xs text-text-muted font-normal">({f.department})</span></div>
+                                         <div className="w-48 text-sm font-semibold text-foreground truncate">{f.name} <span className="text-xs text-muted-foreground font-normal">({f.department})</span></div>
                                          <div className="flex-1">
-                                             <div className="w-full bg-slate-100 rounded-full h-3">
+                                             <div className="w-full bg-muted/30 rounded-full h-3">
                                                  <div className="bg-blue-500 h-3 rounded-full" style={{ width: `${Math.min(f.courses * 20, 100)}%` }}></div>
                                              </div>
                                          </div>
-                                         <div className="w-16 text-right text-xs text-text-muted">{f.courses} Courses</div>
+                                         <div className="w-16 text-right text-xs text-muted-foreground">{f.courses} Courses</div>
                                      </div>
-                                 )) : <p className="text-center text-text-muted">No faculty assigned to courses yet.</p>}
+                                 )) : <p className="text-center text-muted-foreground">No faculty assigned to courses yet.</p>}
                              </div>
                         </GraphCard>
                         
@@ -827,13 +794,13 @@ const AnalyticsDashboard: React.FC<{
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <GraphCard title="Pending Approvals">
                              <div className="space-y-3">
-                                 <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
-                                     <span>Teacher Approvals</span>
-                                     <span className="font-bold bg-amber-100 text-amber-700 px-2 rounded">{allUsers.filter(u => u.tag === 'Teacher' && !u.isApproved && u.isRegistered).length}</span>
+                                 <div className="flex justify-between p-3 bg-muted/20 rounded-lg">
+                                     <span className="text-foreground">Teacher Approvals</span>
+                                     <span className="font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 rounded">{allUsers.filter(u => u.tag === 'Teacher' && !u.isApproved && u.isRegistered).length}</span>
                                  </div>
-                                  <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
-                                     <span>HOD Approvals</span>
-                                     <span className="font-bold bg-purple-100 text-purple-700 px-2 rounded">{allUsers.filter(u => u.tag === 'HOD/Dean' && !u.isApproved && u.isRegistered).length}</span>
+                                  <div className="flex justify-between p-3 bg-muted/20 rounded-lg">
+                                     <span className="text-foreground">HOD Approvals</span>
+                                     <span className="font-bold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 rounded">{allUsers.filter(u => u.tag === 'HOD/Dean' && !u.isApproved && u.isRegistered).length}</span>
                                  </div>
                              </div>
                         </GraphCard>
@@ -844,21 +811,21 @@ const AnalyticsDashboard: React.FC<{
                 {activeTab === 'alerts' && (
                      <div className="space-y-4">
                         {riskCount > 0 ? (
-                             <div className="bg-red-50 border border-red-200 p-4 rounded-lg flex items-start gap-3">
-                                 <XCircleIcon className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5"/>
+                             <div className="bg-destructive/10 border border-destructive/20 p-4 rounded-lg flex items-start gap-3">
+                                 <XCircleIcon className="w-6 h-6 text-destructive flex-shrink-0 mt-0.5"/>
                                  <div>
-                                     <h4 className="font-bold text-red-700">Critical Attendance Alert</h4>
-                                     <p className="text-sm text-red-600 mt-1">{riskCount} Students have attendance below 60%.</p>
+                                     <h4 className="font-bold text-destructive">Critical Attendance Alert</h4>
+                                     <p className="text-sm text-destructive mt-1">{riskCount} Students have attendance below 60%.</p>
                                  </div>
                              </div>
-                        ) : <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-lg flex items-center gap-3 text-emerald-700 font-bold"><CheckCircleIcon className="w-6 h-6"/> No critical attendance risks found.</div>}
+                        ) : <div className="bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 p-4 rounded-lg flex items-center gap-3 text-emerald-700 dark:text-emerald-400 font-bold"><CheckCircleIcon className="w-6 h-6"/> No critical attendance risks found.</div>}
                         
                         {facultyLoad.some(f => f.courses > 5) && (
-                             <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex items-start gap-3">
-                                 <ClockIcon className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5"/>
+                             <div className="bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 p-4 rounded-lg flex items-start gap-3">
+                                 <ClockIcon className="w-6 h-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5"/>
                                  <div>
-                                     <h4 className="font-bold text-amber-700">High Faculty Workload</h4>
-                                     <p className="text-sm text-amber-600 mt-1">{facultyLoad.filter(f => f.courses > 5).length} Faculty members are assigned more than 5 courses.</p>
+                                     <h4 className="font-bold text-amber-700 dark:text-amber-400">High Faculty Workload</h4>
+                                     <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">{facultyLoad.filter(f => f.courses > 5).length} Faculty members are assigned more than 5 courses.</p>
                                  </div>
                              </div>
                         )}
@@ -902,13 +869,13 @@ const DirectorSetupView: React.FC<{
     };
 
     return (
-        <div className="bg-slate-100 dark:bg-slate-900 min-h-screen">
+        <div className="bg-background min-h-screen">
              <main className="container mx-auto px-4 pt-8 pb-20 md:pb-8 flex items-center justify-center h-[calc(100vh-64px)]">
-                 <div className="w-full max-w-2xl bg-card dark:bg-slate-800 p-8 rounded-lg shadow-xl border border-border dark:border-slate-700">
+                 <div className="w-full max-w-2xl bg-card p-8 rounded-lg shadow-xl border border-border">
                      <div className="text-center">
                          <BuildingIcon className="w-16 h-16 mx-auto text-primary mb-4"/>
                          <h1 className="text-3xl font-bold text-foreground">Welcome, Director!</h1>
-                         <p className="text-text-muted mt-2">Let's set up your college, <span className="font-semibold">{college.name}</span>. Please add the departments available at your institution to get started.</p>
+                         <p className="text-muted-foreground mt-2">Let's set up your college, <span className="font-semibold">{college.name}</span>. Please add the departments available at your institution to get started.</p>
                      </div>
 
                      <div className="mt-8">
@@ -918,20 +885,20 @@ const DirectorSetupView: React.FC<{
                                 value={newDept}
                                 onChange={e => setNewDept(e.target.value)}
                                 placeholder="e.g., Computer Science"
-                                className="flex-1 px-4 py-2 text-foreground bg-input dark:bg-slate-700 border border-border dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                className="flex-1 px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addDepartment(); } }}
                             />
                             <button onClick={addDepartment} className="px-4 py-2 font-bold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90">Add</button>
                         </div>
                      </div>
 
-                    <div className="mt-4 space-y-2 max-h-48 overflow-y-auto no-scrollbar p-2 bg-slate-50 dark:bg-slate-900/50 rounded-md">
+                    <div className="mt-4 space-y-2 max-h-48 overflow-y-auto no-scrollbar p-2 bg-muted/20 rounded-md">
                         {departments.length > 0 ? departments.map(dept => (
-                            <div key={dept} className="flex justify-between items-center bg-white dark:bg-slate-800 p-2 rounded-md">
-                                <span className="font-medium">{dept}</span>
-                                <button onClick={() => removeDepartment(dept)} className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="w-4 h-4"/></button>
+                            <div key={dept} className="flex justify-between items-center bg-card p-2 rounded-md border border-border">
+                                <span className="font-medium text-foreground">{dept}</span>
+                                <button onClick={() => removeDepartment(dept)} className="p-1 text-destructive hover:bg-destructive/10 rounded-full"><TrashIcon className="w-4 h-4"/></button>
                             </div>
-                        )) : <p className="text-center text-sm text-text-muted p-4">No departments added yet.</p>}
+                        )) : <p className="text-center text-sm text-muted-foreground p-4">No departments added yet.</p>}
                     </div>
 
                     <div className="mt-8">
@@ -979,21 +946,21 @@ const ManageDepartmentsModal: React.FC<{
     };
 
     return (
-         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose}>
-            <div className="bg-card dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-lg" onClick={e => e.stopPropagation()}>
+         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center p-4" onClick={onClose}>
+            <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-lg border border-border" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-2xl font-bold text-foreground">Manage Departments</h2>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg-muted dark:hover:bg-slate-700"><CloseIcon className="w-5 h-5"/></button>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-muted text-muted-foreground"><CloseIcon className="w-5 h-5"/></button>
                 </div>
                 <div className="flex gap-2 mb-4">
-                    <input type="text" value={newDept} onChange={e => setNewDept(e.target.value)} placeholder="Add new department" className="flex-1 px-4 py-2 text-foreground bg-input dark:bg-slate-700 border border-border dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addDepartment(); } }} />
+                    <input type="text" value={newDept} onChange={e => setNewDept(e.target.value)} placeholder="Add new department" className="flex-1 px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addDepartment(); } }} />
                     <button onClick={addDepartment} className="px-4 py-2 font-bold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90">Add</button>
                 </div>
-                <div className="space-y-2 max-h-60 overflow-y-auto no-scrollbar p-2 bg-slate-50 dark:bg-slate-900/50 rounded-md">
+                <div className="space-y-2 max-h-60 overflow-y-auto no-scrollbar p-2 bg-muted/20 rounded-md">
                      {departments.map(dept => (
-                        <div key={dept} className="flex justify-between items-center bg-white dark:bg-slate-800 p-2 rounded-md">
-                            <span className="font-medium">{dept}</span>
-                            <button onClick={() => removeDepartment(dept)} className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><TrashIcon className="w-4 h-4"/></button>
+                        <div key={dept} className="flex justify-between items-center bg-card p-2 rounded-md border border-border">
+                            <span className="font-medium text-foreground">{dept}</span>
+                            <button onClick={() => removeDepartment(dept)} className="p-1 text-destructive hover:bg-destructive/10 rounded-full"><TrashIcon className="w-4 h-4"/></button>
                         </div>
                     ))}
                 </div>
@@ -1031,17 +998,17 @@ const EditDepartmentModal: React.FC<{
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose}>
-            <div className="bg-card dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center p-4" onClick={onClose}>
+            <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-md border border-border" onClick={e => e.stopPropagation()}>
                 <h3 className="text-xl font-bold text-foreground mb-4">Edit Department</h3>
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-text-muted mb-1">Department Name</label>
+                        <label className="block text-sm font-medium text-muted-foreground mb-1">Department Name</label>
                         <input 
                             type="text" 
                             value={newName} 
                             onChange={e => setNewName(e.target.value)} 
-                            className="w-full px-4 py-2 text-foreground bg-input dark:bg-slate-700 border border-border dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            className="w-full px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                             required
                         />
                     </div>
@@ -1060,14 +1027,12 @@ const CreateHodModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
     college: College;
-    onCreateUser: (userData: Omit<User, 'id'>, password?: string) => Promise<void>;
+    onCreateUser: (userData: Omit<User, 'id'>) => Promise<void>;
     defaultDepartment?: string;
 }> = ({ isOpen, onClose, college, onCreateUser, defaultDepartment }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [department, setDepartment] = useState(defaultDepartment || '');
-    const [generatedPassword, setGeneratedPassword] = useState('');
-    const [isSuccess, setIsSuccess] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
@@ -1075,97 +1040,60 @@ const CreateHodModal: React.FC<{
             setName('');
             setEmail('');
             setDepartment(defaultDepartment || (college.departments ? college.departments[0] : ''));
-            setGeneratedPassword('');
-            setIsSuccess(false);
             setIsLoading(false);
         }
     }, [isOpen, college.departments, defaultDepartment]);
 
     if (!isOpen) return null;
 
-    const generatePassword = () => {
-        const password = Math.random().toString(36).slice(-8);
-        setGeneratedPassword(password);
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!generatedPassword) {
-            alert("Please generate a password first.");
-            return;
-        }
         setIsLoading(true);
         const userData: Omit<User, 'id'> = {
             name,
             email,
             department,
             tag: 'HOD/Dean',
-            isApproved: true,
-            isRegistered: true, // Admin created accounts are pre-registered
+            isApproved: false, // Requires director to approve after signup (or implicit approval logic if we change it)
+            isRegistered: false, // Invite flow
         };
         try {
-            await onCreateUser(userData, generatedPassword);
-            setIsSuccess(true);
+            // Pass without password to trigger invite logic in App.tsx
+            await onCreateUser(userData);
+            alert(`Invitation sent to ${email}. They need to sign up to activate their account.`);
+            onClose();
         } catch (error) {
-            console.error("Failed to create HOD", error);
+            console.error("Failed to invite HOD", error);
             alert((error as Error).message);
         } finally {
             setIsLoading(false);
         }
     };
     
-    const copyToClipboard = () => {
-        const credentials = `Email: ${email}\nPassword: ${generatedPassword}`;
-        navigator.clipboard.writeText(credentials).then(() => {
-            alert("Credentials copied to clipboard!");
-        });
-    };
-
-    if (isSuccess) {
-        return (
-             <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose}>
-                <div className="bg-card dark:bg-slate-800 rounded-lg shadow-xl p-8 w-full max-w-md text-center" onClick={e => e.stopPropagation()}>
-                    <h2 className="text-2xl font-bold text-foreground mb-4">Account Created!</h2>
-                    <p className="text-text-muted mb-6">The account for {name} has been created. Please share these credentials securely with them.</p>
-                    <div className="bg-slate-100 dark:bg-slate-700 p-4 rounded-lg text-left space-y-2 mb-6 text-foreground">
-                        <p><span className="font-semibold">Email:</span> {email}</p>
-                        <p><span className="font-semibold">Password:</span> {generatedPassword}</p>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-4">
-                         <button onClick={copyToClipboard} className="w-full px-4 py-3 font-bold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90">Copy Credentials</button>
-                    </div>
-                     <button onClick={onClose} className="w-full mt-4 px-4 py-3 font-semibold text-text-muted hover:bg-muted/80">Done</button>
-                </div>
-            </div>
-        );
-    }
-    
-    const inputClasses = "w-full pl-10 pr-4 py-3 text-foreground bg-input dark:bg-slate-700 border border-border dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition";
+    const inputClasses = "w-full pl-10 pr-4 py-3 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition";
 
     return (
-         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose}>
-            <div className="bg-card dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
-                <h2 className="text-2xl font-bold text-foreground mb-4">Appoint New HOD/Dean</h2>
+         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center p-4" onClick={onClose}>
+            <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-md border border-border" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl font-bold text-foreground">Appoint New HOD/Dean</h2>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-muted text-muted-foreground"><CloseIcon className="w-5 h-5"/></button>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">This will create an invite for the HOD. They will need to sign up with this email address to access the dashboard.</p>
                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="relative"><UserPlusIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" /><input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Full Name" required className={inputClasses} /></div>
-                    <div className="relative"><MailIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" /><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email Address" required className={inputClasses} /></div>
+                    <div className="relative"><UserPlusIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" /><input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Full Name" required className={inputClasses} /></div>
+                    <div className="relative"><MailIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" /><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email Address" required className={inputClasses} /></div>
                     <div>
-                        <label className="text-sm font-medium text-text-muted">Department</label>
-                        <select value={department} onChange={e => setDepartment(e.target.value)} required className="w-full mt-1 px-4 py-3 text-foreground bg-input dark:bg-slate-700 border border-border dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition">
+                        <label className="text-sm font-medium text-muted-foreground">Department</label>
+                        <select value={department} onChange={e => setDepartment(e.target.value)} required className="w-full mt-1 px-4 py-3 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition">
                             {(college.departments || []).map(dept => <option key={dept} value={dept}>{dept}</option>)}
                         </select>
                     </div>
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-text-muted">Temporary Password</label>
-                        <div className="flex gap-2">
-                             <input type="text" value={generatedPassword} readOnly placeholder="Click generate" className="flex-1 px-4 py-3 text-foreground bg-input dark:bg-slate-700 border border-border dark:border-slate-600 rounded-lg focus:outline-none" />
-                             <button type="button" onClick={generatePassword} className="px-4 font-semibold text-sm text-primary bg-primary/10 rounded-lg hover:bg-primary/20">Generate</button>
-                        </div>
-                    </div>
+                    
                     <div className="flex justify-end gap-3 pt-4">
                         <button type="button" onClick={onClose} className="px-4 py-2 font-semibold text-foreground bg-muted rounded-lg hover:bg-muted/80">Cancel</button>
-                        <button type="submit" disabled={isLoading || !generatedPassword} className="px-4 py-2 font-bold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-wait">
-                            {isLoading ? 'Creating...' : 'Create HOD Account'}
+                        <button type="submit" disabled={isLoading} className="px-4 py-2 font-bold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-wait">
+                            {isLoading ? 'Inviting...' : 'Send Invite'}
                         </button>
                     </div>
                 </form>
@@ -1193,9 +1121,33 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
         onNavigate('#/');
     };
 
+    // PENDING APPROVAL VIEW
+    if (currentUser.isApproved === false) {
+        return (
+            <div className="bg-background min-h-screen flex items-center justify-center p-4">
+                <div className="bg-card rounded-2xl shadow-xl border border-border p-10 max-w-lg text-center">
+                    <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+                        <ClockIcon className="w-10 h-10 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <h1 className="text-2xl font-bold text-foreground mb-4">Account Pending Approval</h1>
+                    <p className="text-muted-foreground mb-8">
+                        Your Director account for <span className="font-semibold text-foreground">{colleges.find(c => c.id === currentUser.collegeId)?.name || "your college"}</span> has been created and is currently under review by the Super Admin.
+                    </p>
+                    <p className="text-sm text-muted-foreground mb-8">You will gain full access to the dashboard once approved.</p>
+                    <button 
+                        onClick={handleLogout} 
+                        className="w-full py-3 font-bold text-primary bg-primary/10 rounded-xl hover:bg-primary/20 transition-colors"
+                    >
+                        Sign Out
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     const college = useMemo(() => colleges.find(c => c.id === currentUser.collegeId), [colleges, currentUser.collegeId]);
 
-    if (!college) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    if (!college) return <div className="min-h-screen flex items-center justify-center bg-background text-foreground">Loading...</div>;
     if (!college.departments || college.departments.length === 0) return <DirectorSetupView college={college} onSave={onUpdateCollegeDepartments} />;
     
     // -- Data Aggregation --
@@ -1217,8 +1169,9 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
 
     const hodsMap = useMemo(() => {
         const map: Record<string, User> = {};
+        // Filter only approved HODs for the map display to prevent flickering
         allUsers.forEach(u => {
-            if (u.tag === 'HOD/Dean' && u.department) {
+            if (u.tag === 'HOD/Dean' && u.department && u.isApproved) {
                 map[u.department] = u;
             }
         });
@@ -1226,14 +1179,22 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
     }, [allUsers]);
     
     // -- Handlers for child components --
-    const handleApproval = (id: string, type: 'teacher' | 'hod') => {
-        if (type === 'hod') onApproveHodRequest(id);
-        else onApproveTeacherRequest(id);
+    const handleApproval = async (id: string, type: 'teacher' | 'hod') => {
+        try {
+            if (type === 'hod') onApproveHodRequest(id);
+            else onApproveTeacherRequest(id);
+        } catch (e) {
+            console.error("Failed to approve request", e);
+        }
     };
 
-    const handleDecline = (id: string, type: 'teacher' | 'hod') => {
-         if (type === 'hod') onDeclineHodRequest(id);
-        else onDeclineTeacherRequest(id);
+    const handleDecline = async (id: string, type: 'teacher' | 'hod') => {
+         try {
+            if (type === 'hod') onDeclineHodRequest(id);
+            else onDeclineTeacherRequest(id);
+         } catch (e) {
+             console.error("Failed to decline request", e);
+         }
     };
 
     const handleEditDept = (dept: string) => {
@@ -1251,18 +1212,18 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
         onNavigate(`#/director/view/${userId}`);
     };
 
-    const handleSectionChange = (section: any) => {
+    const handleSectionChange = (section: typeof activeSection) => {
         setActiveSection(section);
         setMobileMenuOpen(false);
     }
 
 
     return (
-        <div className="bg-slate-50 min-h-screen flex flex-col">
+        <div className="bg-background min-h-screen flex flex-col">
             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
             
              {/* Mobile Sub-header */}
-            <div className="md:hidden bg-white border-b border-border p-4 flex justify-between items-center sticky top-16 z-30">
+            <div className="md:hidden bg-background border-b border-border p-4 flex justify-between items-center sticky top-16 z-30">
                 <span className="font-bold text-lg capitalize text-foreground">{activeSection}</span>
                 <button onClick={() => setMobileMenuOpen(true)} className="p-2 rounded-lg hover:bg-muted text-foreground">
                     <MenuIcon className="w-6 h-6" />
@@ -1271,19 +1232,19 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
 
             <div className="flex flex-1 overflow-hidden w-full relative">
                 {/* Sidebar (Desktop) */}
-                <aside className="hidden md:block w-64 p-6 border-r border-border overflow-y-auto h-[calc(100vh-64px)] sticky top-0 flex-shrink-0">
+                <aside className="hidden md:block w-64 p-6 border-r border-border overflow-y-auto h-[calc(100vh-64px)] sticky top-0 flex-shrink-0 bg-card">
                     <div className="space-y-1">
                         <SidebarItem id="dashboard" label="Dashboard" icon={ChartPieIcon} onClick={() => setActiveSection('dashboard')} active={activeSection === 'dashboard'} />
-                        <div className="pt-4 pb-2 text-xs font-bold text-text-muted uppercase tracking-wider">Management</div>
+                        <div className="pt-4 pb-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">Management</div>
                         <SidebarItem id="departments" label="Departments" icon={BuildingIcon} onClick={() => setActiveSection('departments')} active={activeSection === 'departments'} />
                         <SidebarItem id="hods" label="HODs" icon={UserPlusIcon} onClick={() => setActiveSection('hods')} active={activeSection === 'hods'} />
-                        <div className="pt-4 pb-2 text-xs font-bold text-text-muted uppercase tracking-wider">People</div>
+                        <div className="pt-4 pb-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">People</div>
                         <SidebarItem id="faculty" label="Faculty & Staff" icon={UsersIcon} onClick={() => setActiveSection('faculty')} active={activeSection === 'faculty'} />
                         <SidebarItem id="students" label="Students" icon={UsersIcon} onClick={() => setActiveSection('students')} active={activeSection === 'students'} />
-                        <div className="pt-4 pb-2 text-xs font-bold text-text-muted uppercase tracking-wider">Analysis</div>
+                        <div className="pt-4 pb-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">Analysis</div>
                         <SidebarItem id="reports" label="Reports & Analytics" icon={FileTextIcon} onClick={() => setActiveSection('reports')} active={activeSection === 'reports'} />
                         <SidebarItem id="approvals" label="Approvals" icon={CheckCircleIcon} onClick={() => setActiveSection('approvals')} active={activeSection === 'approvals'} />
-                        <div className="pt-4 pb-2 text-xs font-bold text-text-muted uppercase tracking-wider">System</div>
+                        <div className="pt-4 pb-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">System</div>
                         <SidebarItem id="settings" label="Settings" icon={SettingsIcon} onClick={() => setActiveSection('settings')} active={activeSection === 'settings'} />
                     </div>
                 </aside>
@@ -1291,23 +1252,23 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
                 {/* Mobile Sidebar Drawer */}
                 {mobileMenuOpen && (
                     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm md:hidden" onClick={() => setMobileMenuOpen(false)}>
-                        <aside className="w-64 bg-white h-full p-6 overflow-y-auto shadow-2xl animate-slide-in-left" onClick={e => e.stopPropagation()}>
+                        <aside className="w-64 bg-card h-full p-6 overflow-y-auto shadow-2xl animate-slide-in-left" onClick={e => e.stopPropagation()}>
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-xl font-bold text-foreground">Menu</h2>
-                                <button onClick={() => setMobileMenuOpen(false)}><CloseIcon className="w-6 h-6 text-text-muted" /></button>
+                                <button onClick={() => setMobileMenuOpen(false)}><CloseIcon className="w-6 h-6 text-muted-foreground" /></button>
                             </div>
                             <div className="space-y-1">
                                 <SidebarItem id="dashboard" label="Dashboard" icon={ChartPieIcon} onClick={() => handleSectionChange('dashboard')} active={activeSection === 'dashboard'} />
-                                <div className="pt-4 pb-2 text-xs font-bold text-text-muted uppercase tracking-wider">Management</div>
+                                <div className="pt-4 pb-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">Management</div>
                                 <SidebarItem id="departments" label="Departments" icon={BuildingIcon} onClick={() => handleSectionChange('departments')} active={activeSection === 'departments'} />
                                 <SidebarItem id="hods" label="HODs" icon={UserPlusIcon} onClick={() => handleSectionChange('hods')} active={activeSection === 'hods'} />
-                                <div className="pt-4 pb-2 text-xs font-bold text-text-muted uppercase tracking-wider">People</div>
+                                <div className="pt-4 pb-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">People</div>
                                 <SidebarItem id="faculty" label="Faculty & Staff" icon={UsersIcon} onClick={() => handleSectionChange('faculty')} active={activeSection === 'faculty'} />
                                 <SidebarItem id="students" label="Students" icon={UsersIcon} onClick={() => handleSectionChange('students')} active={activeSection === 'students'} />
-                                <div className="pt-4 pb-2 text-xs font-bold text-text-muted uppercase tracking-wider">Analysis</div>
+                                <div className="pt-4 pb-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">Analysis</div>
                                 <SidebarItem id="reports" label="Reports & Analytics" icon={FileTextIcon} onClick={() => handleSectionChange('reports')} active={activeSection === 'reports'} />
                                 <SidebarItem id="approvals" label="Approvals" icon={CheckCircleIcon} onClick={() => handleSectionChange('approvals')} active={activeSection === 'approvals'} />
-                                <div className="pt-4 pb-2 text-xs font-bold text-text-muted uppercase tracking-wider">System</div>
+                                <div className="pt-4 pb-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">System</div>
                                 <SidebarItem id="settings" label="Settings" icon={SettingsIcon} onClick={() => handleSectionChange('settings')} active={activeSection === 'settings'} />
                             </div>
                         </aside>
@@ -1315,7 +1276,7 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
                 )}
 
                 {/* Main Content Area */}
-                <main className="flex-1 p-4 md:p-8 overflow-y-auto h-[calc(100vh-112px)] md:h-[calc(100vh-64px)]">
+                <main className="flex-1 p-4 md:p-8 overflow-y-auto h-[calc(100vh-112px)] md:h-[calc(100vh-64px)] bg-muted/10">
                     {activeSection === 'dashboard' && (
                         <DashboardHome 
                             stats={stats} 
@@ -1369,10 +1330,10 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
                         />
                     )}
                     {activeSection === 'settings' && (
-                        <div className="flex flex-col items-center justify-center h-64 text-center bg-white rounded-xl border border-border">
-                             <SettingsIcon className="w-12 h-12 text-text-muted mb-4" />
+                        <div className="flex flex-col items-center justify-center h-64 text-center bg-card rounded-xl border border-border">
+                             <SettingsIcon className="w-12 h-12 text-muted-foreground mb-4" />
                              <h3 className="text-lg font-bold text-foreground">Settings</h3>
-                             <p className="text-text-muted">System configuration is under development.</p>
+                             <p className="text-muted-foreground">System configuration is under development.</p>
                         </div>
                     )}
                 </main>
@@ -1390,7 +1351,7 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
                 isOpen={hodModalState.isOpen} 
                 onClose={() => setHodModalState({ isOpen: false })} 
                 college={college} 
-                onCreateUser={onCreateUser} 
+                onCreateUser={onCreateUser as any} 
                 defaultDepartment={hodModalState.department} 
             />
 

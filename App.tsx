@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { auth, db, storage, FieldValue } from './firebase';
 import type { User, Post, Group, Conversation, Message, Achievement, UserTag, SharedPostInfo, ReactionType, Story, ConfessionMood, Course, Note, Assignment, AttendanceRecord, AttendanceStatus, Notice, PersonalNote, Feedback, DepartmentChat, Comment, College } from './types';
@@ -176,7 +177,12 @@ const App: React.FC = () => {
         const convosUnsub = db.collection('conversations').where('collegeId', '==', currentUser.collegeId).where('participantIds', 'array-contains', currentUser.id).onSnapshot(snap => setConversations(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
         const coursesUnsub = db.collection('courses').where('collegeId', '==', currentUser.collegeId).onSnapshot(snap => setCourses(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
         const noticesUnsub = db.collection('notices').where('collegeId', '==', currentUser.collegeId).onSnapshot(snap => setNotices(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => b.timestamp - a.timestamp)));
-        const deptChatsUnsub = db.collection('departmentChats').where('collegeId', '==', currentUser.collegeId).where('department', '==', currentUser.department).onSnapshot(snap => setDepartmentChats(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+        const department = currentUser.department;
+        // Only fetch dept chats if user has a department
+        let deptChatsUnsub = () => {};
+        if (department) {
+             deptChatsUnsub = db.collection('departmentChats').where('collegeId', '==', currentUser.collegeId).where('department', '==', department).onSnapshot(snap => setDepartmentChats(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+        }
 
         return () => { usersUnsub(); collegesUnsub(); postsUnsub(); storiesUnsub(); groupsUnsub(); convosUnsub(); coursesUnsub(); noticesUnsub(); deptChatsUnsub(); };
     }, [currentUser]);
@@ -364,16 +370,44 @@ const App: React.FC = () => {
 
     // Admin Handlers
     const handleApproveTeacherRequest = async (teacherId: string) => {
-        await db.collection('users').doc(teacherId).update({ isApproved: true });
+        try {
+            await db.collection('users').doc(teacherId).update({ isApproved: true });
+        } catch (error) {
+            console.error("Error approving teacher:", error);
+            alert("Failed to approve teacher. Please try again.");
+        }
     };
     const handleDeclineTeacherRequest = async (teacherId: string) => {
-        await db.collection('users').doc(teacherId).delete();
+        try {
+            await db.collection('users').doc(teacherId).delete();
+        } catch (error) {
+            console.error("Error declining teacher:", error);
+            alert("Failed to decline teacher. Please try again.");
+        }
     };
     const handleApproveHodRequest = async (hodId: string) => {
-        await db.collection('users').doc(hodId).update({ isApproved: true });
+        try {
+            await db.collection('users').doc(hodId).update({ isApproved: true });
+        } catch (error) {
+            console.error("Error approving HOD:", error);
+            alert("Failed to approve HOD. Please try again.");
+        }
     };
     const handleDeclineHodRequest = async (hodId: string) => {
-        await db.collection('users').doc(hodId).delete();
+        try {
+            await db.collection('users').doc(hodId).delete();
+        } catch (error) {
+            console.error("Error declining HOD:", error);
+            alert("Failed to decline HOD. Please try again.");
+        }
+    };
+    const handleApproveDirector = async (directorId: string) => {
+        try {
+            await db.collection('users').doc(directorId).update({ isApproved: true });
+        } catch (error) {
+            console.error("Error approving director:", error);
+            alert("Failed to approve director. Please try again.");
+        }
     };
     const handleDeleteUser = async (userId: string) => {
         await db.collection('users').doc(userId).delete();
@@ -385,7 +419,7 @@ const App: React.FC = () => {
     const handleUpdateUserRole = async (userId: string, data: any) => {
         await db.collection('users').doc(userId).update(data);
     };
-    const handleCreateUser = async (userData: Omit<User, 'id'>, password?: string) => {
+    const handleCreateUser = async (userData: Omit<User, 'id'>, password?: string): Promise<void> => {
         // If password is provided, create Auth user immediately (Director adding HOD)
         if (password) {
             try {
@@ -403,12 +437,13 @@ const App: React.FC = () => {
         } else {
             // Invited users (Students/Teachers added by Faculty/HOD)
             // Creates a "shadow" user doc to be claimed later
-            await db.collection('users').add({ 
+            // Explicitly return the promise
+            return db.collection('users').add({ 
                 ...userData, 
                 collegeId: currentUser.collegeId,
                 isRegistered: false,
                 isApproved: false 
-            });
+            }).then(() => void 0);
         }
     };
     const handleCreateUsersBatch = async (usersData: Omit<User, 'id'>[]) => {
@@ -612,6 +647,8 @@ const App: React.FC = () => {
                 onNavigate={setCurrentPath} 
                 currentUser={currentUser} 
                 currentPath={currentPath}
+                onApproveDirector={handleApproveDirector}
+                onDeleteUser={handleDeleteUser}
             />
         )}
 

@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import type { User, College } from '../types';
-import { BuildingIcon, MailIcon, LockIcon, PlusIcon, UsersIcon } from '../components/Icons';
+import { BuildingIcon, MailIcon, LockIcon, PlusIcon, UsersIcon, CheckCircleIcon, XCircleIcon } from '../components/Icons';
 import Header from '../components/Header';
 import { auth } from '../firebase';
 import BottomNavBar from '../components/BottomNavBar';
@@ -13,9 +14,11 @@ interface SuperAdminPageProps {
   onNavigate: (path: string) => void;
   currentUser: User;
   currentPath: string;
+  onApproveDirector: (directorId: string) => void;
+  onDeleteUser: (userId: string) => void;
 }
 
-const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ colleges, users, onCreateCollegeAdmin, onNavigate, currentUser, currentPath }) => {
+const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ colleges, users, onCreateCollegeAdmin, onNavigate, currentUser, currentPath, onApproveDirector, onDeleteUser }) => {
   const [collegeName, setCollegeName] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
@@ -43,6 +46,10 @@ const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ colleges, users, onCrea
     }
   };
   
+  const pendingDirectors = useMemo(() => {
+      return Object.values(users || {}).filter(u => u.tag === 'Director' && !u.isApproved && u.isRegistered);
+  }, [users]);
+  
   const inputClasses = "w-full pl-10 pr-4 py-3 text-foreground bg-input dark:bg-slate-700 border border-border dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition";
 
   return (
@@ -52,9 +59,50 @@ const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ colleges, users, onCrea
         <h1 className="text-4xl font-extrabold text-foreground mb-8">Super Admin Dashboard</h1>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Pending Requests Section */}
+            <div className="lg:col-span-2 bg-card dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-border dark:border-slate-700">
+                <h2 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2">
+                    <CheckCircleIcon className="w-6 h-6 text-amber-500"/> 
+                    Pending College Requests ({pendingDirectors.length})
+                </h2>
+                {pendingDirectors.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {pendingDirectors.map(director => {
+                            // Safe access to colleges
+                            const college = (colleges || []).find(c => c.id === director.collegeId);
+                            return (
+                                <div key={director.id} className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-xl border border-border dark:border-slate-600 flex flex-col">
+                                    <h4 className="font-bold text-lg text-foreground mb-1">{college?.name || 'Unknown College'}</h4>
+                                    <p className="text-sm text-muted-foreground mb-3">Director: {director.name}</p>
+                                    <div className="flex items-center gap-2 text-xs text-text-muted mb-4 bg-white dark:bg-slate-800 p-2 rounded">
+                                        <MailIcon className="w-4 h-4"/> {director.email}
+                                    </div>
+                                    <div className="mt-auto flex gap-2">
+                                        <button 
+                                            onClick={() => onApproveDirector(director.id)}
+                                            className="flex-1 bg-emerald-500 text-white font-bold py-2 px-3 rounded-lg hover:bg-emerald-600 transition-colors flex items-center justify-center gap-1"
+                                        >
+                                            <CheckCircleIcon className="w-4 h-4"/> Approve
+                                        </button>
+                                        <button 
+                                            onClick={() => {if(window.confirm('Reject this request?')) onDeleteUser(director.id)}}
+                                            className="flex-1 bg-red-500 text-white font-bold py-2 px-3 rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center gap-1"
+                                        >
+                                            <XCircleIcon className="w-4 h-4"/> Reject
+                                        </button>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                ) : (
+                    <p className="text-center text-text-muted py-8 bg-slate-50 dark:bg-slate-700/30 rounded-xl">No pending college registration requests.</p>
+                )}
+            </div>
+
             {/* Add College Form */}
             <div className="bg-card dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-border dark:border-slate-700">
-                <h2 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2"><PlusIcon className="w-6 h-6"/> Add New College</h2>
+                <h2 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2"><PlusIcon className="w-6 h-6"/> Add New College Manually</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="text-sm font-medium text-text-muted">College Name</label>
@@ -109,7 +157,7 @@ const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ colleges, users, onCrea
             <div className="bg-card dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-border dark:border-slate-700">
                 <h2 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2"><UsersIcon className="w-6 h-6"/> Existing Colleges</h2>
                 <div className="space-y-3 max-h-96 overflow-y-auto no-scrollbar">
-                    {colleges.length > 0 ? colleges.map(college => {
+                    {colleges && colleges.length > 0 ? colleges.map(college => {
                         // Safer access to adminUids
                         const adminUid = college.adminUids && college.adminUids.length > 0 ? college.adminUids[0] : null;
                         const adminUser = adminUid ? users[adminUid] : null;

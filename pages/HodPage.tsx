@@ -43,7 +43,7 @@ interface HodPageProps {
 const SidebarItem: React.FC<{ id: string; label: string; icon: React.ElementType; onClick: () => void; active: boolean }> = ({ id, label, icon: Icon, onClick, active }) => (
     <button 
         onClick={onClick} 
-        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${active ? 'bg-primary text-primary-foreground shadow-md' : 'text-text-muted hover:bg-white hover:text-primary'}`}
+        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${active ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:bg-muted hover:text-primary'}`}
     >
         <Icon className="w-5 h-5" />
         <span className="font-medium text-sm">{label}</span>
@@ -52,13 +52,13 @@ const SidebarItem: React.FC<{ id: string; label: string; icon: React.ElementType
 );
 
 const StatCard: React.FC<{ label: string; value: number | string; icon: React.ElementType; colorClass: string; trend?: 'up' | 'down' }> = ({ label, value, icon: Icon, colorClass, trend }) => (
-    <div className="bg-white rounded-xl p-5 shadow-sm border border-border flex items-center justify-between hover:shadow-md transition-shadow">
+    <div className="bg-card rounded-xl p-5 shadow-sm border border-border flex items-center justify-between hover:shadow-md transition-shadow">
         <div>
-            <p className="text-text-muted text-xs uppercase font-bold tracking-wider">{label}</p>
+            <p className="text-muted-foreground text-xs uppercase font-bold tracking-wider">{label}</p>
             <div className="flex items-baseline gap-2 mt-1">
                 <p className="text-2xl font-extrabold text-foreground">{value}</p>
                 {trend && (
-                    <span className={`text-xs font-bold ${trend === 'up' ? 'text-emerald-600' : 'text-red-600'}`}>
+                    <span className={`text-xs font-bold ${trend === 'up' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                         {trend === 'up' ? '↑' : '↓'}
                     </span>
                 )}
@@ -71,7 +71,7 @@ const StatCard: React.FC<{ label: string; value: number | string; icon: React.El
 );
 
 const SimpleLineChart: React.FC<{ data?: number[], color?: string }> = ({ data = [], color = "text-primary" }) => {
-    if (data.length < 2) return <div className="h-32 flex items-center justify-center text-text-muted text-xs">Not enough data</div>;
+    if (data.length < 2) return <div className="h-32 flex items-center justify-center text-muted-foreground text-xs">Not enough data</div>;
     const max = Math.max(...data) || 100;
     const min = 0;
     const points = data.map((val, i) => {
@@ -86,7 +86,7 @@ const SimpleLineChart: React.FC<{ data?: number[], color?: string }> = ({ data =
                  {data.map((val, i) => {
                      const x = (i / (data.length - 1)) * 100;
                      const y = 100 - ((val - min) / (max - min || 1)) * 100;
-                     return <circle key={i} cx={x} cy={y} r="3" className="fill-white stroke-current" strokeWidth="2" />
+                     return <circle key={i} cx={x} cy={y} r="3" className="fill-card stroke-current" strokeWidth="2" />
                  })}
             </svg>
         </div>
@@ -97,18 +97,15 @@ const SimpleBarChart: React.FC<{ data: number[], labels?: string[], color?: stri
     <div className="flex items-end justify-between h-32 gap-2 pt-4 pb-6">
         {data.map((h, i) => (
             <div key={i} className="flex-1 flex flex-col justify-end h-full group relative">
-                <div className="w-full bg-slate-100 rounded-t-sm relative h-full overflow-hidden">
+                <div className="w-full bg-muted/50 rounded-t-sm relative h-full overflow-hidden">
                      <div className={`absolute bottom-0 left-0 right-0 rounded-t-sm transition-all duration-1000 ${color}`} style={{ height: `${Math.max(h, 5)}%` }}></div>
                 </div>
-                 <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded pointer-events-none transition-opacity z-10 whitespace-nowrap">{h}</div>
-                 {labels && <p className="text-[10px] text-text-muted text-center mt-1 truncate w-full" title={labels[i]}>{labels[i]}</p>}
+                 <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground border border-border text-xs px-2 py-1 rounded pointer-events-none transition-opacity z-10 whitespace-nowrap shadow-sm">{h}</div>
+                 {labels && <p className="text-[10px] text-muted-foreground text-center mt-1 truncate w-full" title={labels[i]}>{labels[i]}</p>}
             </div>
         ))}
     </div>
 );
-
-
-// --- SUB-VIEWS ---
 
 const DashboardHome: React.FC<{
     stats: any,
@@ -118,20 +115,20 @@ const DashboardHome: React.FC<{
     <div className="space-y-6 animate-fade-in">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-            <StatCard label="Total Students" value={stats.students} icon={UsersIcon} colorClass="bg-blue-100 text-blue-600" trend="up"/>
-            <StatCard label="Total Teachers" value={stats.teachers} icon={UserPlusIcon} colorClass="bg-purple-100 text-purple-600"/>
-            <StatCard label="Total Classes" value={stats.classes} icon={BuildingIcon} colorClass="bg-orange-100 text-orange-600"/>
-            <StatCard label="Attendance Today" value={`${stats.attendance}%`} icon={CheckSquareIcon} colorClass="bg-emerald-100 text-emerald-600" trend={stats.attendance > 75 ? 'up' : 'down'}/>
-            <StatCard label="Pending Requests" value={stats.pending} icon={ClockIcon} colorClass="bg-red-100 text-red-600"/>
+            <StatCard label="Total Students" value={stats.students} icon={UsersIcon} colorClass="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" trend="up"/>
+            <StatCard label="Total Teachers" value={stats.teachers} icon={UserPlusIcon} colorClass="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"/>
+            <StatCard label="Total Classes" value={stats.classes} icon={BuildingIcon} colorClass="bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400"/>
+            <StatCard label="Attendance Today" value={`${stats.attendance}%`} icon={CheckSquareIcon} colorClass="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" trend={stats.attendance > 75 ? 'up' : 'down'}/>
+            <StatCard label="Pending Requests" value={stats.pending} icon={ClockIcon} colorClass="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"/>
         </div>
 
         {/* Graphs */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-border">
+            <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
                 <h3 className="font-bold text-foreground mb-4 flex items-center gap-2"><TrendingUpIcon className="w-5 h-5 text-primary"/> Student Attendance Trend</h3>
                 <SimpleLineChart data={chartData.attendanceTrend} color="text-blue-500" />
             </div>
-             <div className="bg-white p-6 rounded-xl shadow-sm border border-border">
+             <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
                 <h3 className="font-bold text-foreground mb-4 flex items-center gap-2"><ChartBarIcon className="w-5 h-5 text-primary"/> Teacher Workload Distribution</h3>
                 <SimpleBarChart data={chartData.workload} labels={chartData.teacherNames} color="bg-purple-500" />
             </div>
@@ -142,7 +139,7 @@ const DashboardHome: React.FC<{
              <h3 className="text-lg font-bold text-foreground mb-4">Quick Actions</h3>
              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
                  {quickActions.map((action, idx) => (
-                     <button key={idx} onClick={action.onClick} className="flex flex-col items-center justify-center p-4 bg-white border border-border rounded-xl hover:border-primary hover:shadow-md transition-all group">
+                     <button key={idx} onClick={action.onClick} className="flex flex-col items-center justify-center p-4 bg-card border border-border rounded-xl hover:border-primary hover:shadow-md transition-all group">
                          <div className="p-3 bg-primary/10 text-primary rounded-full mb-2 group-hover:scale-110 transition-transform">
                              <action.icon className="w-6 h-6" />
                          </div>
@@ -163,13 +160,13 @@ const StudentManagementView: React.FC<{
         <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-foreground">Student Management</h2>
             <div className="flex gap-2">
-                <button onClick={onAddCsv} className="bg-white border border-border text-foreground px-4 py-2 rounded-lg font-semibold text-sm hover:bg-slate-50">Import CSV</button>
-                <button onClick={onAddStudent} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2"><PlusIcon className="w-4 h-4"/> Add Student</button>
+                <button onClick={onAddCsv} className="bg-card border border-border text-foreground px-4 py-2 rounded-lg font-semibold text-sm hover:bg-muted/50 transition-colors">Import CSV</button>
+                <button onClick={onAddStudent} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors"><PlusIcon className="w-4 h-4"/> Add Student</button>
             </div>
         </div>
-        <div className="bg-white rounded-xl border border-border overflow-hidden">
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 border-b border-border">
+                <thead className="bg-muted/50 border-b border-border">
                     <tr>
                         <th className="p-4 font-semibold text-foreground">Name</th>
                         <th className="p-4 font-semibold text-foreground">Email</th>
@@ -179,22 +176,22 @@ const StudentManagementView: React.FC<{
                 </thead>
                 <tbody>
                     {students.length > 0 ? students.map(student => (
-                        <tr key={student.id} className="border-b border-border last:border-0 hover:bg-slate-50/50">
+                        <tr key={student.id} className="border-b border-border last:border-0 hover:bg-muted/30">
                             <td className="p-4 flex items-center gap-3">
                                 <Avatar src={student.avatarUrl} name={student.name} size="sm" />
-                                <span className="font-medium">{student.name}</span>
+                                <span className="font-medium text-foreground">{student.name}</span>
                             </td>
-                            <td className="p-4 text-text-muted">{student.email}</td>
-                            <td className="p-4 text-text-muted">Year {student.yearOfStudy}</td>
+                            <td className="p-4 text-muted-foreground">{student.email}</td>
+                            <td className="p-4 text-muted-foreground">Year {student.yearOfStudy}</td>
                             <td className="p-4 text-right">
                                 {!student.isRegistered ? (
-                                    <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">Invited</span>
+                                    <span className="px-2 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold">Invited</span>
                                 ) : (
                                     <button className="text-primary hover:underline font-medium">View Profile</button>
                                 )}
                             </td>
                         </tr>
-                    )) : <tr><td colSpan={4} className="p-8 text-center text-text-muted">No students found.</td></tr>}
+                    )) : <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">No students found.</td></tr>}
                 </tbody>
             </table>
         </div>
@@ -211,30 +208,30 @@ const TeacherManagementView: React.FC<{
         <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-foreground">Teacher Management</h2>
             <div className="flex gap-2">
-                 <button onClick={onAssign} className="bg-white border border-border text-foreground px-4 py-2 rounded-lg font-semibold text-sm hover:bg-slate-50">Assign Classes</button>
-                 <button onClick={onAddCsv} className="bg-white border border-border text-foreground px-4 py-2 rounded-lg font-semibold text-sm hover:bg-slate-50">Import CSV</button>
-                <button onClick={onAddTeacher} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2"><PlusIcon className="w-4 h-4"/> Add Teacher</button>
+                 <button onClick={onAssign} className="bg-card border border-border text-foreground px-4 py-2 rounded-lg font-semibold text-sm hover:bg-muted/50 transition-colors">Assign Classes</button>
+                 <button onClick={onAddCsv} className="bg-card border border-border text-foreground px-4 py-2 rounded-lg font-semibold text-sm hover:bg-muted/50 transition-colors">Import CSV</button>
+                <button onClick={onAddTeacher} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors"><PlusIcon className="w-4 h-4"/> Add Teacher</button>
             </div>
         </div>
          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
              {teachers.map(teacher => (
-                 <div key={teacher.id} className="bg-white p-4 rounded-xl border border-border flex items-center gap-4">
+                 <div key={teacher.id} className="bg-card p-4 rounded-xl border border-border flex items-center gap-4 hover:shadow-sm transition-all">
                      <Avatar src={teacher.avatarUrl} name={teacher.name} size="lg" />
                      <div>
                          <h4 className="font-bold text-foreground">{teacher.name}</h4>
-                         <p className="text-xs text-text-muted">{teacher.email}</p>
+                         <p className="text-xs text-muted-foreground">{teacher.email}</p>
                          <div className="flex gap-2 mt-2">
-                             <span className="text-[10px] font-bold bg-blue-50 text-blue-600 px-2 py-1 rounded">Faculty</span>
+                             <span className="text-[10px] font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 px-2 py-1 rounded">Faculty</span>
                              {!teacher.isRegistered ? (
-                                 <span className="text-[10px] font-bold bg-amber-50 text-amber-600 px-2 py-1 rounded">Invited</span>
+                                 <span className="text-[10px] font-bold bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 px-2 py-1 rounded">Invited</span>
                              ) : !teacher.isApproved && (
-                                 <span className="text-[10px] font-bold bg-red-50 text-red-600 px-2 py-1 rounded">Pending</span>
+                                 <span className="text-[10px] font-bold bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-1 rounded">Pending</span>
                              )}
                          </div>
                      </div>
                  </div>
              ))}
-             {teachers.length === 0 && <p className="col-span-3 text-center text-text-muted py-8">No teachers found.</p>}
+             {teachers.length === 0 && <p className="col-span-3 text-center text-muted-foreground py-8">No teachers found.</p>}
          </div>
     </div>
 );
@@ -247,17 +244,17 @@ const ClassManagementView: React.FC<{
      <div className="space-y-6 animate-fade-in">
         <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-foreground">Class & Batch Management</h2>
-            <button onClick={onAddClass} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2"><PlusIcon className="w-4 h-4"/> Create Class</button>
+            <button onClick={onAddClass} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors"><PlusIcon className="w-4 h-4"/> Create Class</button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {classes.map(({ year, division }, idx) => (
-                 <div key={idx} className="bg-white p-6 rounded-xl shadow-sm border border-border flex flex-col">
+                 <div key={idx} className="bg-card p-6 rounded-xl shadow-sm border border-border flex flex-col hover:shadow-md transition-all">
                     <div className="flex justify-between items-start">
                         <div>
                             <h4 className="text-xl font-bold text-foreground">{yearOptions.find(y => y.val === year)?.label || `${year}th Year`}</h4>
-                            <p className="text-sm text-text-muted">Division {division}</p>
+                            <p className="text-sm text-muted-foreground">Division {division}</p>
                         </div>
-                        <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><UsersIcon className="w-5 h-5"/></div>
+                        <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-lg"><UsersIcon className="w-5 h-5"/></div>
                     </div>
                     <button 
                         onClick={() => onCreateCourse(year, division)}
@@ -267,7 +264,7 @@ const ClassManagementView: React.FC<{
                     </button>
                 </div>
             ))}
-             {classes.length === 0 && <div className="col-span-4 text-center p-8 border-2 border-dashed border-border rounded-xl text-text-muted">No classes created yet.</div>}
+             {classes.length === 0 && <div className="col-span-4 text-center p-8 border-2 border-dashed border-border rounded-xl text-muted-foreground">No classes created yet.</div>}
         </div>
     </div>
 );
@@ -279,33 +276,31 @@ const AttendanceManagementView: React.FC<{ courses: Course[] }> = ({ courses }) 
     return (
          <div className="space-y-6 animate-fade-in">
             <h2 className="text-2xl font-bold text-foreground">Attendance Management</h2>
-            <div className="bg-white p-6 rounded-xl border border-border shadow-sm">
-                 <h3 className="font-bold text-lg mb-4">Today's Attendance Overview</h3>
+            <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
+                 <h3 className="font-bold text-lg mb-4 text-foreground">Today's Attendance Overview</h3>
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                     <div className="p-4 bg-slate-50 rounded-lg border border-border">
-                         <p className="text-xs text-text-muted uppercase font-bold">Classes Conducted</p>
+                     <div className="p-4 bg-muted/30 rounded-lg border border-border">
+                         <p className="text-xs text-muted-foreground uppercase font-bold">Classes Conducted</p>
                          <p className="text-2xl font-bold text-foreground mt-1">{recentAttendance.length}</p>
                      </div>
-                      <div className="p-4 bg-slate-50 rounded-lg border border-border">
-                         <p className="text-xs text-text-muted uppercase font-bold">Present Students</p>
-                         <p className="text-2xl font-bold text-emerald-600 mt-1">
+                      <div className="p-4 bg-muted/30 rounded-lg border border-border">
+                         <p className="text-xs text-muted-foreground uppercase font-bold">Present Students</p>
+                         <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
                              {recentAttendance.reduce((acc, r) => acc + Object.values(r.records).filter(s => (s as any).status === 'present').length, 0)}
                          </p>
                      </div>
-                      <div className="p-4 bg-slate-50 rounded-lg border border-border">
-                         <p className="text-xs text-text-muted uppercase font-bold">Absent Students</p>
-                         <p className="text-2xl font-bold text-red-600 mt-1">
+                      <div className="p-4 bg-muted/30 rounded-lg border border-border">
+                         <p className="text-xs text-muted-foreground uppercase font-bold">Absent Students</p>
+                         <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">
                              {recentAttendance.reduce((acc, r) => acc + Object.values(r.records).filter(s => (s as any).status === 'absent').length, 0)}
                          </p>
                      </div>
                  </div>
             </div>
-             <p className="text-sm text-text-muted">To mark attendance, please navigate to the specific Course in 'Academics' or 'Class Management'.</p>
+             <p className="text-sm text-muted-foreground">To mark attendance, please navigate to the specific Course in 'Academics' or 'Class Management'.</p>
         </div>
     )
 }
-
-// --- MODALS (Reused/Wrapped) ---
 
 const AddClassModal: React.FC<{ isOpen: boolean; onClose: () => void; college: College; department: string; onSave: (collegeId: string, department: string, classes: { [year: number]: string[] }) => void; }> = ({ isOpen, onClose, college, department, onSave }) => {
     const [year, setYear] = useState('');
@@ -323,12 +318,15 @@ const AddClassModal: React.FC<{ isOpen: boolean; onClose: () => void; college: C
         onClose();
     };
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
-            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm space-y-4">
-                <h3 className="font-bold text-lg">Add Class</h3>
-                <input type="number" value={year} onChange={e => setYear(e.target.value)} placeholder="Year (1-4)" className="w-full p-2 border rounded" />
-                <input type="text" value={division} onChange={e => setDivision(e.target.value)} placeholder="Division (e.g. A)" className="w-full p-2 border rounded" />
-                <div className="flex justify-end gap-2"><button onClick={onClose} className="px-4 py-2 rounded hover:bg-slate-100">Cancel</button><button onClick={handleSave} className="px-4 py-2 bg-primary text-white rounded">Save</button></div>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center p-4">
+            <div className="bg-card p-6 rounded-lg shadow-xl w-full max-w-sm space-y-4 border border-border">
+                <h3 className="font-bold text-lg text-foreground">Add Class</h3>
+                <input type="number" value={year} onChange={e => setYear(e.target.value)} placeholder="Year (1-4)" className="w-full p-2 border border-border bg-input rounded text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                <input type="text" value={division} onChange={e => setDivision(e.target.value)} placeholder="Division (e.g. A)" className="w-full p-2 border border-border bg-input rounded text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                <div className="flex justify-end gap-2">
+                    <button onClick={onClose} className="px-4 py-2 rounded hover:bg-muted text-foreground transition-colors">Cancel</button>
+                    <button onClick={handleSave} className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors">Save</button>
+                </div>
             </div>
         </div>
     );
@@ -344,45 +342,79 @@ const AddUserModal: React.FC<{
 }> = ({ isOpen, onClose, role, department, onCreateUser, availableYears = [] }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
-    const [year, setYear] = useState(availableYears[0] || 1);
+    const [year, setYear] = useState(1);
+    const [isLoading, setIsLoading] = useState(false);
     
     useEffect(() => {
-        if (availableYears.length > 0) {
+        if (availableYears && availableYears.length > 0) {
             setYear(availableYears[0]);
+        } else {
+            setYear(1);
         }
-    }, [availableYears]);
+    }, [availableYears, isOpen]);
 
     if (!isOpen || !role) return null;
-    const handleSubmit = (e: React.FormEvent) => { 
+
+    const handleSubmit = async (e: React.FormEvent) => { 
         e.preventDefault(); 
-        // Set isApproved to false and isRegistered to false for invite-based flow
-        onCreateUser({ 
-            name, 
-            email, 
-            department, 
-            tag: role, 
-            isApproved: false, 
-            isRegistered: false,
-            yearOfStudy: role === 'Student' ? year : undefined 
-        }).then(onClose); 
+        e.stopPropagation();
+        setIsLoading(true);
+        try {
+            const userData: Omit<User, 'id'> = { 
+                name, 
+                email, 
+                department, 
+                tag: role, 
+                isApproved: false, 
+                isRegistered: false,
+            };
+
+            if (role === 'Student') {
+                userData.yearOfStudy = year || 1;
+            }
+
+            await onCreateUser(userData);
+            setName('');
+            setEmail('');
+            onClose();
+        } catch (err: any) {
+            console.error(err);
+            alert(`Failed to add user: ${err.message}`);
+        } finally {
+            setIsLoading(false);
+        }
     };
+
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
-            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-                <h3 className="font-bold text-lg mb-4">Add {role}</h3>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center p-4" onClick={(e) => { e.stopPropagation(); onClose(); }}>
+            <div className="bg-card p-6 rounded-lg shadow-xl w-full max-w-md border border-border" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-lg text-foreground">Add {role}</h3>
+                    <button onClick={onClose}><CloseIcon className="w-5 h-5 text-muted-foreground"/></button>
+                </div>
                 <form onSubmit={handleSubmit} className="space-y-3">
-                    <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Name" required className="w-full p-2 border rounded" />
-                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required className="w-full p-2 border rounded" />
+                    <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Name" required className="w-full p-2 border border-border bg-input rounded text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required className="w-full p-2 border border-border bg-input rounded text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
                     {role === 'Student' && (
-                        <select value={year} onChange={e => setYear(Number(e.target.value))} className="w-full p-2 border rounded">
+                        <select value={year} onChange={e => setYear(Number(e.target.value))} className="w-full p-2 border border-border bg-input rounded text-foreground focus:outline-none focus:ring-2 focus:ring-primary">
                             {availableYears.length > 0 ? (
                                 availableYears.map(y => <option key={y} value={y}>{yearOptions.find(opt => opt.val === y)?.label || `Year ${y}`}</option>)
                             ) : (
-                                <option value="" disabled>No years configured</option>
+                                <>
+                                    <option value={1}>1st Year</option>
+                                    <option value={2}>2nd Year</option>
+                                    <option value={3}>3rd Year</option>
+                                    <option value={4}>4th Year</option>
+                                </>
                             )}
                         </select>
                     )}
-                    <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={onClose} className="px-4 py-2 hover:bg-slate-100 rounded">Cancel</button><button type="submit" className="px-4 py-2 bg-primary text-white rounded">Add</button></div>
+                    <div className="flex justify-end gap-2 pt-2">
+                        <button type="button" onClick={onClose} className="px-4 py-2 hover:bg-muted text-foreground rounded transition-colors" disabled={isLoading}>Cancel</button>
+                        <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors" disabled={isLoading}>
+                            {isLoading ? 'Adding...' : 'Add'}
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -393,21 +425,24 @@ const AssignFacultyModal: React.FC<{ isOpen: boolean; onClose: () => void; cours
     const [changes, setChanges] = useState<{[id:string]: string}>({});
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
-            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
-                <h3 className="font-bold text-lg mb-4">Assign Faculty</h3>
-                <div className="flex-1 overflow-y-auto space-y-3 p-1">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center p-4">
+            <div className="bg-card p-6 rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col border border-border">
+                <h3 className="font-bold text-lg mb-4 text-foreground">Assign Faculty</h3>
+                <div className="flex-1 overflow-y-auto space-y-3 p-1 custom-scrollbar">
                     {courses.map(c => (
-                        <div key={c.id} className="flex justify-between items-center p-2 border rounded">
-                            <div><p className="font-semibold">{c.subject}</p><p className="text-xs text-muted">{c.year}th Year</p></div>
-                            <select value={changes[c.id] || c.facultyId} onChange={e => setChanges({...changes, [c.id]: e.target.value})} className="border rounded p-1 text-sm w-40">
+                        <div key={c.id} className="flex justify-between items-center p-3 border border-border rounded-lg bg-muted/20">
+                            <div><p className="font-semibold text-foreground">{c.subject}</p><p className="text-xs text-muted-foreground">{c.year}th Year</p></div>
+                            <select value={changes[c.id] || c.facultyId} onChange={e => setChanges({...changes, [c.id]: e.target.value})} className="border border-border bg-input rounded p-1 text-sm w-40 text-foreground focus:outline-none focus:ring-2 focus:ring-primary">
                                 <option value="">Unassigned</option>
                                 {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                             </select>
                         </div>
                     ))}
                 </div>
-                <div className="flex justify-end gap-2 pt-4"><button onClick={onClose} className="px-4 py-2 hover:bg-slate-100 rounded">Cancel</button><button onClick={() => { Object.entries(changes).forEach(([c, f]) => onSave(c, f)); onClose(); }} className="px-4 py-2 bg-primary text-white rounded">Save Changes</button></div>
+                <div className="flex justify-end gap-2 pt-4">
+                    <button onClick={onClose} className="px-4 py-2 hover:bg-muted text-foreground rounded transition-colors">Cancel</button>
+                    <button onClick={() => { Object.entries(changes).forEach(([c, f]) => onSave(c, f)); onClose(); }} className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors">Save Changes</button>
+                </div>
             </div>
         </div>
     )
@@ -418,18 +453,20 @@ const CreateCourseModal: React.FC<{ isOpen: boolean; onClose: () => void; onCrea
     const [year, setYear] = useState(prefilledYear || 1);
     if (!isOpen) return null;
     return (
-         <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
-             <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md space-y-4">
-                 <h3 className="font-bold text-lg">Add Subject/Course</h3>
-                 <input type="text" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject Name" className="w-full p-2 border rounded" />
-                 <input type="number" value={year} onChange={e => setYear(Number(e.target.value))} disabled={!!prefilledYear} className="w-full p-2 border rounded" placeholder="Year" />
-                 <div className="flex justify-end gap-2"><button onClick={onClose} className="px-4 py-2 hover:bg-slate-100 rounded">Cancel</button><button onClick={() => { onCreateCourse({ subject, year, department, division: prefilledDivision }); onClose(); }} className="px-4 py-2 bg-primary text-white rounded">Create</button></div>
+         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center p-4">
+             <div className="bg-card p-6 rounded-lg shadow-xl w-full max-w-md space-y-4 border border-border">
+                 <h3 className="font-bold text-lg text-foreground">Add Subject/Course</h3>
+                 <input type="text" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject Name" className="w-full p-2 border border-border bg-input rounded text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                 <input type="number" value={year} onChange={e => setYear(Number(e.target.value))} disabled={!!prefilledYear} className="w-full p-2 border border-border bg-input rounded text-foreground focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Year" />
+                 <div className="flex justify-end gap-2">
+                     <button onClick={onClose} className="px-4 py-2 hover:bg-muted text-foreground rounded transition-colors">Cancel</button>
+                     <button onClick={() => { onCreateCourse({ subject, year, department, division: prefilledDivision }); onClose(); }} className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors">Create</button>
+                 </div>
              </div>
          </div>
     )
 }
 
-// Reusing/Defining CreateNoticeModal for HOD page consistency
 const CreateNoticeModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
@@ -528,9 +565,6 @@ const CreateNoticeModal: React.FC<{
     );
 };
 
-
-// --- MAIN HOD PAGE ---
-
 const HodPage: React.FC<HodPageProps> = (props) => {
     const { currentUser, allUsers, courses, onNavigate, onCreateCourse, onCreateUser, onApproveTeacherRequest, onDeclineTeacherRequest, currentPath, onCreateUsersBatch, onUpdateCourseFaculty, colleges, onUpdateCollegeClasses, onCreateNotice, onDeleteNotice } = props;
     
@@ -547,8 +581,32 @@ const HodPage: React.FC<HodPageProps> = (props) => {
     const [isCreateNoticeModalOpen, setIsCreateNoticeModalOpen] = useState(false);
 
     const handleLogout = async () => { await auth.signOut(); onNavigate('#/'); };
+
+    // PENDING APPROVAL VIEW
+    if (currentUser.isApproved === false) {
+        return (
+            <div className="bg-background min-h-screen flex items-center justify-center p-4">
+                <div className="bg-card rounded-2xl shadow-xl border border-border p-10 max-w-lg text-center">
+                    <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+                        <ClockIcon className="w-10 h-10 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <h1 className="text-2xl font-bold text-foreground mb-4">Account Pending Approval</h1>
+                    <p className="text-muted-foreground mb-8">
+                        Your HOD account for <span className="font-semibold text-foreground">{currentUser.department}</span> has been created and is currently under review by the Director.
+                    </p>
+                    <p className="text-sm text-muted-foreground mb-8">You will gain full access to the dashboard once approved.</p>
+                    <button 
+                        onClick={handleLogout} 
+                        className="w-full py-3 font-bold text-primary bg-primary/10 rounded-xl hover:bg-primary/20 transition-colors"
+                    >
+                        Sign Out
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     const college = colleges.find(c => c.id === currentUser.collegeId);
-    
     const collegeClasses = college?.classes || {};
     const myDept = currentUser.department;
 
@@ -558,18 +616,10 @@ const HodPage: React.FC<HodPageProps> = (props) => {
         return Object.keys(collegeClasses[myDept]).map(Number).sort((a, b) => a - b);
     }, [collegeClasses, myDept]);
 
-    // All years available across college (for notices)
-    const allCollegeYears = useMemo(() => {
-        const yearsSet = new Set<number>();
-        Object.values(collegeClasses).forEach(deptClasses => {
-            Object.keys(deptClasses).forEach(y => yearsSet.add(Number(y)));
-        });
-        return Array.from(yearsSet).sort((a, b) => a - b);
-    }, [collegeClasses]);
-
     const deptStudents = allUsers.filter(u => u.tag === 'Student' && u.department === myDept);
     const deptTeachers = allUsers.filter(u => (u.tag === 'Teacher' || u.tag === 'HOD/Dean') && u.department === myDept);
     const deptCourses = courses.filter(c => c.department === myDept);
+    
     // Only show in pending if they have registered (signed up) but are not approved
     const pendingTeachers = deptTeachers.filter(u => !u.isApproved && u.isRegistered);
     const pendingStudents = deptStudents.filter(u => !u.isApproved && u.isRegistered);
@@ -584,17 +634,16 @@ const HodPage: React.FC<HodPageProps> = (props) => {
         return classes.sort((a, b) => a.year - b.year || a.division.localeCompare(b.division));
     }, [college, myDept]);
 
-    // Stats Calculation
     const stats = {
         students: deptStudents.length,
         teachers: deptTeachers.length,
         classes: deptClasses.length,
-        attendance: 85, // Placeholder real calculation logic needed
+        attendance: 85, 
         pending: pendingTeachers.length + pendingStudents.length
     };
     
     const chartData = {
-        attendanceTrend: [78, 82, 80, 85, 84, 88, 85], // Mock data
+        attendanceTrend: [78, 82, 80, 85, 84, 88, 85],
         workload: deptTeachers.slice(0, 5).map(t => courses.filter(c => c.facultyId === t.id).length * 20),
         teacherNames: deptTeachers.slice(0, 5).map(t => t.name)
     };
@@ -607,36 +656,60 @@ const HodPage: React.FC<HodPageProps> = (props) => {
         { label: 'Post Notice', icon: MegaphoneIcon, onClick: () => setIsCreateNoticeModalOpen(true) },
     ];
 
+    const handleApproval = async (id: string) => {
+        try {
+            await onApproveTeacherRequest(id); 
+        } catch (e) {
+            console.error("Error approving request:", e);
+        }
+    }
+
+    const handleDecline = async (id: string) => {
+        try {
+            await onDeclineTeacherRequest(id);
+        } catch (e) {
+            console.error("Error declining request:", e);
+        }
+    }
+
+    const allCollegeYears = useMemo(() => {
+        const yearsSet = new Set<number>();
+        Object.values(collegeClasses).forEach(deptClasses => {
+            Object.keys(deptClasses).forEach(y => yearsSet.add(Number(y)));
+        });
+        return Array.from(yearsSet).sort((a, b) => a - b);
+    }, [collegeClasses]);
+
     return (
-        <div className="bg-slate-50 min-h-screen flex flex-col">
+        <div className="bg-background min-h-screen flex flex-col">
              <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
              
              {/* Mobile Header */}
-             <div className="md:hidden bg-white border-b border-border p-4 flex justify-between items-center sticky top-16 z-30">
+             <div className="md:hidden bg-card border-b border-border p-4 flex justify-between items-center sticky top-16 z-30">
                 <span className="font-bold text-lg capitalize text-foreground">{activeSection.replace('_', ' ')}</span>
                 <button onClick={() => setMobileMenuOpen(true)} className="p-2 rounded-lg hover:bg-muted text-foreground"><MenuIcon className="w-6 h-6" /></button>
             </div>
 
             <div className="flex flex-1 overflow-hidden w-full relative">
                 {/* Sidebar */}
-                <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-border transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-card border-r border-border transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                     <div className="p-6 h-full overflow-y-auto">
                          <div className="flex justify-between items-center mb-6 md:hidden">
-                            <h2 className="text-xl font-bold">Menu</h2>
-                            <button onClick={() => setMobileMenuOpen(false)}><CloseIcon className="w-6 h-6" /></button>
+                            <h2 className="text-xl font-bold text-foreground">Menu</h2>
+                            <button onClick={() => setMobileMenuOpen(false)}><CloseIcon className="w-6 h-6 text-muted-foreground" /></button>
                         </div>
                         <div className="space-y-1">
                             <SidebarItem id="dashboard" label="Dashboard" icon={ChartPieIcon} onClick={() => {setActiveSection('dashboard'); setMobileMenuOpen(false);}} active={activeSection === 'dashboard'} />
-                            <div className="pt-4 pb-2 text-xs font-bold text-text-muted uppercase tracking-wider">Management</div>
+                            <div className="pt-4 pb-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">Management</div>
                             <SidebarItem id="students" label="Student Management" icon={UsersIcon} onClick={() => {setActiveSection('students'); setMobileMenuOpen(false);}} active={activeSection === 'students'} />
                             <SidebarItem id="teachers" label="Faculty Management" icon={UserPlusIcon} onClick={() => {setActiveSection('teachers'); setMobileMenuOpen(false);}} active={activeSection === 'teachers'} />
                             <SidebarItem id="classes" label="Class & Batch" icon={BuildingIcon} onClick={() => {setActiveSection('classes'); setMobileMenuOpen(false);}} active={activeSection === 'classes'} />
                             <SidebarItem id="attendance" label="Attendance" icon={CheckSquareIcon} onClick={() => {setActiveSection('attendance'); setMobileMenuOpen(false);}} active={activeSection === 'attendance'} />
-                            <div className="pt-4 pb-2 text-xs font-bold text-text-muted uppercase tracking-wider">Academics</div>
+                            <div className="pt-4 pb-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">Academics</div>
                             <SidebarItem id="academics" label="Academics & Courses" icon={BookOpenIcon} onClick={() => {setActiveSection('academics'); setMobileMenuOpen(false);}} active={activeSection === 'academics'} />
                             <SidebarItem id="exams" label="Exams & Results" icon={ClipboardListIcon} onClick={() => {setActiveSection('exams'); setMobileMenuOpen(false);}} active={activeSection === 'exams'} />
                             <SidebarItem id="reports" label="Department Reports" icon={FileTextIcon} onClick={() => {setActiveSection('reports'); setMobileMenuOpen(false);}} active={activeSection === 'reports'} />
-                            <div className="pt-4 pb-2 text-xs font-bold text-text-muted uppercase tracking-wider">System</div>
+                            <div className="pt-4 pb-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">System</div>
                             <SidebarItem id="approvals" label="Approvals" icon={CheckCircleIcon} onClick={() => {setActiveSection('approvals'); setMobileMenuOpen(false);}} active={activeSection === 'approvals'} />
                             <SidebarItem id="settings" label="Settings" icon={SettingsIcon} onClick={() => {setActiveSection('settings'); setMobileMenuOpen(false);}} active={activeSection === 'settings'} />
                         </div>
@@ -644,7 +717,7 @@ const HodPage: React.FC<HodPageProps> = (props) => {
                 </aside>
 
                 {/* Main Content */}
-                <main className="flex-1 p-4 md:p-8 overflow-y-auto h-[calc(100vh-112px)] md:h-[calc(100vh-64px)]">
+                <main className="flex-1 p-4 md:p-8 overflow-y-auto h-[calc(100vh-112px)] md:h-[calc(100vh-64px)] bg-muted/10">
                     {activeSection === 'dashboard' && <DashboardHome stats={stats} chartData={chartData} quickActions={quickActions} />}
                     {activeSection === 'students' && <StudentManagementView students={deptStudents} onAddStudent={() => setAddUserModalState({isOpen: true, role: 'Student'})} onAddCsv={() => setIsStudentCsvModalOpen(true)} />}
                     {activeSection === 'teachers' && <TeacherManagementView teachers={deptTeachers} onAddTeacher={() => setAddUserModalState({isOpen: true, role: 'Teacher'})} onAddCsv={() => setIsCsvModalOpen(true)} onAssign={() => setIsAssignFacultyModalOpen(true)} />}
@@ -653,15 +726,15 @@ const HodPage: React.FC<HodPageProps> = (props) => {
                     {activeSection === 'academics' && (
                          <div className="space-y-6 animate-fade-in">
                              <div className="flex justify-between">
-                                 <h2 className="text-2xl font-bold">Academics</h2>
-                                 <button onClick={() => setCourseCreationContext({isOpen: true})} className="bg-primary text-white px-4 py-2 rounded flex items-center gap-2"><PlusIcon className="w-4 h-4"/> Add Subject</button>
+                                 <h2 className="text-2xl font-bold text-foreground">Academics</h2>
+                                 <button onClick={() => setCourseCreationContext({isOpen: true})} className="bg-primary text-primary-foreground px-4 py-2 rounded flex items-center gap-2 hover:bg-primary/90"><PlusIcon className="w-4 h-4"/> Add Subject</button>
                              </div>
                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                  {deptCourses.map(c => (
-                                     <div key={c.id} className="bg-white p-4 rounded-xl border shadow-sm">
-                                         <h4 className="font-bold text-lg">{c.subject}</h4>
-                                         <p className="text-sm text-muted">Year {c.year} {c.division ? `(Div ${c.division})` : ''}</p>
-                                         <p className="text-xs mt-2 bg-slate-100 inline-block px-2 py-1 rounded">{deptTeachers.find(t => t.id === c.facultyId)?.name || 'Unassigned'}</p>
+                                     <div key={c.id} className="bg-card p-4 rounded-xl border border-border shadow-sm">
+                                         <h4 className="font-bold text-lg text-foreground">{c.subject}</h4>
+                                         <p className="text-sm text-muted-foreground">Year {c.year} {c.division ? `(Div ${c.division})` : ''}</p>
+                                         <p className="text-xs mt-2 bg-muted/50 inline-block px-2 py-1 rounded text-muted-foreground">{deptTeachers.find(t => t.id === c.facultyId)?.name || 'Unassigned'}</p>
                                      </div>
                                  ))}
                              </div>
@@ -675,15 +748,15 @@ const HodPage: React.FC<HodPageProps> = (props) => {
                              </div>
 
                              {/* Faculty Approvals */}
-                             <div className="bg-white rounded-xl border border-border p-6 shadow-sm">
+                             <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
                                  <h3 className="text-lg font-bold text-foreground mb-4 flex justify-between items-center">
                                      Faculty Requests
-                                     <span className="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full">{pendingTeachers.length}</span>
+                                     <span className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-xs px-2 py-1 rounded-full">{pendingTeachers.length}</span>
                                  </h3>
                                  {pendingTeachers.length > 0 ? (
                                      <div className="grid grid-cols-1 gap-3">
                                          {pendingTeachers.map(t => (
-                                             <div key={t.id} className="flex flex-col sm:flex-row justify-between items-center p-4 bg-slate-50 rounded-xl border border-border gap-4">
+                                             <div key={t.id} className="flex flex-col sm:flex-row justify-between items-center p-4 bg-muted/30 rounded-xl border border-border gap-4">
                                                  <div className="flex items-center gap-4 w-full sm:w-auto">
                                                      <Avatar src={t.avatarUrl} name={t.name} size="md" />
                                                      <div>
@@ -692,8 +765,8 @@ const HodPage: React.FC<HodPageProps> = (props) => {
                                                      </div>
                                                  </div>
                                                  <div className="flex gap-2 w-full sm:w-auto">
-                                                     <button onClick={() => onApproveTeacherRequest(t.id)} className="flex-1 sm:flex-none px-4 py-2 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors shadow-sm">Approve</button>
-                                                     <button onClick={() => onDeclineTeacherRequest(t.id)} className="flex-1 sm:flex-none px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors">Decline</button>
+                                                     <button onClick={(e) => {e.stopPropagation(); e.preventDefault(); handleApproval(t.id)}} className="flex-1 sm:flex-none px-4 py-2 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors shadow-sm">Approve</button>
+                                                     <button onClick={(e) => {e.stopPropagation(); e.preventDefault(); handleDecline(t.id)}} className="flex-1 sm:flex-none px-4 py-2 bg-card border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 rounded-lg text-xs font-bold hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">Decline</button>
                                                  </div>
                                              </div>
                                          ))}
@@ -702,28 +775,28 @@ const HodPage: React.FC<HodPageProps> = (props) => {
                              </div>
 
                              {/* Student Approvals */}
-                             <div className="bg-white rounded-xl border border-border p-6 shadow-sm">
+                             <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
                                  <h3 className="text-lg font-bold text-foreground mb-4 flex justify-between items-center">
                                      Student Requests
-                                     <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">{pendingStudents.length}</span>
+                                     <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs px-2 py-1 rounded-full">{pendingStudents.length}</span>
                                  </h3>
                                  {pendingStudents.length > 0 ? (
                                      <div className="grid grid-cols-1 gap-3">
                                          {pendingStudents.map(s => (
-                                             <div key={s.id} className="flex flex-col sm:flex-row justify-between items-center p-4 bg-slate-50 rounded-xl border border-border gap-4">
+                                             <div key={s.id} className="flex flex-col sm:flex-row justify-between items-center p-4 bg-muted/30 rounded-xl border border-border gap-4">
                                                  <div className="flex items-center gap-4 w-full sm:w-auto">
                                                      <Avatar src={s.avatarUrl} name={s.name} size="md" />
                                                      <div>
                                                          <p className="font-bold text-foreground">{s.name}</p>
                                                          <p className="text-xs text-muted-foreground">{s.email}</p>
                                                          <div className="flex gap-2 mt-1">
-                                                             <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Year {s.yearOfStudy}</span>
+                                                             <span className="text-[10px] font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded">Year {s.yearOfStudy}</span>
                                                          </div>
                                                      </div>
                                                  </div>
                                                  <div className="flex gap-2 w-full sm:w-auto">
-                                                     <button onClick={() => onApproveTeacherRequest(s.id)} className="flex-1 sm:flex-none px-4 py-2 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors shadow-sm">Approve</button>
-                                                     <button onClick={() => onDeclineTeacherRequest(s.id)} className="flex-1 sm:flex-none px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors">Decline</button>
+                                                     <button onClick={(e) => {e.stopPropagation(); e.preventDefault(); handleApproval(s.id)}} className="flex-1 sm:flex-none px-4 py-2 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors shadow-sm">Approve</button>
+                                                     <button onClick={(e) => {e.stopPropagation(); e.preventDefault(); handleDecline(s.id)}} className="flex-1 sm:flex-none px-4 py-2 bg-card border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 rounded-lg text-xs font-bold hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">Decline</button>
                                                  </div>
                                              </div>
                                          ))}
@@ -735,9 +808,9 @@ const HodPage: React.FC<HodPageProps> = (props) => {
                      {/* Placeholders for other sections */}
                     {['exams', 'reports', 'settings'].includes(activeSection) && (
                         <div className="flex flex-col items-center justify-center h-64 text-center">
-                            <SettingsIcon className="w-12 h-12 text-muted mb-4" />
-                            <h3 className="text-xl font-bold">{activeSection.charAt(0).toUpperCase() + activeSection.slice(1)} Module</h3>
-                            <p className="text-muted">This module is under development.</p>
+                            <SettingsIcon className="w-12 h-12 text-muted-foreground mb-4" />
+                            <h3 className="text-xl font-bold text-foreground">{activeSection.charAt(0).toUpperCase() + activeSection.slice(1)} Module</h3>
+                            <p className="text-muted-foreground">This module is under development.</p>
                         </div>
                     )}
                 </main>

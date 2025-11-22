@@ -2,16 +2,19 @@
 import React, { useState, useRef } from 'react';
 import { auth, db, storage } from '../firebase';
 import type { User } from '../types';
-import { MailIcon, LockIcon, CameraIcon, ArrowLeftIcon, CheckCircleIcon } from '../components/Icons';
+import { MailIcon, LockIcon, CameraIcon, ArrowLeftIcon, CheckCircleIcon, BuildingIcon, UserIcon } from '../components/Icons';
 
 interface SignupPageProps {
     onNavigate: (path: string) => void;
 }
 
 const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
-    const [step, setStep] = useState<'verifyEmail' | 'completeProfile'>('verifyEmail');
+    const [step, setStep] = useState<'verifyEmail' | 'completeProfile' | 'adminSetup' | 'registerCollege'>('verifyEmail');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [name, setName] = useState('');
+    const [collegeName, setCollegeName] = useState('');
+    const [adminSecret, setAdminSecret] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     
@@ -91,7 +94,6 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
             }
 
             // 2. Prepare new user data based on the invite doc
-            // IMPORTANT: Keep isApproved as false (read-only mode) until HOD approves. Set isRegistered to true.
             const userDataForNewDoc: Omit<User, 'id'> = {
                 ...preRegisteredUser,
                 isApproved: false, 
@@ -120,7 +122,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                 console.warn("Could not delete old invite document. Ignoring.", deleteErr);
             }
 
-            // 6. Navigate to Home (User will be in Read-Only mode)
+            // 6. Navigate to Home
             onNavigate('#/home');
 
         } catch (err: any) {
@@ -131,6 +133,84 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
             } else {
                 setError(err.message || 'An error occurred during signup.');
             }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleAdminSignup = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+
+        if (adminSecret !== 'admin') {
+            setError('Invalid Admin Secret Key.');
+            return;
+        }
+        if (password.length < 6) {
+            setError('Password must be at least 6 characters long.');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const { user } = await auth.createUserWithEmailAndPassword(email, password);
+            if (!user) throw new Error("Could not create user.");
+
+            const userData: Omit<User, 'id'> = {
+                name: name,
+                email: email,
+                department: 'Administration',
+                tag: 'Super Admin',
+                isApproved: true,
+                isRegistered: true,
+            };
+
+            await db.collection('users').doc(user.uid).set(userData);
+            onNavigate('#/superadmin');
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleCollegeRegistration = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        
+        if (password.length < 6) {
+            setError('Password must be at least 6 characters long.');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            // 1. Create Auth User
+            const { user } = await auth.createUserWithEmailAndPassword(email, password);
+            if (!user) throw new Error("Could not create user.");
+
+            // 2. Create College Document
+            const collegeRef = await db.collection('colleges').add({ 
+                name: collegeName, 
+                adminUids: [user.uid], 
+                departments: [] 
+            });
+
+            // 3. Create Director User Document (Pending Approval)
+            const userData: Omit<User, 'id'> = {
+                name: name,
+                email: email,
+                tag: 'Director',
+                collegeId: collegeRef.id,
+                department: 'Administration',
+                isApproved: false, // Requires Super Admin approval
+                isRegistered: true,
+            };
+
+            await db.collection('users').doc(user.uid).set(userData);
+            onNavigate('#/home'); // Redirect to home where they will see "Pending Approval" screen
+        } catch (err: any) {
+            setError(err.message);
         } finally {
             setIsLoading(false);
         }
@@ -148,11 +228,17 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
 
                 <div className="relative z-10 p-12 text-white max-w-lg">
                      <div className="mb-8 bg-white/10 w-16 h-16 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/20 shadow-lg">
-                        <CheckCircleIcon className="w-10 h-10 text-white" />
+                        {step === 'adminSetup' ? <BuildingIcon className="w-10 h-10 text-white" /> : <CheckCircleIcon className="w-10 h-10 text-white" />}
                      </div>
-                    <h1 className="text-5xl font-bold mb-6 tracking-tight drop-shadow-md">Join the Community</h1>
+                    <h1 className="text-5xl font-bold mb-6 tracking-tight drop-shadow-md">
+                        {step === 'adminSetup' ? 'Initialize System' : step === 'registerCollege' ? 'Register Institution' : 'Join the Community'}
+                    </h1>
                     <p className="text-xl font-light text-blue-50 leading-relaxed opacity-90">
-                        Access your courses, groups, and connect with your campus. You must be invited by a teacher to join.
+                        {step === 'adminSetup' 
+                            ? 'Setup the Super Admin account to start managing colleges and directors.' 
+                            : step === 'registerCollege'
+                            ? 'Sign up as a Director/Principal to manage your college on CampusConnect.'
+                            : 'Access your courses, groups, and connect with your campus. You must be invited by a teacher to join.'}
                     </p>
                 </div>
             </div>
@@ -160,8 +246,8 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
             {/* Right Side - Form */}
             <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-900">
                 <div className="w-full max-w-md bg-card p-8 rounded-2xl shadow-xl border border-border/50 transition-all duration-300">
-                     {step === 'completeProfile' && (
-                        <button onClick={() => setStep('verifyEmail')} className="flex items-center text-sm text-text-muted hover:text-primary mb-6 transition-colors font-medium">
+                     {step !== 'verifyEmail' && (
+                        <button onClick={() => { setStep('verifyEmail'); setError(''); }} className="flex items-center text-sm text-text-muted hover:text-primary mb-6 transition-colors font-medium">
                             <ArrowLeftIcon className="w-4 h-4 mr-1.5"/>
                             Back to verification
                         </button>
@@ -169,11 +255,15 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                     
                     <div className="mb-8">
                         <h2 className="text-3xl font-extrabold text-foreground tracking-tight">
-                            {step === 'verifyEmail' ? 'Activate Account' : 'Set Password'}
+                            {step === 'verifyEmail' ? 'Activate Account' : step === 'adminSetup' ? 'Admin Setup' : step === 'registerCollege' ? 'Register College' : 'Set Password'}
                         </h2>
                         <p className="mt-2 text-sm text-text-muted">
                             {step === 'verifyEmail' 
                                 ? 'Enter your university email to find your invite.' 
+                                : step === 'adminSetup'
+                                ? 'Create the root Super Admin account.'
+                                : step === 'registerCollege'
+                                ? 'Create an account for your college director.'
                                 : 'Set a password to access your dashboard.'}
                         </p>
                     </div>
@@ -186,15 +276,6 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                                 </div>
                                 <div className="ml-3">
                                     <p className="text-sm text-destructive font-medium">{error}</p>
-                                    {error.includes('already exists') && (
-                                        <button 
-                                            type="button"
-                                            onClick={() => onNavigate('#/login')}
-                                            className="mt-2 text-sm font-bold text-destructive hover:text-destructive/80 underline"
-                                        >
-                                            Go to Login Page
-                                        </button>
-                                    )}
                                 </div>
                             </div>
                         </div>
@@ -281,13 +362,137 @@ const SignupPage: React.FC<SignupPageProps> = ({ onNavigate }) => {
                         </form>
                     )}
 
-                    <div className="mt-6 pt-6 border-t border-border text-center">
+                    {step === 'registerCollege' && (
+                        <form onSubmit={handleCollegeRegistration} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">College Name</label>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <BuildingIcon className="h-5 w-5 text-text-muted group-focus-within:text-primary transition-colors" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={collegeName}
+                                        onChange={(e) => setCollegeName(e.target.value)}
+                                        required
+                                        placeholder="e.g. Institute of Technology"
+                                        className="appearance-none block w-full pl-10 pr-3 py-3 border border-border rounded-xl bg-input text-foreground placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 sm:text-sm"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">Director Name</label>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <UserIcon className="h-5 w-5 text-text-muted group-focus-within:text-primary transition-colors" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        required
+                                        placeholder="Full Name"
+                                        className="appearance-none block w-full pl-10 pr-3 py-3 border border-border rounded-xl bg-input text-foreground placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 sm:text-sm"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">Email</label>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <MailIcon className="h-5 w-5 text-text-muted group-focus-within:text-primary transition-colors" />
+                                    </div>
+                                    <input
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                        placeholder="director@college.edu"
+                                        className="appearance-none block w-full pl-10 pr-3 py-3 border border-border rounded-xl bg-input text-foreground placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 sm:text-sm"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1.5">Password</label>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <LockIcon className="h-5 w-5 text-text-muted group-focus-within:text-primary transition-colors" />
+                                    </div>
+                                    <input
+                                        type="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        required
+                                        placeholder="Create Password"
+                                        className="appearance-none block w-full pl-10 pr-3 py-3 border border-border rounded-xl bg-input text-foreground placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 sm:text-sm"
+                                    />
+                                </div>
+                            </div>
+                            <button type="submit" disabled={isLoading} className="w-full py-3 font-bold text-primary-foreground bg-primary rounded-xl hover:bg-primary/90 transition-all">
+                                {isLoading ? 'Registering...' : 'Register College'}
+                            </button>
+                        </form>
+                    )}
+
+                    {step === 'adminSetup' && (
+                        <form onSubmit={handleAdminSignup} className="space-y-4">
+                            <input
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                required
+                                placeholder="Super Admin Name"
+                                className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+                            />
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                                placeholder="Admin Email"
+                                className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+                            />
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                placeholder="Password"
+                                className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+                            />
+                            <input
+                                type="password"
+                                value={adminSecret}
+                                onChange={(e) => setAdminSecret(e.target.value)}
+                                required
+                                placeholder="Secret Key"
+                                className="w-full px-4 py-3 bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+                            />
+                            <button type="submit" disabled={isLoading} className="w-full py-3 font-bold text-primary-foreground bg-primary rounded-xl hover:bg-primary/90 transition-all">
+                                {isLoading ? 'Creating...' : 'Create Super Admin'}
+                            </button>
+                        </form>
+                    )}
+
+                    <div className="mt-6 pt-6 border-t border-border text-center space-y-4">
                          <p className="text-sm text-text-muted">
                             Already activated?{' '}
                             <a onClick={() => onNavigate('#/login')} className="font-semibold text-primary hover:text-primary/80 cursor-pointer transition-colors hover:underline">
                                 Log in
                             </a>
                         </p>
+                        <div className="flex justify-center gap-4 text-xs text-text-muted">
+                            {step === 'verifyEmail' && (
+                                <>
+                                    <button onClick={() => setStep('registerCollege')} className="hover:text-foreground underline">
+                                        Register College
+                                    </button>
+                                    <button onClick={() => setStep('adminSetup')} className="hover:text-foreground underline">
+                                        Setup Admin
+                                    </button>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
