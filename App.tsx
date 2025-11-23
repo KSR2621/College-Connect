@@ -733,7 +733,20 @@ const App: React.FC = () => {
         {currentPath === '#/signup' && <SignupPage onNavigate={setCurrentPath} />}
         {currentPath === '#/home' && currentUser && <HomePage currentUser={currentUser} users={users} posts={posts} stories={stories} groups={groups} events={posts.filter(p=>p.isEvent)} onNavigate={setCurrentPath} onAddPost={handleAddPost} onAddStory={handleAddStory} onMarkStoryAsViewed={handleMarkStoryAsViewed} onDeleteStory={handleDeleteStory} onReplyToStory={handleReplyToStory} currentPath={currentPath} {...postCardProps} />}
         {currentPath.startsWith('#/profile/') && currentUser && <ProfilePage profileUserId={currentPath.split('/')[2]} currentUser={currentUser} users={users} posts={posts} groups={groups} colleges={colleges} onNavigate={setCurrentPath} currentPath={currentPath} onAddPost={handleAddPost} onAddAchievement={handleAddAchievement} onAddInterest={handleAddInterest} onUpdateProfile={handleUpdateProfile} {...postCardProps} />}
-        {currentPath === '#/groups' && currentUser && <GroupsPage currentUser={currentUser} groups={groups} onNavigate={setCurrentPath} currentPath={currentPath} onCreateGroup={handleCreateGroup} />}
+        
+        {/* Updated GroupsPage with passed handlers */}
+        {currentPath === '#/groups' && currentUser && (
+            <GroupsPage 
+                currentUser={currentUser} 
+                groups={groups} 
+                onNavigate={setCurrentPath} 
+                currentPath={currentPath} 
+                onCreateGroup={handleCreateGroup}
+                onJoinGroupRequest={handleJoinGroupRequest}
+                onToggleFollowGroup={handleToggleFollowGroup}
+            />
+        )}
+        
         {currentPath.startsWith('#/groups/') && currentUser && <GroupDetailPage group={groups.find(g => g.id === currentPath.split('/')[2])!} currentUser={currentUser} users={users} posts={posts.filter(p => p.groupId === currentPath.split('/')[2])} groups={groups} onNavigate={setCurrentPath} currentPath={currentPath} onAddPost={handleAddPost} onAddStory={handleAddStory} {...postCardProps} onJoinGroupRequest={handleJoinGroupRequest} onApproveJoinRequest={handleApproveJoinRequest} onDeclineJoinRequest={handleDeclineJoinRequest} onDeleteGroup={handleDeleteGroup} onSendGroupMessage={handleSendGroupMessage} onRemoveGroupMember={handleRemoveGroupMember} onToggleFollowGroup={handleToggleFollowGroup} />}
         {currentPath === '#/opportunities' && currentUser && <OpportunitiesPage currentUser={currentUser} users={users} posts={posts} onNavigate={setCurrentPath} currentPath={currentPath} onAddPost={handleAddPost} postCardProps={postCardProps} />}
         {currentPath === '#/events' && currentUser && <EventsPage currentUser={currentUser} users={users} events={posts.filter(p => p.isEvent)} groups={groups} onNavigate={setCurrentPath} currentPath={currentPath} onAddPost={handleAddPost} {...postCardProps} />}
