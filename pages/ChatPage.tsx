@@ -70,12 +70,12 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
         }
     };
 
-    // Long Press Handlers
+    // Long Press Handlers for List Item
     const handleLongPressStart = (id: string) => {
         isLongPressRef.current = false;
         longPressTimerRef.current = setTimeout(() => {
             isLongPressRef.current = true;
-            if (navigator.vibrate) navigator.vibrate(50); // Haptic feedback
+            if (navigator.vibrate) navigator.vibrate(50); 
             if (window.confirm('Delete this conversation?')) {
                 onDeleteConversations([id]);
                 if (selectedConversationId === id) setSelectedConversationId(null);
@@ -128,23 +128,25 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
     const allUsersList = useMemo(() => Object.values(users), [users]);
 
     return (
-        <div className="bg-background h-screen flex flex-col overflow-hidden">
+        <div className="bg-background h-full flex flex-col overflow-hidden">
             <div className="hidden md:block flex-none">
                 <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
             </div>
 
-            <main className="flex-1 flex relative overflow-hidden h-full max-w-7xl mx-auto w-full md:px-4 md:py-4 gap-4">
-                {/* Sidebar (Chat List) */}
+            {/* Main Content Area - Relative for absolute positioning of mobile panes */}
+            <main className="flex-1 relative w-full max-w-7xl mx-auto md:px-4 md:py-4 h-[calc(100vh-64px)] md:h-auto">
+                
+                {/* LEFT SIDEBAR (Chat List) */}
                 <div 
                     className={`
-                        absolute inset-0 z-20 w-full h-full bg-card md:rounded-2xl md:border border-border flex flex-col transition-transform duration-300 ease-out
-                        md:relative md:w-96 md:translate-x-0 md:z-auto md:shadow-sm
+                        absolute inset-0 z-10 w-full h-full bg-card flex flex-col transition-transform duration-300 ease-out
+                        md:relative md:w-96 md:inset-auto md:translate-x-0 md:rounded-2xl md:border border-border md:shadow-sm
                         ${selectedConversationId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}
                     `}
                 >
                     
-                    {/* Sidebar Header - Static */}
-                    <div className="px-4 py-3 flex items-center justify-between shrink-0 bg-card border-b border-border flex-none h-16 md:rounded-t-2xl">
+                    {/* Static Header */}
+                    <div className="flex-none px-4 py-3 flex items-center justify-between bg-card/95 backdrop-blur-sm border-b border-border h-16 md:rounded-t-2xl z-20">
                         <h1 className="text-xl font-black text-foreground tracking-tight">Messages</h1>
                         <div className="flex gap-2">
                             <button 
@@ -168,8 +170,8 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                         </div>
                     </div>
 
-                    {/* Search & Filter - Static */}
-                    <div className="p-4 space-y-4 flex-none bg-card">
+                    {/* Search & Filter */}
+                    <div className="flex-none p-4 space-y-4 bg-card z-10">
                         <div className="relative group">
                             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                             <input 
@@ -270,15 +272,6 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                                                     <TrashIcon className="w-4 h-4"/>
                                                 </button>
                                             )}
-                                            {!isEditMode && (
-                                                <button
-                                                    onClick={(e) => handleDeleteConversation(e, convo.id)}
-                                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full opacity-0 group-hover:opacity-100 transition-all scale-90 group-hover:scale-100 hidden md:block"
-                                                    title="Delete conversation"
-                                                >
-                                                    <TrashIcon className="w-4 h-4"/>
-                                                </button>
-                                            )}
                                         </div>
                                     );
                                 })}
@@ -298,11 +291,11 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                     </div>
                 </div>
 
-                {/* Chat Panel */}
+                {/* RIGHT SIDEBAR (Chat Panel) */}
                 <div 
                     className={`
-                        absolute inset-0 z-30 w-full h-full bg-background flex flex-col transition-transform duration-300 ease-in-out
-                        md:relative md:flex-1 md:translate-x-0 md:z-auto md:bg-muted/10 md:rounded-2xl md:overflow-hidden md:border border-border
+                        absolute inset-0 z-20 w-full h-full bg-background flex flex-col transition-transform duration-300 ease-in-out
+                        md:relative md:flex-1 md:inset-auto md:translate-x-0 md:ml-4 md:bg-muted/10 md:rounded-2xl md:overflow-hidden md:border border-border
                         ${selectedConversationId ? 'translate-x-0' : 'translate-x-full'}
                     `}
                 >
