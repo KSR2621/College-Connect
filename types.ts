@@ -5,6 +5,13 @@ import React from 'react';
 export type UserTag = 'Student' | 'Teacher' | 'HOD/Dean' | 'Director' | 'Super Admin';
 export type ConfessionMood = 'love' | 'funny' | 'sad' | 'chaos' | 'deep';
 
+export type SkillBadge = {
+    id: string;
+    name: string;
+    icon: string; // Emoji or icon name
+    color: string;
+}
+
 export type User = {
   id: string;
   name: string;
@@ -15,6 +22,9 @@ export type User = {
   avatarUrl?: string;
   bio?: string;
   interests?: string[];
+  skills?: string[]; // Added for Skill Gap Analysis
+  resumeScore?: number; // Added for Resume Builder
+  badges?: SkillBadge[]; // Added for Gamification
   achievements?: Achievement[];
   yearOfStudy?: number;
   followingGroups?: string[];
@@ -94,6 +104,12 @@ export type Post = {
         date: string;
         location: string;
         link?: string;
+        // Extended Event Props
+        category?: string;
+        organizer?: string;
+        attendees?: string[]; // User IDs
+        tags?: string[];
+        maxSeats?: number;
     };
     isConfession?: boolean;
     confessionMood?: ConfessionMood;
@@ -103,7 +119,22 @@ export type Post = {
         title: string;
         organization: string;
         applyLink?: string;
+        type?: 'Internship' | 'Job' | 'Volunteer' | 'Campus Role'; // Added
+        stipend?: string; // Added
+        location?: 'Remote' | 'On-site' | 'Hybrid'; // Added
+        tags?: string[]; // Added for filtering
     };
+    isProject?: boolean;
+    projectDetails?: {
+        title: string;
+        description: string;
+        techStack: string[];
+        githubUrl?: string;
+        demoUrl?: string;
+        lookingFor?: string[]; // e.g. ["Frontend Dev", "Designer"]
+    };
+    isRoadmap?: boolean;
+    roadmapDetails?: Omit<CareerRoadmap, 'id'>;
 }
 
 export type Story = {
@@ -261,3 +292,46 @@ export type DepartmentChat = {
     channel?: string;
     messages: Message[];
 };
+
+// --- Career & Roadmap Types ---
+
+export type RoadmapStep = {
+    title: string;
+    description: string;
+    resources: { name: string; url: string }[];
+    duration: string;
+}
+
+export type CareerRoadmap = {
+    id: string;
+    title: string; // e.g., "Data Scientist", "Full Stack Dev"
+    description: string;
+    steps: RoadmapStep[];
+    avgSalary: string;
+    difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+    color: string; // Tailwind class for gradient/color
+}
+
+export type Mentor = {
+    id: string;
+    userId: string; // Link to existing user if applicable
+    name: string;
+    role: string;
+    company: string;
+    expertise: string[];
+    availableFor: ('Resume Review' | 'Career Guidance' | 'Mock Interview')[];
+    rating: number;
+    avatarUrl?: string;
+}
+
+export type Project = {
+    id: string;
+    title: string;
+    description: string;
+    techStack: string[];
+    githubUrl?: string;
+    demoUrl?: string;
+    lookingFor?: string[]; // e.g. ["Frontend Dev", "Designer"]
+    authorId: string;
+    timestamp: number;
+}

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { auth, db, storage, FieldValue } from './firebase';
 import type { User, Post, Group, Conversation, Message, Achievement, UserTag, SharedPostInfo, ReactionType, Story, ConfessionMood, Course, Note, Assignment, AttendanceRecord, AttendanceStatus, Notice, PersonalNote, Feedback, DepartmentChat, Comment, College } from './types';
 import { LocalNotifications } from '@capacitor/local-notifications';
@@ -14,6 +14,7 @@ import GroupsPage from './pages/GroupsPage';
 import GroupDetailPage from './pages/GroupDetailPage';
 import OpportunitiesPage from './pages/OpportunitiesPage';
 import EventsPage from './pages/EventsPage';
+import EventDetailPage from './pages/EventDetailPage'; 
 import ChatPage from './pages/ChatPage';
 import SearchPage from './pages/SearchPage';
 import ConfessionsPage from './pages/ConfessionsPage';
@@ -43,7 +44,7 @@ const cleanData = (data: any) => {
     return cleaned;
 };
 
-// Helper to convert Data URL to Blob (Manual robust conversion)
+// Helper to convert Data URL to Blob
 const dataURLtoBlob = (dataurl: string) => {
     try {
         const arr = dataurl.split(',');
@@ -63,7 +64,7 @@ const dataURLtoBlob = (dataurl: string) => {
     }
 };
 
-// New Helper: Compress Image on Client Side
+// Helper: Compress Image on Client Side
 const compressImage = (source: File | string, maxWidth = 800, quality = 0.7): Promise<string> => {
     return new Promise((resolve, reject) => {
         const img = new Image();
@@ -72,7 +73,6 @@ const compressImage = (source: File | string, maxWidth = 800, quality = 0.7): Pr
             let width = img.width;
             let height = img.height;
 
-            // Maintain aspect ratio
             if (width > maxWidth) {
                 height = (height * maxWidth) / width;
                 width = maxWidth;
@@ -115,10 +115,9 @@ const App: React.FC = () => {
     const [departmentChats, setDepartmentChats] = useState<DepartmentChat[]>([]);
     const [colleges, setColleges] = useState<College[]>([]);
     
-    const prevConversationsRef = useRef<Conversation[]>([]);
-    const prevPostsRef = useRef<Post[]>([]);
-    const remindedEventIdsRef = useRef<Set<string>>(new Set());
-
+    // Refs for state access in callbacks without dependency loop
+    const postsRef = useRef(posts);
+    postsRef.current = posts;
 
     useEffect(() => {
         const handleHashChange = () => setCurrentPath(window.location.hash || '#/');
@@ -140,37 +139,6 @@ const App: React.FC = () => {
         };
         requestPermissions();
     }, []);
-
-    // Notifications Logic
-    useEffect(() => {
-        if (!currentUser || conversations.length === 0 || !document.hidden) {
-            prevConversationsRef.current = conversations;
-            return;
-        }
-        conversations.forEach(async convo => {
-            const prevConvo = prevConversationsRef.current.find(p => p.id === convo.id);
-            const prevMessagesCount = prevConvo?.messages.length || 0;
-            if (convo.messages.length > prevMessagesCount) {
-                const newMessage = convo.messages[convo.messages.length - 1];
-                if (newMessage && newMessage.senderId !== currentUser.id) {
-                    const sender = users[newMessage.senderId];
-                    if (sender) {
-                        try {
-                             await LocalNotifications.schedule({
-                                notifications: [{
-                                    title: `New message from ${sender.name}`,
-                                    body: newMessage.text,
-                                    id: Date.now(),
-                                    schedule: { at: new Date(Date.now() + 100) },
-                                }]
-                             });
-                        } catch (e) { console.error(e); }
-                    }
-                }
-            }
-        });
-        prevConversationsRef.current = conversations;
-    }, [conversations, currentUser, users]);
 
     useEffect(() => {
         String.prototype.hashCode = function() {
@@ -200,11 +168,9 @@ const App: React.FC = () => {
                             auth.signOut();
                             return;
                         }
-                        // Allow unapproved users to log in (Read-Only Mode)
                         setCurrentUser(userWithId);
                         setLoading(false);
                     } else {
-                        // User authenticated but no doc? Should not happen in normal flow unless deleted
                         auth.signOut();
                         setLoading(false);
                     }
@@ -245,7 +211,6 @@ const App: React.FC = () => {
         const coursesUnsub = db.collection('courses').where('collegeId', '==', currentUser.collegeId).onSnapshot(snap => setCourses(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
         const noticesUnsub = db.collection('notices').where('collegeId', '==', currentUser.collegeId).onSnapshot(snap => setNotices(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => b.timestamp - a.timestamp)));
         const department = currentUser.department;
-        // Only fetch dept chats if user has a department
         let deptChatsUnsub = () => {};
         if (department) {
              deptChatsUnsub = db.collection('departmentChats').where('collegeId', '==', currentUser.collegeId).where('department', '==', department).onSnapshot(snap => setDepartmentChats(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
@@ -284,22 +249,17 @@ const App: React.FC = () => {
         if (!currentUser) return;
         
         try {
-            const { content, mediaDataUrls, mediaType, eventDetails, groupId, isConfession, confessionMood, isOpportunity, opportunityDetails } = postDetails;
+            const { content, mediaDataUrls, mediaType, eventDetails, groupId, isConfession, confessionMood, isOpportunity, opportunityDetails, isProject, projectDetails, isRoadmap, roadmapDetails } = postDetails;
             let uploadedMediaUrls: string[] = [];
             
             if (mediaDataUrls && mediaDataUrls.length > 0) {
                 const count = mediaDataUrls.length;
-                // Calculate aggressive targets for Firestore fallback (limit 1MB doc)
-                // ~800KB budget for images -> split by count
                 const fallbackMaxWidth = count > 2 ? 400 : 600;
                 const fallbackQuality = count > 2 ? 0.5 : 0.6;
 
                 const uploadPromises = mediaDataUrls.map(async (dataUrl: string) => {
                     try {
-                        // 1. Basic Compression for Storage
                         const compressedDataUrl = await compressImage(dataUrl, 1024, 0.8);
-                        
-                        // 2. Try to upload to Firebase Storage
                         const blob = dataURLtoBlob(compressedDataUrl);
                         if (!blob) throw new Error("Failed to create blob");
                         const filename = `posts/${Date.now()}-${Math.random().toString(36).substring(7)}`;
@@ -308,17 +268,12 @@ const App: React.FC = () => {
                         return await snapshot.ref.getDownloadURL();
                     } catch (storageError) {
                         console.warn("Storage upload failed, falling back to Firestore Base64.", storageError);
-                        
-                        // 3. Fallback: Store as Base64 in Firestore
                         return await compressImage(dataUrl, fallbackMaxWidth, fallbackQuality);
                     }
                 });
-                
-                const results = await Promise.all(uploadPromises);
-                uploadedMediaUrls = results.filter(url => url !== null) as string[];
+                uploadedMediaUrls = (await Promise.all(uploadPromises)).filter(url => url !== null) as string[];
             }
             
-            // Construct post object carefully to avoid undefined values
             const postData: any = {
                 authorId: currentUser.id, 
                 collegeId: currentUser.collegeId, 
@@ -330,93 +285,145 @@ const App: React.FC = () => {
                 isEvent: !!eventDetails, 
                 isConfession: !!isConfession, 
                 isOpportunity: !!isOpportunity, 
+                isProject: !!isProject,
+                isRoadmap: !!isRoadmap
             };
 
-            if (uploadedMediaUrls.length > 0) {
-                postData.mediaType = 'image'; 
-            } else if (mediaType) {
-                postData.mediaType = mediaType;
-            }
+            if (uploadedMediaUrls.length > 0) postData.mediaType = 'image'; 
+            else if (mediaType) postData.mediaType = mediaType;
             
-            if (groupId) {
-                postData.groupId = groupId;
-            }
-            
-            if (eventDetails) {
-                postData.eventDetails = eventDetails;
-            }
-            
-            if (confessionMood) {
-                postData.confessionMood = confessionMood;
-            }
-            
-            if (opportunityDetails) {
-                postData.opportunityDetails = opportunityDetails;
-            }
+            if (groupId) postData.groupId = groupId;
+            if (eventDetails) postData.eventDetails = { ...eventDetails, attendees: [] };
+            if (confessionMood) postData.confessionMood = confessionMood;
+            if (opportunityDetails) postData.opportunityDetails = opportunityDetails;
+            if (isProject && projectDetails) postData.projectDetails = projectDetails;
+            if (isRoadmap && roadmapDetails) postData.roadmapDetails = roadmapDetails;
 
-            // Send to Firestore
             await db.collection('posts').add(postData);
 
         } catch (error) {
             console.error("Error adding post:", error);
             alert("Failed to post. Images might be too large or connection is unstable.");
-            throw error; 
         }
     };
 
-    const handleReaction = async (postId: string, reaction: ReactionType) => {
+    const handleReaction = useCallback(async (postId: string, reaction: ReactionType) => {
         if (!currentUser) return;
-        const postRef = db.collection('posts').doc(postId);
-        await db.runTransaction(async (t) => {
-            const doc = await t.get(postRef);
-            if (!doc.exists) return;
-            const data = doc.data();
-            const reactions = data.reactions || {};
-            // Remove existing reaction
-            Object.keys(reactions).forEach(k => {
-                if (reactions[k].includes(currentUser.id)) reactions[k] = reactions[k].filter(id => id !== currentUser.id);
-            });
-            // Add new reaction
-            reactions[reaction] = [...(reactions[reaction] || []), currentUser.id];
-            t.update(postRef, { reactions });
+
+        // Use ref to access latest posts without re-creating function
+        const currentPosts = postsRef.current;
+        const post = currentPosts.find(p => p.id === postId);
+        if (!post) return;
+
+        const reactions = post.reactions || {};
+        let existingType: string | undefined;
+        
+        Object.keys(reactions).forEach(k => {
+            if (reactions[k]?.includes(currentUser.id)) {
+                existingType = k;
+            }
         });
-    };
-    const handleAddComment = async (postId: string, text: string) => {
+
+        // Optimistic Update
+        setPosts(prevPosts => {
+            return prevPosts.map(p => {
+                if (p.id !== postId) return p;
+                
+                const newReactions: any = { ...p.reactions };
+                Object.keys(newReactions).forEach(k => {
+                    newReactions[k] = [...(newReactions[k] || [])];
+                });
+
+                if (existingType) {
+                    newReactions[existingType] = newReactions[existingType].filter((id: string) => id !== currentUser.id);
+                    if (newReactions[existingType].length === 0) delete newReactions[existingType];
+                }
+
+                if (existingType !== reaction) {
+                    if (!newReactions[reaction]) newReactions[reaction] = [];
+                    newReactions[reaction].push(currentUser.id);
+                }
+
+                return { ...p, reactions: newReactions };
+            });
+        });
+
+        // DB Update
+        const updateData: any = {};
+        if (existingType) {
+            updateData[`reactions.${existingType}`] = FieldValue.arrayRemove(currentUser.id);
+        }
+        if (existingType !== reaction) {
+            updateData[`reactions.${reaction}`] = FieldValue.arrayUnion(currentUser.id);
+        }
+
+        if (Object.keys(updateData).length > 0) {
+            try {
+                await db.collection('posts').doc(postId).update(updateData);
+            } catch (error) {
+                console.error("Reaction update failed:", error);
+            }
+        }
+    }, [currentUser]);
+
+    const handleAddComment = useCallback(async (postId: string, text: string) => {
+        if (!currentUser) return;
         await db.collection('posts').doc(postId).update({ comments: FieldValue.arrayUnion({ id: Date.now().toString(), authorId: currentUser.id, text, timestamp: Date.now() }) });
-    };
-    const handleDeleteComment = async (postId: string, commentId: string) => {
-         // Simplified deletion logic
+    }, [currentUser]);
+
+    const handleDeleteComment = useCallback(async (postId: string, commentId: string) => {
          const postRef = db.collection('posts').doc(postId);
          const doc = await postRef.get();
          if(doc.exists) {
              const comments = doc.data().comments || [];
              await postRef.update({ comments: comments.filter(c => c.id !== commentId) });
          }
-    };
-    const handleDeletePost = async (postId: string) => { await db.collection('posts').doc(postId).delete(); };
-    const handleToggleSavePost = async (postId: string) => {
+    }, []);
+
+    const handleDeletePost = useCallback(async (postId: string) => { await db.collection('posts').doc(postId).delete(); }, []);
+    
+    const handleToggleSavePost = useCallback(async (postId: string) => {
+        if (!currentUser) return;
         const ref = db.collection('users').doc(currentUser.id);
         const isSaved = currentUser.savedPosts?.includes(postId);
         await ref.update({ savedPosts: isSaved ? FieldValue.arrayRemove(postId) : FieldValue.arrayUnion(postId) });
-    };
-    const handleSharePost = async (originalPost: Post, commentary: string, shareTarget: any) => {
+    }, [currentUser]);
+
+    const handleSharePost = useCallback(async (originalPost: Post, commentary: string, shareTarget: any) => {
+        if (!currentUser) return;
         const sharedPostInfo = originalPost.sharedPost || { originalId: originalPost.id, originalAuthorId: originalPost.authorId, originalTimestamp: originalPost.timestamp, originalContent: originalPost.content, originalMediaUrls: originalPost.mediaUrls, originalMediaType: originalPost.mediaType, originalIsEvent: originalPost.isEvent, originalEventDetails: originalPost.eventDetails, originalIsConfession: originalPost.isConfession };
         const rawData = { authorId: currentUser.id, collegeId: currentUser.collegeId, content: commentary, timestamp: Date.now(), reactions: {}, comments: [], groupId: shareTarget.type === 'group' ? shareTarget.id : undefined, sharedPost: sharedPostInfo };
         await db.collection('posts').add(cleanData(rawData));
-    };
+    }, [currentUser]);
     
-    const handleCreateOrOpenConversation = async (otherUserId: string) => {
+    const handleCreateOrOpenConversation = useCallback(async (otherUserId: string) => {
+        if (!currentUser) return '';
+        // Check current state first
         const existing = conversations.find(c => !c.isGroupChat && c.participantIds.includes(currentUser.id) && c.participantIds.includes(otherUserId));
         if (existing) return existing.id;
+        
+        // Double check DB to avoid race condition or stale state
+        const q = await db.collection('conversations').where('participantIds', 'array-contains', currentUser.id).get();
+        const dbExisting = q.docs.find(d => {
+            const data = d.data();
+            return !data.isGroupChat && data.participantIds.includes(otherUserId);
+        });
+        
+        if (dbExisting) return dbExisting.id;
+
         const ref = await db.collection('conversations').add({ participantIds: [currentUser.id, otherUserId], collegeId: currentUser.collegeId, messages: [], isGroupChat: false });
         return ref.id;
-    };
-    const handleSendMessage = async (conversationId: string, text: string) => {
+    }, [currentUser, conversations]);
+
+    const handleSendMessage = useCallback(async (conversationId: string, text: string) => {
+        if (!currentUser) return;
         await db.collection('conversations').doc(conversationId).update({ messages: FieldValue.arrayUnion({ id: Date.now().toString(), senderId: currentUser.id, text, timestamp: Date.now() }) });
-    };
-    const handleSharePostAsMessage = async (conversationId: string, authorName: string, postContent: string) => {
+    }, [currentUser]);
+
+    const handleSharePostAsMessage = useCallback(async (conversationId: string, authorName: string, postContent: string) => {
         await handleSendMessage(conversationId, `Shared a post by ${authorName}:\n"${postContent}"`);
-    };
+    }, [handleSendMessage]);
+
     const handleDeleteMessagesForEveryone = async (conversationId: string, messageIds: string[]) => {
          const ref = db.collection('conversations').doc(conversationId);
          const doc = await ref.get();
@@ -460,9 +467,7 @@ const App: React.FC = () => {
     const handleUpdateProfile = async (data: any, file?: File) => {
         if (file) {
             try {
-                // 1. Compress aggressively for avatar
                 const compressedDataUrl = await compressImage(file, 300, 0.6);
-                
                 try {
                     const blob = dataURLtoBlob(compressedDataUrl);
                     if(blob) {
@@ -471,7 +476,6 @@ const App: React.FC = () => {
                     } else { throw new Error("Blob conversion failed"); }
                 } catch (storageErr) {
                     console.warn("Avatar upload failed, utilizing fallback storage.", storageErr);
-                    // Fallback to Base64 directly
                     data.avatarUrl = compressedDataUrl;
                 }
             } catch (e) {
@@ -582,15 +586,14 @@ const App: React.FC = () => {
         await db.collection('users').doc(userId).update(cleanData(data));
     };
     const handleCreateUser = async (userData: Omit<User, 'id'>, password?: string): Promise<void> => {
-        // If password is provided, create Auth user immediately (Director adding HOD)
         if (password) {
             try {
                 const { user } = await auth.createUserWithEmailAndPassword(userData.email, password);
                 const rawData = {
                     ...userData,
                     collegeId: currentUser.collegeId,
-                    isRegistered: true, // Pre-registered
-                    isApproved: true,   // Director creations are automatically approved
+                    isRegistered: true, 
+                    isApproved: true,   
                 };
                 await db.collection('users').doc(user.uid).set(cleanData(rawData));
             } catch (e) {
@@ -598,8 +601,6 @@ const App: React.FC = () => {
                 throw e;
             }
         } else {
-            // Invited users (Students/Teachers added by Faculty/HOD)
-            // Creates a "shadow" user doc to be claimed later
             const rawData = { 
                 ...userData, 
                 collegeId: currentUser.collegeId,
@@ -625,7 +626,6 @@ const App: React.FC = () => {
         return { successCount: usersData.length, errors: [] };
     };
     const handleCreateCollegeAdmin = async (collegeName: string, email: string, password: string) => {
-        // Simulate creation for demo
         const cRef = db.collection('colleges').doc();
         const uRef = db.collection('users').doc();
         await cRef.set({ name: collegeName, adminUids: [uRef.id], departments: [] });
@@ -638,8 +638,21 @@ const App: React.FC = () => {
         await db.collection('courses').doc(courseId).delete();
     };
     const handleSendDepartmentMessage = async (department: string, channel: string, text: string) => {
-        // Simplification: just log for now as UI implementation wasn't fully requested in prompt
         console.log("Sending dept message", department, channel, text);
+    };
+    
+    const handleRegisterForEvent = async (eventId: string) => {
+        const eventRef = db.collection('posts').doc(eventId);
+        await eventRef.update({
+            'eventDetails.attendees': FieldValue.arrayUnion(currentUser.id)
+        });
+    };
+
+    const handleUnregisterForEvent = async (eventId: string) => {
+        const eventRef = db.collection('posts').doc(eventId);
+        await eventRef.update({
+            'eventDetails.attendees': FieldValue.arrayRemove(currentUser.id)
+        });
     };
 
 
@@ -660,7 +673,6 @@ const App: React.FC = () => {
         groups
     };
 
-    // Render Logic for Impersonation
     if (currentPath.startsWith('#/director/view/') && currentUser?.tag === 'Director') {
         const targetUserId = currentPath.split('/')[3];
         const targetUser = users[targetUserId];
@@ -734,10 +746,9 @@ const App: React.FC = () => {
         {currentPath === '#/' && <WelcomePage onNavigate={setCurrentPath} />}
         {currentPath === '#/login' && <LoginPage onNavigate={setCurrentPath} />}
         {currentPath === '#/signup' && <SignupPage onNavigate={setCurrentPath} />}
-        {currentPath === '#/home' && currentUser && <HomePage currentUser={currentUser} users={users} posts={posts} stories={stories} groups={groups} events={posts.filter(p=>p.isEvent)} onNavigate={setCurrentPath} onAddPost={handleAddPost} onAddStory={handleAddStory} onMarkStoryAsViewed={handleMarkStoryAsViewed} onDeleteStory={handleDeleteStory} onReplyToStory={handleReplyToStory} currentPath={currentPath} {...postCardProps} />}
+        {currentPath === '#/home' && currentUser && <HomePage currentUser={currentUser} users={users} posts={posts} stories={stories} groups={groups} events={posts.filter(p=>p.isEvent)} notices={notices} onNavigate={setCurrentPath} onAddPost={handleAddPost} onAddStory={handleAddStory} onMarkStoryAsViewed={handleMarkStoryAsViewed} onDeleteStory={handleDeleteStory} onReplyToStory={handleReplyToStory} currentPath={currentPath} {...postCardProps} />}
         {currentPath.startsWith('#/profile/') && currentUser && <ProfilePage profileUserId={currentPath.split('/')[2]} currentUser={currentUser} users={users} posts={posts} groups={groups} colleges={colleges} onNavigate={setCurrentPath} currentPath={currentPath} onAddPost={handleAddPost} onAddAchievement={handleAddAchievement} onAddInterest={handleAddInterest} onUpdateProfile={handleUpdateProfile} {...postCardProps} />}
         
-        {/* Updated GroupsPage with passed handlers */}
         {currentPath === '#/groups' && currentUser && (
             <GroupsPage 
                 currentUser={currentUser} 
@@ -752,13 +763,38 @@ const App: React.FC = () => {
         
         {currentPath.startsWith('#/groups/') && currentUser && <GroupDetailPage group={groups.find(g => g.id === currentPath.split('/')[2])!} currentUser={currentUser} users={users} posts={posts.filter(p => p.groupId === currentPath.split('/')[2])} groups={groups} onNavigate={setCurrentPath} currentPath={currentPath} onAddPost={handleAddPost} onAddStory={handleAddStory} {...postCardProps} onJoinGroupRequest={handleJoinGroupRequest} onApproveJoinRequest={handleApproveJoinRequest} onDeclineJoinRequest={handleDeclineJoinRequest} onDeleteGroup={handleDeleteGroup} onSendGroupMessage={handleSendGroupMessage} onRemoveGroupMember={handleRemoveGroupMember} onToggleFollowGroup={handleToggleFollowGroup} onUpdateGroup={handleUpdateGroup} />}
         {currentPath === '#/opportunities' && currentUser && <OpportunitiesPage currentUser={currentUser} users={users} posts={posts} onNavigate={setCurrentPath} currentPath={currentPath} onAddPost={handleAddPost} postCardProps={postCardProps} />}
-        {currentPath === '#/events' && currentUser && <EventsPage currentUser={currentUser} users={users} events={posts.filter(p => p.isEvent)} groups={groups} onNavigate={setCurrentPath} currentPath={currentPath} onAddPost={handleAddPost} {...postCardProps} />}
+        
+        {currentPath === '#/events' && currentUser && (
+            <EventsPage 
+                currentUser={currentUser} 
+                users={users} 
+                events={posts.filter(p => p.isEvent)} 
+                groups={groups} 
+                onNavigate={setCurrentPath} 
+                currentPath={currentPath} 
+                onAddPost={handleAddPost} 
+                {...postCardProps} 
+            />
+        )}
+        
+        {currentPath.startsWith('#/events/') && currentUser && (
+            <EventDetailPage 
+                eventId={currentPath.split('/')[2]} 
+                posts={posts}
+                users={users}
+                currentUser={currentUser}
+                onNavigate={setCurrentPath}
+                onRegister={handleRegisterForEvent}
+                onUnregister={handleUnregisterForEvent}
+                onDeleteEvent={handleDeletePost}
+            />
+        )}
+
         {currentPath === '#/chat' && currentUser && <ChatPage currentUser={currentUser} users={users} conversations={conversations} onSendMessage={handleSendMessage} onDeleteMessagesForEveryone={handleDeleteMessagesForEveryone} onDeleteMessagesForSelf={handleDeleteMessagesForSelf} onDeleteConversations={handleDeleteConversations} onCreateOrOpenConversation={handleCreateOrOpenConversation} onNavigate={setCurrentPath} currentPath={currentPath} />}
         {currentPath === '#/search' && currentUser && <SearchPage currentUser={currentUser} users={Object.values(users)} posts={posts} groups={groups} onNavigate={setCurrentPath} currentPath={currentPath} {...postCardProps} />}
         {currentPath === '#/confessions' && currentUser && <ConfessionsPage currentUser={currentUser} users={users} posts={posts.filter(p => p.isConfession)} groups={groups} onNavigate={setCurrentPath} onAddPost={handleAddPost} {...postCardProps} currentPath={currentPath} />}
         {currentPath === '#/personal-notes' && currentUser && <PersonalNotesPage currentUser={currentUser} onNavigate={setCurrentPath} currentPath={currentPath} onCreateNote={handleCreatePersonalNote} onUpdateNote={handleUpdatePersonalNote} onDeleteNote={handleDeletePersonalNote} />}
         
-        {/* Role Based Dashboards */}
         {currentPath === '#/director' && currentUser && currentUser.tag === 'Director' && (
              <DirectorPage 
                 currentUser={currentUser} 

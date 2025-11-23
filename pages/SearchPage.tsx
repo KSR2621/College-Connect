@@ -50,41 +50,32 @@ const SearchPage: React.FC<SearchPageProps> = (props) => {
   const hasResults = results.people.length > 0 || results.groups.length > 0 || results.posts.length > 0;
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors duration-300">
+    <div className="bg-background min-h-screen flex flex-col">
       <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
       
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-24 lg:pb-8 max-w-5xl">
-        
-        {/* Hero Section */}
-        <div className="relative bg-card dark:bg-slate-900 p-8 sm:p-10 rounded-3xl shadow-sm border border-border dark:border-slate-800 overflow-hidden mb-8 animate-fade-in group">
-            <div className="absolute inset-0 bg-gradient-to-br from-sky-500/5 via-indigo-500/5 to-purple-500/5 dark:from-sky-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 opacity-100 transition-opacity duration-500"></div>
-            
-            {/* Animated blobs */}
-            <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/10 dark:bg-primary/20 rounded-full blur-3xl animate-pulse"></div>
-            <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-secondary/10 dark:bg-secondary/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-
-            <div className="relative z-10 text-center">
-                <div className="w-20 h-20 bg-gradient-to-br from-sky-500 to-indigo-600 text-white rounded-3xl mx-auto flex items-center justify-center mb-6 shadow-xl shadow-indigo-500/20 transform group-hover:scale-105 transition-transform duration-500 ease-out">
-                    <SearchIcon className="w-10 h-10"/>
+      <main className="flex-1 pb-24 lg:pb-8">
+        {/* Hero Header */}
+        <div className="relative bg-gradient-to-br from-sky-900 via-blue-900 to-slate-900 pt-12 pb-24 px-4 sm:px-6 overflow-hidden">
+            <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+            <div className="relative max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="text-center md:text-left">
+                    <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-2">Explore Campus</h1>
+                    <p className="text-sky-100 text-lg max-w-lg">Connect with people, discover communities, and find what's trending.</p>
                 </div>
-                <h1 className="text-4xl md:text-5xl font-black text-foreground tracking-tight mb-3">Explore Campus</h1>
-                <p className="text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
-                    Find students, discover vibrant communities, and join the conversation happening right now.
-                </p>
             </div>
         </div>
 
-        {/* Search Bar Sticky Header */}
-        <div className="sticky top-20 z-30 mb-8">
-            <div className="bg-white/80 dark:bg-slate-900/90 backdrop-blur-xl p-2 rounded-2xl shadow-lg shadow-black/5 dark:shadow-black/30 border border-border/50 dark:border-slate-700/50 ring-1 ring-black/5 dark:ring-white/5 transition-all duration-300">
+        {/* Search Sticky Header */}
+        <div className="sticky top-16 z-30 -mt-8 px-4">
+            <div className="max-w-4xl mx-auto bg-card/95 backdrop-blur-md border border-border shadow-lg rounded-2xl p-3 flex flex-col gap-3">
                 <div className="relative">
-                    <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
+                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
                     <input 
                         type="text" 
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        placeholder="Search for people, groups, or posts..."
-                        className="w-full bg-slate-100/50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 border-transparent rounded-xl pl-12 pr-10 py-3.5 text-base focus:outline-none focus:bg-white dark:focus:bg-slate-950 focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all shadow-inner text-foreground placeholder:text-muted-foreground/70"
+                        placeholder="Search people, groups, posts..."
+                        className="w-full bg-muted/50 hover:bg-muted border border-transparent focus:border-primary rounded-xl pl-10 pr-10 py-3 text-base focus:outline-none transition-all text-foreground"
                         autoFocus
                     />
                     {searchTerm && (
@@ -94,17 +85,16 @@ const SearchPage: React.FC<SearchPageProps> = (props) => {
                     )}
                 </div>
                 
-                {/* Filter Tabs */}
                 {searchTerm && (
-                    <div className="flex gap-2 mt-2 px-1 pb-1 overflow-x-auto no-scrollbar">
+                    <div className="flex gap-2 px-1 pb-1 overflow-x-auto no-scrollbar">
                         {['all', 'people', 'groups', 'posts'].map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab as any)}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold capitalize whitespace-nowrap transition-all duration-200 border ${
+                                className={`px-4 py-1.5 rounded-lg text-sm font-bold capitalize whitespace-nowrap transition-all duration-200 border ${
                                     activeTab === tab 
-                                    ? 'bg-foreground text-background border-foreground shadow-md transform scale-105' 
-                                    : 'bg-transparent text-muted-foreground border-transparent hover:bg-muted dark:hover:bg-slate-800/50 hover:text-foreground'
+                                    ? 'bg-foreground text-background border-foreground shadow-sm' 
+                                    : 'bg-transparent text-muted-foreground border-transparent hover:bg-muted hover:text-foreground'
                                 }`}
                             >
                                 {tab}
@@ -115,26 +105,17 @@ const SearchPage: React.FC<SearchPageProps> = (props) => {
             </div>
         </div>
 
-        {/* Results Content */}
-        <div className="space-y-8 min-h-[300px]">
-            {searchTerm && !hasResults && (
-                <div className="text-center py-16 animate-fade-in">
-                    <div className="bg-muted/30 dark:bg-slate-800/30 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6 border border-border dark:border-slate-700/50 dashed">
-                        <SearchIcon className="w-12 h-12 text-muted-foreground/40" />
-                    </div>
-                    <h3 className="text-xl font-bold text-foreground">No results found</h3>
-                    <p className="text-muted-foreground mt-2">We couldn't find anything for "<span className="font-semibold text-foreground">{searchTerm}</span>".</p>
-                </div>
-            )}
-
+        {/* Content Area */}
+        <div className="max-w-6xl mx-auto px-4 pt-8 space-y-10 min-h-[400px]">
+            
             {!searchTerm && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
                     {[
-                        { title: "Find People", subtitle: "Connect with classmates", icon: UsersIcon, color: "text-primary", bg: "bg-primary/10 dark:bg-primary/20", border: "hover:border-primary/40" },
-                        { title: "Join Groups", subtitle: "Discover communities", icon: UsersIcon, color: "text-purple-500", bg: "bg-purple-500/10 dark:bg-purple-500/20", border: "hover:border-purple-500/40" },
-                        { title: "Discover Content", subtitle: "Search posts and news", icon: SearchIcon, color: "text-amber-500", bg: "bg-amber-500/10 dark:bg-amber-500/20", border: "hover:border-amber-500/40" }
+                        { title: "Find People", subtitle: "Connect with classmates", icon: UsersIcon, color: "text-primary", bg: "bg-primary/10", border: "hover:border-primary/40" },
+                        { title: "Join Groups", subtitle: "Discover communities", icon: UsersIcon, color: "text-purple-500", bg: "bg-purple-500/10", border: "hover:border-purple-500/40" },
+                        { title: "Trending", subtitle: "See what's happening", icon: SearchIcon, color: "text-amber-500", bg: "bg-amber-500/10", border: "hover:border-amber-500/40" }
                     ].map((item, i) => (
-                        <div key={i} className={`p-8 border border-dashed border-border dark:border-slate-700 bg-card/50 dark:bg-slate-900/30 rounded-3xl text-center transition-all duration-300 ${item.border} hover:bg-card dark:hover:bg-slate-900 hover:shadow-lg cursor-pointer group`}>
+                        <div key={i} className={`p-8 border border-dashed border-border bg-card/50 rounded-3xl text-center transition-all duration-300 ${item.border} hover:bg-card hover:shadow-lg cursor-pointer group`}>
                             <div className={`w-16 h-16 mx-auto mb-4 ${item.bg} rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
                                 <item.icon className={`w-8 h-8 ${item.color}`}/>
                             </div>
@@ -145,16 +126,25 @@ const SearchPage: React.FC<SearchPageProps> = (props) => {
                 </div>
             )}
 
+            {searchTerm && !hasResults && (
+                <div className="text-center py-16 animate-fade-in">
+                    <div className="bg-muted/30 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6 border border-border dashed">
+                        <SearchIcon className="w-12 h-12 text-muted-foreground/40" />
+                    </div>
+                    <h3 className="text-xl font-bold text-foreground">No results found</h3>
+                    <p className="text-muted-foreground mt-2">We couldn't find anything for "<span className="font-semibold text-foreground">{searchTerm}</span>".</p>
+                </div>
+            )}
+
             {/* People Results */}
             {(activeTab === 'all' || activeTab === 'people') && results.people.length > 0 && (
                 <div className="animate-fade-in">
                     <h3 className="text-lg font-bold text-foreground mb-4 px-1 flex items-center gap-2">
-                        <div className="p-1.5 bg-primary/10 rounded-lg"><UsersIcon className="w-4 h-4 text-primary"/></div>
-                        People
+                        <span className="bg-primary/10 text-primary px-2 py-1 rounded text-xs">People</span>
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {results.people.map(user => (
-                            <div key={user.id} onClick={() => onNavigate(`#/profile/${user.id}`)} className="bg-card dark:bg-slate-900 p-4 rounded-2xl border border-border dark:border-slate-800 shadow-sm hover:shadow-md hover:border-primary/30 dark:hover:border-primary/30 transition-all cursor-pointer flex items-center gap-4 group hover:-translate-y-0.5">
+                            <div key={user.id} onClick={() => onNavigate(`#/profile/${user.id}`)} className="bg-card p-4 rounded-2xl border border-border shadow-sm hover:shadow-md hover:border-primary/30 transition-all cursor-pointer flex items-center gap-4 group hover:-translate-y-0.5">
                                 <Avatar src={user.avatarUrl} name={user.name} size="lg" className="shadow-sm ring-2 ring-transparent group-hover:ring-primary/20 transition-all" />
                                 <div className="flex-1 min-w-0">
                                     <h4 className="font-bold text-foreground text-base truncate group-hover:text-primary transition-colors">{user.name}</h4>
@@ -163,7 +153,7 @@ const SearchPage: React.FC<SearchPageProps> = (props) => {
                                         {user.tag}
                                     </span>
                                 </div>
-                                <div className="p-2 rounded-full bg-muted/50 dark:bg-slate-800 group-hover:bg-primary/10 transition-colors">
+                                <div className="p-2 rounded-full bg-muted/50 group-hover:bg-primary/10 transition-colors">
                                     <ArrowRightIcon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors"/>
                                 </div>
                             </div>
@@ -176,12 +166,11 @@ const SearchPage: React.FC<SearchPageProps> = (props) => {
             {(activeTab === 'all' || activeTab === 'groups') && results.groups.length > 0 && (
                 <div className="animate-fade-in">
                     <h3 className="text-lg font-bold text-foreground mb-4 px-1 flex items-center gap-2">
-                        <div className="p-1.5 bg-purple-500/10 rounded-lg"><UsersIcon className="w-4 h-4 text-purple-500"/></div>
-                        Groups
+                        <span className="bg-purple-500/10 text-purple-600 px-2 py-1 rounded text-xs">Groups</span>
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {results.groups.map(group => (
-                            <div key={group.id} onClick={() => onNavigate(`#/groups/${group.id}`)} className="bg-card dark:bg-slate-900 p-5 rounded-2xl border border-border dark:border-slate-800 shadow-sm hover:shadow-md hover:border-purple-500/30 transition-all cursor-pointer flex items-center gap-4 group hover:-translate-y-0.5">
+                            <div key={group.id} onClick={() => onNavigate(`#/groups/${group.id}`)} className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md hover:border-purple-500/30 transition-all cursor-pointer flex items-center gap-4 group hover:-translate-y-0.5">
                                 <div className="h-14 w-14 bg-gradient-to-br from-purple-500 to-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300">
                                     <UsersIcon className="w-7 h-7"/>
                                 </div>
@@ -189,7 +178,7 @@ const SearchPage: React.FC<SearchPageProps> = (props) => {
                                     <h4 className="font-bold text-foreground text-lg truncate group-hover:text-primary transition-colors">{group.name}</h4>
                                     <p className="text-sm text-muted-foreground truncate">{group.memberIds.length} members</p>
                                 </div>
-                                <div className="px-4 py-1.5 rounded-full bg-muted dark:bg-slate-800 text-xs font-bold text-muted-foreground group-hover:bg-purple-50 dark:group-hover:bg-purple-900/30 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                                <div className="px-4 py-1.5 rounded-full bg-muted text-xs font-bold text-muted-foreground group-hover:bg-purple-50 group-hover:text-purple-600 transition-colors">
                                     View
                                 </div>
                             </div>
@@ -202,8 +191,7 @@ const SearchPage: React.FC<SearchPageProps> = (props) => {
             {(activeTab === 'all' || activeTab === 'posts') && results.posts.length > 0 && (
                 <div className="animate-fade-in">
                     <h3 className="text-lg font-bold text-foreground mb-4 px-1 flex items-center gap-2">
-                        <div className="p-1.5 bg-amber-500/10 rounded-lg"><SearchIcon className="w-4 h-4 text-amber-500"/></div>
-                        Posts
+                        <span className="bg-amber-500/10 text-amber-600 px-2 py-1 rounded text-xs">Posts</span>
                     </h3>
                     <div className="max-w-2xl mx-auto">
                         <Feed 

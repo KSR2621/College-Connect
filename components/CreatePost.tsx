@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { User } from '../types';
 import Avatar from './Avatar';
-import { PostIcon, EventIcon, PhotoIcon, CloseIcon, CalendarIcon, ClockIcon, LinkIcon, BuildingIcon, SparkleIcon } from './Icons';
+import { PostIcon, EventIcon, PhotoIcon, CloseIcon, CalendarIcon, ClockIcon, LinkIcon, MapPinIcon, SparkleIcon, BriefcaseIcon } from './Icons';
 
 interface CreatePostProps {
   user: User;
@@ -10,7 +10,14 @@ interface CreatePostProps {
     content: string;
     mediaDataUrls?: string[] | null;
     mediaType?: 'image' | 'video' | null;
-    eventDetails?: { title: string; date: string; location: string; link?: string; };
+    eventDetails?: { 
+        title: string; 
+        date: string; 
+        location: string; 
+        link?: string; 
+        category?: string; 
+        tags?: string[] 
+    };
     groupId?: string;
     isConfession?: boolean;
   }) => void;
@@ -35,7 +42,10 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFeaturePopup, setShowFeaturePopup] = useState(false);
   
-  const [eventDetails, setEventDetails] = useState({ title: '', date: '', time: '', location: '', link: '' });
+  const [eventDetails, setEventDetails] = useState({ 
+      title: '', date: '', time: '', location: '', link: '', 
+      category: 'Workshop', tags: '' 
+  });
   const [mediaDataUrls, setMediaDataUrls] = useState<string[]>([]);
   
   const [hasText, setHasText] = useState(false);
@@ -124,7 +134,10 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
                 title,
                 date: combinedDateTime.toISOString(),
                 location,
-                link: eventDetails.link.trim()
+                link: eventDetails.link.trim(),
+                category: eventDetails.category,
+                tags: eventDetails.tags.split(',').map(t => t.trim()).filter(t => t),
+                organizer: user.department // Default to user dept
             };
         } catch (error) {
             console.error("Date parsing error:", error);
@@ -135,7 +148,6 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
 
     setIsSubmitting(true);
     try {
-        // Explicitly determine mediaType
         const determinedMediaType = mediaDataUrls.length > 0 ? 'image' : null;
 
         await onAddPost({
@@ -147,15 +159,13 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
             isConfession: isConfessionMode,
         });
 
-        // Reset form
         if (editorRef.current) {
             editorRef.current.innerHTML = '';
             setHasText(false);
         }
-        // Clear draft
         localStorage.removeItem('postDraft');
         
-        setEventDetails({ title: '', date: '', time: '', location: '', link: '' });
+        setEventDetails({ title: '', date: '', time: '', location: '', link: '', category: 'Workshop', tags: '' });
         clearMedia();
     } catch (error) {
         console.error("Failed to post:", error);
@@ -165,7 +175,6 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
     }
   };
   
-  // Check if event fields are valid for disabling the button
   const isEventFormValid = postType === 'event' 
     ? eventDetails.title.trim() && eventDetails.date && eventDetails.time && eventDetails.location.trim()
     : true;
@@ -176,80 +185,166 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
 
   return (
     <>
-    <div className="flex flex-col h-full bg-card relative">
+    <div className="flex flex-col h-full bg-card relative overflow-hidden">
         {/* Post Type Switcher */}
         {!isConfessionMode && (
-            <div className="flex p-2 bg-muted/30 mx-4 mt-4 rounded-xl">
-                <button 
-                    type="button" 
-                    onClick={() => setPostType('post')} 
-                    className={`flex-1 py-2 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all duration-200 ${postType === 'post' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
-                >
-                    <PostIcon className="w-4 h-4"/> Regular Post
-                </button>
-                <button 
-                    type="button" 
-                    onClick={() => setPostType('event')} 
-                    className={`flex-1 py-2 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all duration-200 ${postType === 'event' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
-                >
-                    <EventIcon className="w-4 h-4"/> Event
-                </button>
+            <div className="px-4 pt-4 pb-2">
+                <div className="bg-muted/50 p-1 rounded-xl flex relative overflow-hidden">
+                    <button 
+                        type="button" 
+                        onClick={() => setPostType('post')} 
+                        className={`flex-1 py-2.5 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all duration-200 z-10 ${postType === 'post' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+                    >
+                        <PostIcon className="w-4 h-4"/> Regular Post
+                    </button>
+                    <button 
+                        type="button" 
+                        onClick={() => setPostType('event')} 
+                        className={`flex-1 py-2.5 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all duration-200 z-10 ${postType === 'event' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+                    >
+                        <EventIcon className="w-4 h-4"/> Event
+                    </button>
+                </div>
             </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
             <div className="flex gap-3 mb-4 items-center">
                 <Avatar src={user.avatarUrl} name={user.name} size="md" />
                 <div>
                     <p className="font-bold text-sm text-foreground leading-none">{user.name}</p>
                     <div className="flex items-center gap-1 mt-1">
-                        <span className="text-[10px] font-bold bg-muted text-muted-foreground px-1.5 py-0.5 rounded">{groupId ? 'Group' : 'Public'}</span>
-                        {postType === 'event' && <span className="text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded">Event</span>}
+                        <span className="text-[10px] font-bold bg-muted text-muted-foreground px-2 py-0.5 rounded-full border border-border/50">
+                            {groupId ? 'Group Member' : 'Public'}
+                        </span>
                     </div>
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
                 {postType === 'event' && !isConfessionMode && (
-                    <div className="space-y-4 bg-muted/30 p-4 rounded-2xl border border-border animate-fade-in">
-                        <input 
-                            type="text" 
-                            disabled={isSubmitting} 
-                            placeholder="Event Title" 
-                            className="w-full bg-transparent text-xl font-bold placeholder:text-muted-foreground/60 border-b border-border/50 pb-2 focus:outline-none focus:border-primary transition-colors text-foreground"
-                            value={eventDetails.title} 
-                            onChange={e => setEventDetails({...eventDetails, title: e.target.value})} 
-                        />
+                    <div className="space-y-4 animate-fade-in">
+                        {/* Event Title */}
+                        <div className="relative group">
+                            <input 
+                                type="text" 
+                                disabled={isSubmitting} 
+                                placeholder="Event Title" 
+                                className="w-full text-2xl font-bold bg-transparent border-b-2 border-border focus:border-primary py-2 placeholder:text-muted-foreground/40 text-foreground outline-none transition-colors"
+                                value={eventDetails.title} 
+                                onChange={e => setEventDetails({...eventDetails, title: e.target.value})} 
+                                autoFocus
+                            />
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-muted-foreground uppercase">Date</label>
+                            {/* Category */}
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                    <BriefcaseIcon className="w-3 h-3"/> Category
+                                </label>
                                 <div className="relative">
-                                    <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/>
-                                    <input type="date" disabled={isSubmitting} className="w-full bg-card border border-border rounded-lg pl-10 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none text-foreground" value={eventDetails.date} onChange={e => setEventDetails({...eventDetails, date: e.target.value})} />
+                                    <select 
+                                        disabled={isSubmitting} 
+                                        className="w-full bg-muted/30 border border-border hover:border-primary/50 focus:border-primary rounded-xl px-3 py-2.5 text-sm font-medium text-foreground outline-none transition-all appearance-none" 
+                                        value={eventDetails.category} 
+                                        onChange={e => setEventDetails({...eventDetails, category: e.target.value})} 
+                                    >
+                                        <option value="Workshop">Workshop</option>
+                                        <option value="Meetup">Meetup</option>
+                                        <option value="Competition">Competition</option>
+                                        <option value="Cultural">Cultural</option>
+                                        <option value="Sports">Sports</option>
+                                        <option value="E-Cell">E-Cell</option>
+                                        <option value="Other">Other</option>
+                                    </select>
                                 </div>
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-muted-foreground uppercase">Time</label>
+                            {/* Tags */}
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                    Tags (Comma sep)
+                                </label>
+                                <input 
+                                    type="text" 
+                                    disabled={isSubmitting} 
+                                    placeholder="AI, Dance, Coding..."
+                                    className="w-full bg-muted/30 border border-border hover:border-primary/50 focus:border-primary rounded-xl px-3 py-2.5 text-sm font-medium text-foreground outline-none transition-all" 
+                                    value={eventDetails.tags} 
+                                    onChange={e => setEventDetails({...eventDetails, tags: e.target.value})} 
+                                />
+                            </div>
+                        </div>
+
+                        {/* Date & Time Grid */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                    <CalendarIcon className="w-3 h-3"/> Date
+                                </label>
                                 <div className="relative">
-                                    <ClockIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/>
-                                    <input type="time" disabled={isSubmitting} className="w-full bg-card border border-border rounded-lg pl-10 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none text-foreground" value={eventDetails.time} onChange={e => setEventDetails({...eventDetails, time: e.target.value})} />
+                                    <input 
+                                        type="date" 
+                                        disabled={isSubmitting} 
+                                        className="w-full bg-muted/30 border border-border hover:border-primary/50 focus:border-primary rounded-xl px-3 py-2.5 text-sm font-medium text-foreground outline-none transition-all" 
+                                        value={eventDetails.date} 
+                                        onChange={e => setEventDetails({...eventDetails, date: e.target.value})} 
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                    <ClockIcon className="w-3 h-3"/> Time
+                                </label>
+                                <div className="relative">
+                                    <input 
+                                        type="time" 
+                                        disabled={isSubmitting} 
+                                        className="w-full bg-muted/30 border border-border hover:border-primary/50 focus:border-primary rounded-xl px-3 py-2.5 text-sm font-medium text-foreground outline-none transition-all" 
+                                        value={eventDetails.time} 
+                                        onChange={e => setEventDetails({...eventDetails, time: e.target.value})} 
+                                    />
                                 </div>
                             </div>
                         </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-muted-foreground uppercase">Location</label>
-                            <div className="relative">
-                                <BuildingIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/>
-                                <input type="text" disabled={isSubmitting} placeholder="Where is it happening?" className="w-full bg-card border border-border rounded-lg pl-10 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none text-foreground" value={eventDetails.location} onChange={e => setEventDetails({...eventDetails, location: e.target.value})} />
+
+                        {/* Location */}
+                        <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Location</label>
+                            <div className="relative group">
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors">
+                                    <MapPinIcon className="w-4 h-4"/>
+                                </div>
+                                <input 
+                                    type="text" 
+                                    disabled={isSubmitting} 
+                                    placeholder="Where is it happening?" 
+                                    className="w-full bg-muted/30 border border-border hover:border-primary/50 focus:border-primary rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium text-foreground outline-none transition-all placeholder:text-muted-foreground/50" 
+                                    value={eventDetails.location} 
+                                    onChange={e => setEventDetails({...eventDetails, location: e.target.value})} 
+                                />
                             </div>
                         </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-muted-foreground uppercase">Link (Optional)</label>
-                            <div className="relative">
-                                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <input type="url" disabled={isSubmitting} placeholder="Registration or info link" className="w-full bg-card border border-border rounded-lg pl-10 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none text-foreground" value={eventDetails.link} onChange={e => setEventDetails({...eventDetails, link: e.target.value})} />
+
+                        {/* Link */}
+                        <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Registration Link (Optional)</label>
+                            <div className="relative group">
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors">
+                                    <LinkIcon className="w-4 h-4"/>
+                                </div>
+                                <input 
+                                    type="url" 
+                                    disabled={isSubmitting} 
+                                    placeholder="External URL if applicable" 
+                                    className="w-full bg-muted/30 border border-border hover:border-primary/50 focus:border-primary rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium text-foreground outline-none transition-all placeholder:text-muted-foreground/50" 
+                                    value={eventDetails.link} 
+                                    onChange={e => setEventDetails({...eventDetails, link: e.target.value})} 
+                                />
                             </div>
                         </div>
+                        
+                        <div className="h-px w-full bg-gradient-to-r from-transparent via-border to-transparent my-4"></div>
                     </div>
                 )}
                 
@@ -262,8 +357,8 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
                         contentEditable={!isSubmitting}
                         suppressContentEditableWarning={true}
                         onInput={handleInput}
-                        data-placeholder={postType === 'event' ? "Describe the event details..." : "What's on your mind?"}
-                        className="w-full h-full outline-none text-xl text-foreground placeholder:text-muted-foreground empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/50 cursor-text leading-relaxed"
+                        data-placeholder={postType === 'event' ? "Describe the event agenda, speakers, etc..." : "What's on your mind?"}
+                        className="w-full h-full outline-none text-lg text-foreground placeholder:text-muted-foreground empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/40 cursor-text leading-relaxed whitespace-pre-wrap"
                     />
                 </div>
 
@@ -306,7 +401,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-border bg-muted/5 flex items-center justify-between">
+        <div className="p-4 border-t border-border bg-muted/5 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-1">
                 <input type="file" accept="image/*" ref={imageInputRef} onChange={handleFileChange} multiple className="hidden" disabled={isSubmitting} />
                 {!isConfessionMode && (
@@ -331,7 +426,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
                 disabled={isSubmitting || !isEventFormValid || !isPostFormValid}
                 className="bg-primary text-primary-foreground font-bold py-2.5 px-6 rounded-full hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary/20 transform active:scale-95"
             >
-                {isSubmitting ? 'Posting...' : postType === 'event' ? 'Create Event' : 'Post'}
+                {isSubmitting ? 'Posting...' : postType === 'event' ? 'Host Event' : 'Post'}
             </button>
         </div>
     </div>

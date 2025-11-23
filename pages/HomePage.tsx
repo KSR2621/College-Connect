@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import type { User, Post, Group, Story, ReactionType } from '../types';
+import type { User, Post, Group, Story, ReactionType, Notice } from '../types';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
 import Feed from '../components/Feed';
@@ -11,7 +11,7 @@ import RightSidebar from '../components/RightSidebar';
 import CreatePostModal from '../components/CreatePostModal';
 import StoryCreatorModal from '../components/StoryCreatorModal';
 import StoryViewerModal from '../components/StoryViewerModal';
-import { TrendingUpIcon } from '../components/Icons';
+import { TrendingUpIcon, ChevronDownIcon } from '../components/Icons';
 import { auth } from '../firebase';
 
 interface HomePageProps {
@@ -21,6 +21,7 @@ interface HomePageProps {
   stories: Story[];
   groups: Group[];
   events: Post[];
+  notices: Notice[];
   onNavigate: (path: string) => void;
   onAddPost: (postDetails: any) => void;
   onAddStory: (storyDetails: any) => void;
@@ -39,13 +40,15 @@ interface HomePageProps {
   onToggleSavePost: (postId: string) => void;
 }
 
+type FeedFilter = 'Latest' | 'For You' | 'Groups';
+
 const HomePage: React.FC<HomePageProps> = (props) => {
-    const { currentUser, users, posts, stories, groups, events, onNavigate, onAddPost, onAddStory, onMarkStoryAsViewed, onDeleteStory, onReplyToStory, currentPath, ...postCardProps } = props;
+    const { currentUser, users, posts, stories, groups, events, notices, onNavigate, onAddPost, onAddStory, onMarkStoryAsViewed, onDeleteStory, onReplyToStory, currentPath, ...postCardProps } = props;
 
     const [createModalType, setCreateModalType] = useState<'post' | 'event' | null>(null);
     const [isStoryCreatorOpen, setIsStoryCreatorOpen] = useState(false);
     const [viewingStoryEntityId, setViewingStoryEntityId] = useState<string | null>(null);
-    const [sortOrder, setSortOrder] = useState<'latest' | 'forYou'>('latest');
+    const [activeFilter, setActiveFilter] = useState<FeedFilter>('For You');
     const [showNewPostsBanner, setShowNewPostsBanner] = useState(false);
     const mainContentRef = useRef<HTMLDivElement>(null);
 
@@ -56,41 +59,46 @@ const HomePage: React.FC<HomePageProps> = (props) => {
         onNavigate('#/');
     };
 
-    const handleSortOrderChange = (order: 'latest' | 'forYou') => {
-        setSortOrder(order);
-    };
-
     const handleShowNewPosts = () => {
         setShowNewPostsBanner(false);
         mainContentRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
     const feedToRender = useMemo(() => {
-        let filteredPosts = posts.filter(p => !p.isConfession && !p.groupId); // Main feed doesn't show confessions or group posts by default
-        
-        if (sortOrder === 'latest') {
+        let filteredPosts = posts.filter(p => !p.isConfession); // Base filter: no confessions in main feed
+
+        if (activeFilter === 'Groups') {
+            const myGroupIds = currentUser.followingGroups || [];
+            // Include posts posted to my groups
+            filteredPosts = filteredPosts.filter(p => p.groupId && myGroupIds.includes(p.groupId));
+        } else if (activeFilter === 'Latest') {
+            // Show all public posts + posts from my groups
+            filteredPosts = filteredPosts.filter(p => !p.groupId || (currentUser.followingGroups || []).includes(p.groupId));
+            // Sort purely by time
             return filteredPosts.sort((a, b) => b.timestamp - a.timestamp);
         } else {
-            // Simple "For You" logic: prioritize posts from friends/followed groups? 
-            // For now just shuffle or keep same as we don't have a complex graph
-            return filteredPosts;
+            // 'For You' (Default)
+            filteredPosts = filteredPosts.filter(p => {
+                const author = users[p.authorId];
+                const isMyDept = author && author.department === currentUser.department;
+                const isMyGroup = p.groupId && (currentUser.followingGroups || []).includes(p.groupId);
+                const isPublic = !p.groupId; // Assume non-group posts are public
+                return isMyDept || isMyGroup || isPublic;
+            });
+            return filteredPosts.sort((a, b) => b.timestamp - a.timestamp);
         }
-    }, [posts, sortOrder]);
-
-    // Check for new posts (simulated)
-    useEffect(() => {
-        if (posts.length > 0) {
-            // Logic to detect new posts could go here
-        }
-    }, [posts.length]);
+        
+        return filteredPosts.sort((a, b) => b.timestamp - a.timestamp);
+    }, [posts, activeFilter, currentUser, users]);
 
     return (
-        <div className="min-h-screen bg-background relative isolate">
-            {/* Colorful Background Blobs for Light Mode */}
+        <div className="min-h-screen bg-background relative isolate transition-colors duration-300">
+            {/* Beautiful Background Mesh - Enhanced for Light Mode */}
             <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-purple-400/10 blur-[100px] animate-pulse dark:bg-purple-900/10"></div>
-                <div className="absolute top-[20%] right-[-5%] w-[30%] h-[30%] rounded-full bg-blue-400/10 blur-[80px] animate-pulse delay-1000 dark:bg-blue-900/10"></div>
-                <div className="absolute bottom-[-10%] left-[20%] w-[40%] h-[40%] rounded-full bg-pink-400/10 blur-[100px] animate-pulse delay-2000 dark:bg-pink-900/10"></div>
+                {/* Light Mode: Richer Gradients */}
+                <div className="absolute top-[-20%] left-[-20%] w-[70%] h-[70%] rounded-full bg-blue-400/20 dark:bg-indigo-900/20 blur-[120px] mix-blend-multiply dark:mix-blend-normal animate-pulse"></div>
+                <div className="absolute bottom-[-20%] right-[-20%] w-[70%] h-[70%] rounded-full bg-purple-400/20 dark:bg-fuchsia-900/20 blur-[120px] mix-blend-multiply dark:mix-blend-normal animate-pulse animation-delay-2000"></div>
+                <div className="absolute top-[30%] left-[40%] w-[50%] h-[50%] rounded-full bg-pink-300/20 dark:bg-sky-900/20 blur-[100px] mix-blend-multiply dark:mix-blend-normal opacity-70"></div>
             </div>
 
             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
@@ -108,59 +116,42 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                 </div>
             )}
 
-            <main className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-20 lg:pb-8" ref={mainContentRef}>
-                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+            <main className="container max-w-7xl mx-auto px-0 sm:px-6 lg:px-8 pt-6 pb-20 lg:pb-8" ref={mainContentRef}>
+                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                     
                     {/* Left Sidebar (Desktop) */}
                     <aside className="hidden lg:block lg:col-span-3 sticky top-24 transition-all duration-300 h-[calc(100vh-100px)] overflow-y-auto no-scrollbar">
                        <LeftSidebar currentUser={currentUser} onNavigate={onNavigate} />
-                       <div className="mt-6 text-xs text-muted-foreground text-center px-4 opacity-70">
-                           &copy; 2025 CampusConnect
-                           <div className="mt-1 space-x-2">
-                               <a href="#" className="hover:underline">Privacy</a>
-                               <span>&bull;</span>
-                               <a href="#" className="hover:underline">Terms</a>
-                           </div>
-                       </div>
                     </aside>
 
-                    {/* Main Feed Column */}
-                    <div className="lg:col-span-6 w-full max-w-2xl mx-auto space-y-6">
+                    {/* Center Main Feed Column */}
+                    <div className="lg:col-span-6 w-full max-w-[680px] mx-auto space-y-5 px-4 sm:px-0">
                         
-                        {/* Stories */}
-                        <div className="relative">
-                            <StoriesReel
-                                stories={stories}
-                                users={users}
-                                groups={groups}
-                                currentUser={currentUser}
-                                onAddStoryClick={() => setIsStoryCreatorOpen(true)}
-                                onViewStoryEntity={(entityId) => setViewingStoryEntityId(entityId)}
-                            />
-                        </div>
+                        {/* Stories - Top of Feed */}
+                        <StoriesReel
+                            stories={stories}
+                            users={users}
+                            groups={groups}
+                            currentUser={currentUser}
+                            onAddStoryClick={() => setIsStoryCreatorOpen(true)}
+                            onViewStoryEntity={(entityId) => setViewingStoryEntityId(entityId)}
+                        />
                         
-                        {/* Create Post */}
+                        {/* Create Post Box */}
                         {canPost && (
                             <InlineCreatePost user={currentUser} onOpenCreateModal={setCreateModalType} />
                         )}
 
-                        {/* Feed Header & Sort */}
-                        <div className="flex items-center justify-between px-2 mb-2">
-                            <h2 className="text-xl font-bold text-foreground tracking-tight">Your Feed</h2>
-                            <div className="flex bg-card/80 p-1 rounded-lg shadow-sm border border-border backdrop-blur-sm">
-                                <button 
-                                    onClick={() => handleSortOrderChange('forYou')} 
-                                    className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all duration-200 ${sortOrder === 'forYou' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                                >
-                                    For You
-                                </button>
-                                <button 
-                                    onClick={() => handleSortOrderChange('latest')} 
-                                    className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all duration-200 ${sortOrder === 'latest' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                                >
-                                    Latest
-                                </button>
-                            </div>
+                        {/* Sort Divider */}
+                        <div className="flex items-center justify-between px-1 pt-2 pb-1">
+                            <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-border to-transparent mr-4 opacity-50"></div>
+                            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-1 cursor-pointer hover:text-primary transition-colors select-none" onClick={() => {
+                                const nextFilter = activeFilter === 'For You' ? 'Latest' : activeFilter === 'Latest' ? 'Groups' : 'For You';
+                                setActiveFilter(nextFilter);
+                            }}>
+                                Sort by: <span className="text-foreground">{activeFilter}</span>
+                                <ChevronDownIcon className="w-3 h-3" />
+                            </span>
                         </div>
 
                         {/* Posts Feed */}
@@ -184,6 +175,7 @@ const HomePage: React.FC<HomePageProps> = (props) => {
                             currentUser={currentUser}
                             onNavigate={onNavigate}
                             users={Object.values(users)}
+                            notices={notices}
                         />
                     </aside>
                  </div>

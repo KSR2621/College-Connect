@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import type { User } from '../types';
 import Avatar from './Avatar';
-import { PhotoIcon, EventIcon, FileTextIcon, SparkleIcon, CloseIcon } from './Icons';
+import { PhotoIcon, CalendarIcon, FileTextIcon, SparkleIcon, CloseIcon } from './Icons';
 
 interface InlineCreatePostProps {
   user: User;
@@ -14,47 +14,46 @@ const InlineCreatePost: React.FC<InlineCreatePostProps> = ({ user, onOpenCreateM
 
   return (
     <>
-        <div className="mb-4 animate-fade-in">
-            <div className="bg-card dark:bg-slate-900 rounded-xl shadow-sm border border-border p-3 md:p-4">
-                {/* Top Row: Avatar + Input Trigger */}
-                <div className="flex items-center gap-3 mb-2">
-                    <div className="flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity">
-                        <Avatar src={user.avatarUrl} name={user.name} size="md" className="w-10 h-10 md:w-12 md:h-12 border border-border" />
-                    </div>
-                    <button
-                        className="flex-1 text-left bg-white dark:bg-slate-950 hover:bg-muted/50 border border-input rounded-full h-10 md:h-12 px-4 md:px-5 text-sm font-semibold text-muted-foreground transition-all duration-200 text-ellipsis overflow-hidden whitespace-nowrap shadow-sm hover:shadow-md"
-                        onClick={() => onOpenCreateModal('post')}
-                    >
-                        Start a post
-                    </button>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-4 mb-6 animate-fade-in transition-all duration-200">
+            {/* Top Row: Avatar + Input Trigger */}
+            <div className="flex items-center gap-3 mb-3">
+                <div className="flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity" onClick={() => onOpenCreateModal('post')}>
+                    <Avatar src={user.avatarUrl} name={user.name} size="md" className="w-12 h-12 ring-1 ring-slate-100 dark:ring-slate-800" />
                 </div>
+                <button
+                    className="flex-1 text-left bg-white dark:bg-slate-950 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 rounded-full h-12 px-5 text-sm font-semibold text-slate-500 dark:text-slate-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    onClick={() => onOpenCreateModal('post')}
+                >
+                    Start a post, {user.name.split(' ')[0]}...
+                </button>
+            </div>
+            
+            {/* Bottom Row: Action Buttons */}
+            <div className="flex items-center justify-between pt-1 sm:px-2">
+                <button 
+                    onClick={() => setComingSoonFeature('Media')} 
+                    className="flex items-center gap-2 px-4 py-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group flex-1 justify-center sm:justify-start"
+                >
+                    <PhotoIcon className="w-6 h-6 text-sky-500" />
+                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-300 group-hover:text-foreground">Media</span>
+                </button>
                 
-                {/* Bottom Row: Action Buttons */}
-                <div className="flex items-center justify-between -mx-2 md:-mx-0 pt-2">
-                    <button 
-                        onClick={() => setComingSoonFeature('Media')} 
-                        className="flex-1 flex items-center justify-center gap-2 px-2 py-3 rounded-lg hover:bg-muted/50 dark:hover:bg-slate-800 transition-colors group"
-                    >
-                        <PhotoIcon className="w-5 h-5 md:w-6 md:h-6 text-sky-500" />
-                        <span className="text-xs md:text-sm font-semibold text-muted-foreground group-hover:text-foreground">Media</span>
-                    </button>
-                    
-                    <button 
-                        onClick={() => onOpenCreateModal('event')} 
-                        className="flex-1 flex items-center justify-center gap-2 px-2 py-3 rounded-lg hover:bg-muted/50 dark:hover:bg-slate-800 transition-colors group"
-                    >
-                        <EventIcon className="w-5 h-5 md:w-6 md:h-6 text-amber-600" />
-                        <span className="text-xs md:text-sm font-semibold text-muted-foreground group-hover:text-foreground">Event</span>
-                    </button>
+                <button 
+                    onClick={() => onOpenCreateModal('event')} 
+                    className="flex items-center gap-2 px-4 py-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group flex-1 justify-center sm:justify-start"
+                >
+                    <CalendarIcon className="w-6 h-6 text-amber-600" />
+                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-300 group-hover:text-foreground">Event</span>
+                </button>
 
-                    <button 
-                        onClick={() => setComingSoonFeature('Article')} 
-                        className="flex-1 flex items-center justify-center gap-2 px-2 py-3 rounded-lg hover:bg-muted/50 dark:hover:bg-slate-800 transition-colors group"
-                    >
-                        <FileTextIcon className="w-5 h-5 md:w-6 md:h-6 text-rose-500" />
-                        <span className="text-xs md:text-sm font-semibold text-muted-foreground group-hover:text-foreground whitespace-nowrap">Write article</span>
-                    </button>
-                </div>
+                <button 
+                    onClick={() => setComingSoonFeature('Article')} 
+                    className="flex items-center gap-2 px-4 py-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group flex-1 justify-center sm:justify-start"
+                >
+                    <FileTextIcon className="w-6 h-6 text-rose-500" />
+                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-300 group-hover:text-foreground hidden sm:inline">Write article</span>
+                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-300 group-hover:text-foreground sm:hidden">Article</span>
+                </button>
             </div>
         </div>
 
