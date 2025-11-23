@@ -179,13 +179,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
   }
 
   return (
-    <div className="flex flex-col h-full w-full bg-background relative overflow-hidden overscroll-none pb-0">
+    <div className="flex flex-col h-full w-full relative overflow-hidden">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] z-0"></div>
 
       {/* Header */}
       {isSelectionMode ? (
-        <div className="p-3 border-b border-border flex items-center justify-between bg-background/80 backdrop-blur-sm sticky top-0 z-10 shadow-sm">
+        <div className="h-16 px-4 border-b border-border flex items-center justify-between bg-card/95 backdrop-blur-sm sticky top-0 z-20 shadow-sm">
              <button onClick={() => setSelectedMessages([])} className="p-2 rounded-full hover:bg-muted text-foreground">
                 <CloseIcon className="w-6 h-6" />
             </button>
@@ -195,7 +195,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
             </button>
         </div>
       ) : (
-        <div className="p-3 border-b border-border flex items-center justify-between bg-background/80 backdrop-blur-md sticky top-0 z-10 shadow-sm">
+        <div className="h-16 px-4 border-b border-border flex items-center justify-between bg-card/95 backdrop-blur-md sticky top-0 z-20 shadow-sm">
             <div className="flex items-center space-x-3 flex-1 overflow-hidden">
                 <button onClick={onClose} className="md:hidden p-2 rounded-full hover:bg-muted -ml-1">
                     <ArrowLeftIcon className="w-6 h-6 text-foreground" />
@@ -222,7 +222,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
       )}
 
       {/* Messages */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-2 z-10">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 space-y-4 z-10 chat-background-panel">
         {visibleMessages.map((msg, index) => {
           const sender = users[msg.senderId];
           const isCurrentUser = msg.senderId === currentUser.id;
@@ -234,14 +234,14 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
           return (
             <React.Fragment key={msg.id}>
               {showDateSeparator && (
-                <div className="flex justify-center my-4">
+                <div className="flex justify-center my-6">
                   <span className="bg-muted/60 backdrop-blur-sm text-muted-foreground text-[10px] font-bold px-3 py-1 rounded-full border border-border/50 shadow-sm">
                     {formatDateSeparator(msg.timestamp)}
                   </span>
                 </div>
               )}
               <div 
-                  className={`flex items-end gap-2 animate-bubble-in ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
+                  className={`flex items-end gap-2 animate-bubble-in group ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
                   onClick={() => handleMessageTap(msg.id)}
                   onMouseDown={() => handleLongPressStart(msg.id)}
                   onMouseUp={handleLongPressEnd}
@@ -250,21 +250,21 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
                   onTouchEnd={handleLongPressEnd}
               >
                 {!isCurrentUser && sender && <Avatar src={sender.avatarUrl} name={sender.name} size="sm" className="shadow-sm mb-1"/>}
-                <div className="flex flex-col max-w-[80%] sm:max-w-[65%]">
+                <div className="flex flex-col max-w-[75%] md:max-w-[60%]">
                    {!isCurrentUser && conversation.isGroupChat && sender && (
-                      <p className="text-[10px] font-bold text-muted-foreground mb-1 px-2">{sender.name}</p>
+                      <p className="text-[10px] font-bold text-muted-foreground mb-1 ml-1">{sender.name}</p>
                   )}
                   <div className={`relative px-4 py-2.5 text-[15px] shadow-sm transition-all ${
                       isSelected 
                         ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' 
                         : (isCurrentUser 
                             ? 'bg-gradient-to-br from-primary to-blue-600 text-primary-foreground rounded-2xl rounded-tr-sm' 
-                            : 'bg-card text-card-foreground border border-border rounded-2xl rounded-tl-sm'
+                            : 'bg-muted/50 text-foreground border border-border/50 rounded-2xl rounded-tl-sm'
                           )
                   }`}>
-                      <p className="whitespace-pre-wrap break-words leading-snug">{msg.text}</p>
+                      <p className="whitespace-pre-wrap break-words leading-relaxed">{msg.text}</p>
                   </div>
-                   <p className={`text-[10px] font-bold text-muted-foreground mt-1 px-1 opacity-80 ${isCurrentUser ? 'text-right' : 'text-left'}`}>
+                   <p className={`text-[10px] font-bold text-muted-foreground mt-1 px-1 ${isCurrentUser ? 'text-right' : 'text-left'}`}>
                        {formatTimestamp(msg.timestamp)}
                    </p>
                 </div>
@@ -276,19 +276,21 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
       </div>
 
       {/* Input */}
-      <div className="p-3 border-t border-border bg-card/95 backdrop-blur-md z-20 safe-area-bottom">
-        <form onSubmit={handleSubmit} className="flex items-center gap-2 bg-muted/40 p-1.5 rounded-[24px] border border-border focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
-          <input
-            type="text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1 bg-transparent border-none focus:ring-0 outline-none px-4 py-2.5 text-foreground placeholder:text-muted-foreground min-h-[44px]"
-          />
-          <button type="submit" className="p-2.5 m-0.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-0 disabled:scale-50 transition-all duration-200 shadow-md shadow-primary/20 flex-shrink-0" disabled={!text.trim()}>
-            <SendIcon className="w-5 h-5" />
-          </button>
-        </form>
+      <div className="p-4 md:p-5 border-t border-border bg-card/95 backdrop-blur-md z-20 safe-area-bottom">
+        <div className="max-w-4xl mx-auto w-full">
+            <form onSubmit={handleSubmit} className="flex items-center gap-2 bg-muted/50 p-1.5 rounded-[24px] border border-border/50 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all shadow-sm">
+            <input
+                type="text"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Type a message..."
+                className="flex-1 bg-transparent border-none focus:ring-0 outline-none px-4 py-2 text-foreground placeholder:text-muted-foreground min-h-[44px]"
+            />
+            <button type="submit" className="p-2.5 m-0.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-0 disabled:scale-50 transition-all duration-200 shadow-md shadow-primary/20 flex-shrink-0" disabled={!text.trim()}>
+                <SendIcon className="w-5 h-5" />
+            </button>
+            </form>
+        </div>
       </div>
       <DeleteMessageModal
         isOpen={isDeleteModalOpen}

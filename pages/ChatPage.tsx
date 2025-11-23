@@ -135,9 +135,9 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
             </div>
 
             {/* Main Content Area */}
-            <main className="flex-1 relative w-full max-w-7xl mx-auto md:px-4 md:py-4 h-full overflow-hidden">
+            <main className="flex-1 relative w-full max-w-7xl mx-auto md:px-4 md:py-4 h-full overflow-hidden md:flex md:flex-row-reverse md:gap-4">
                 
-                {/* LEFT SIDEBAR (Chat List) */}
+                {/* LEFT SIDEBAR (Chat List) - Now Visually on Right via flex-row-reverse */}
                 <div 
                     className={`
                         absolute inset-0 z-10 w-full h-full bg-card flex flex-col transition-transform duration-300 ease-out
@@ -292,11 +292,11 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                     </div>
                 </div>
 
-                {/* RIGHT SIDEBAR (Chat Panel) */}
+                {/* RIGHT SIDEBAR (Chat Panel) - Now Visually on Left via flex-row-reverse */}
                 <div 
                     className={`
                         absolute inset-0 z-20 w-full h-full bg-background flex flex-col transition-transform duration-300 ease-in-out
-                        md:relative md:flex-1 md:inset-auto md:translate-x-0 md:ml-4 md:bg-muted/10 md:rounded-2xl md:overflow-hidden md:border border-border
+                        md:relative md:flex-1 md:inset-auto md:translate-x-0 md:bg-card md:rounded-2xl md:overflow-hidden md:border border-border md:shadow-sm
                         ${selectedConversationId ? 'translate-x-0' : 'translate-x-full'}
                     `}
                 >
