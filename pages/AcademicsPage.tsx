@@ -394,7 +394,7 @@ const NoticeCard: React.FC<{ notice: Notice; author: User | undefined; currentUs
                 <div className="flex items-center space-x-2 mt-3 text-xs text-muted-foreground">
                     {author && <span className="font-semibold text-foreground">{author.name}</span>}
                     <span>&bull;</span>
-                    <span>{new Date(notice.timestamp).toLocaleDateString()}</p>
+                    <span>{new Date(notice.timestamp).toLocaleDateString()}</span>
                 </div>
                 
                 <div className="prose prose-sm prose-invert max-w-none mt-2 text-card-foreground line-clamp-3 text-sm" dangerouslySetInnerHTML={{ __html: notice.content }} />

@@ -14,33 +14,32 @@ const InlineCreatePost: React.FC<InlineCreatePostProps> = ({ user, onOpenCreateM
 
   return (
     <>
-        <div className="mb-6 animate-fade-in">
-            <div className="bg-card rounded-xl shadow-sm border border-border p-4">
+        <div className="mb-4 animate-fade-in">
+            <div className="bg-card rounded-xl shadow-sm border border-border p-4 pb-2">
                 <div className="flex items-center gap-3 mb-2">
                     <div className="flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity">
-                        <Avatar src={user.avatarUrl} name={user.name} size="lg" />
+                        <Avatar src={user.avatarUrl} name={user.name} size="lg" className="w-12 h-12" />
                     </div>
                     <button
-                        className="flex-1 text-left bg-background hover:bg-muted/50 border border-border hover:border-muted-foreground/30 transition-all rounded-full px-5 h-12 text-muted-foreground font-medium text-sm shadow-sm"
+                        className="flex-1 text-left bg-background hover:bg-muted/60 border border-border/60 hover:border-muted-foreground/30 transition-all duration-200 rounded-full px-5 h-12 text-muted-foreground font-semibold text-sm shadow-sm hover:shadow-md"
                         onClick={() => onOpenCreateModal('post')}
                     >
                         Start a post
                     </button>
                 </div>
                 
-                <div className="flex items-center justify-between px-1 sm:px-4 pt-1">
+                <div className="flex items-center justify-between -mx-2 pt-1">
                     <button 
                         onClick={() => setComingSoonFeature('Media')} 
-                        className="flex items-center gap-2 p-3 rounded-lg hover:bg-muted/50 transition-colors group flex-1 justify-center sm:justify-start"
+                        className="flex items-center justify-center gap-2 px-2 py-3 rounded-lg hover:bg-muted/50 transition-colors group flex-1"
                     >
                         <PhotoIcon className="w-6 h-6 text-sky-500" />
-                        <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground hidden sm:inline">Media</span>
-                        <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground sm:hidden">Photo</span>
+                        <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground">Media</span>
                     </button>
                     
                     <button 
                         onClick={() => onOpenCreateModal('event')} 
-                        className="flex items-center gap-2 p-3 rounded-lg hover:bg-muted/50 transition-colors group flex-1 justify-center sm:justify-start"
+                        className="flex items-center justify-center gap-2 px-2 py-3 rounded-lg hover:bg-muted/50 transition-colors group flex-1"
                     >
                         <EventIcon className="w-6 h-6 text-amber-600" />
                         <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground">Event</span>
@@ -48,7 +47,7 @@ const InlineCreatePost: React.FC<InlineCreatePostProps> = ({ user, onOpenCreateM
 
                     <button 
                         onClick={() => setComingSoonFeature('Article')} 
-                        className="flex items-center gap-2 p-3 rounded-lg hover:bg-muted/50 transition-colors group flex-1 justify-center sm:justify-start"
+                        className="flex items-center justify-center gap-2 px-2 py-3 rounded-lg hover:bg-muted/50 transition-colors group flex-1"
                     >
                         <FileTextIcon className="w-6 h-6 text-rose-500" />
                         <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground">Article</span>
