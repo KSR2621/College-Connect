@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import type { User, Conversation, Message } from '../types';
 import Avatar from '../components/Avatar';
-import { SendIcon, ArrowLeftIcon, TrashIcon, CloseIcon, UsersIcon } from '../components/Icons';
+import { SendIcon, ArrowLeftIcon, OptionsIcon, TrashIcon, CloseIcon, UsersIcon } from '../components/Icons';
 
 interface ChatPanelProps {
   conversation: Conversation;
@@ -53,14 +53,14 @@ const DeleteMessageModal: React.FC<{
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-xs border border-border animate-scale-in" onClick={e => e.stopPropagation()}>
-                <h3 className="font-bold text-lg text-center mb-4 text-foreground">Delete message?</h3>
+            <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-xs border border-border" onClick={e => e.stopPropagation()}>
+                <h3 className="font-bold text-lg text-center mb-4 text-foreground">Delete message(s)?</h3>
                 <div className="space-y-3">
                     {canDeleteForEveryone && (
-                        <button onClick={onDeleteForEveryone} className="w-full text-left p-3 rounded-xl hover:bg-destructive/10 text-destructive font-semibold transition-colors text-sm">Delete for everyone</button>
+                        <button onClick={onDeleteForEveryone} className="w-full text-left p-3 rounded-lg hover:bg-muted text-destructive font-semibold transition-colors">Delete for everyone</button>
                     )}
-                    <button onClick={onDeleteForMe} className="w-full text-left p-3 rounded-xl hover:bg-muted text-foreground font-semibold transition-colors text-sm">Delete for me</button>
-                    <button onClick={onClose} className="w-full p-3 rounded-xl hover:bg-muted text-center font-semibold text-muted-foreground transition-colors text-sm">Cancel</button>
+                    <button onClick={onDeleteForMe} className="w-full text-left p-3 rounded-lg hover:bg-muted text-foreground font-semibold transition-colors">Delete for me</button>
+                    <button onClick={onClose} className="w-full p-3 rounded-lg hover:bg-muted text-center font-semibold text-muted-foreground transition-colors">Cancel</button>
                 </div>
             </div>
         </div>
@@ -89,30 +89,40 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
     return conversation.messages.filter(msg => !msg.deletedFor?.includes(currentUser.id));
   }, [conversation.messages, currentUser.id]);
 
+  // Effect to scroll to bottom when a new conversation is opened
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    // Reset message length tracking for the new conversation
     prevMessagesLength.current = conversation.messages.length;
   }, [conversation.id]);
 
+  // Effect to handle smart scrolling for new messages
   useEffect(() => {
     const currentMessagesLength = visibleMessages.length;
+
+    // Only run if new messages have been added
     if (currentMessagesLength > prevMessagesLength.current) {
       const messagesContainer = messagesContainerRef.current;
       if (messagesContainer) {
         const lastMessage = visibleMessages[currentMessagesLength - 1];
         const isFromCurrentUser = lastMessage.senderId === currentUser.id;
-        const scrollThreshold = 150;
+        
+        const scrollThreshold = 150; // pixels
         const isScrolledNearBottom = messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + scrollThreshold;
 
+        // Auto-scroll if the message is from the current user or if they are already near the bottom
         if (isFromCurrentUser || isScrolledNearBottom) {
           messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         }
       }
     }
+    // Update the ref after the check
     prevMessagesLength.current = currentMessagesLength;
   }, [visibleMessages, currentUser.id]);
 
+
   useEffect(() => {
+    // Clear selection when conversation changes
     setSelectedMessages([]);
   }, [conversation.id]);
 
@@ -121,9 +131,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
     if (text.trim()) {
       onSendMessage(conversation.id, text.trim());
       setText('');
-      // Reset height of textarea
-      const textarea = document.getElementById('chat-textarea');
-      if(textarea) textarea.style.height = '44px';
     }
   };
   
@@ -138,6 +145,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
                 ? prev.filter(id => id !== messageId)
                 : [...prev, messageId]
         );
+    } else {
+        // Regular click action (if any) could go here
     }
   };
 
@@ -145,7 +154,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
     wasLongPress.current = false;
     longPressTimerRef.current = setTimeout(() => {
         wasLongPress.current = true;
-        if (navigator.vibrate) navigator.vibrate(50);
         if (!selectedMessages.includes(messageId)) {
             setSelectedMessages(prev => [...prev, messageId]);
         }
@@ -166,63 +174,55 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
       return messagesToDelete.every(m => m.senderId === currentUser.id);
   }, [selectedMessages, conversation.messages, currentUser.id]);
 
-  // Auto-resize textarea
-  const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      setText(e.target.value);
-      e.target.style.height = 'auto';
-      e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
-  };
-
   if (!isGroupChat && !otherUser) {
       return <div className="flex-1 flex items-center justify-center text-muted-foreground">User not found</div>;
   }
 
   return (
-    <div className="flex flex-col h-full w-full bg-background relative overflow-hidden overscroll-none">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] z-0"></div>
+    <div className="flex flex-col h-full w-full bg-background relative overflow-hidden overscroll-none pb-0">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] z-0"></div>
 
-      {/* Static Header */}
-      <header className="flex-none z-50 w-full bg-card/95 backdrop-blur-md border-b border-border shadow-sm h-16 flex items-center px-2 sm:px-4 relative">
-        {isSelectionMode ? (
-            <div className="flex items-center justify-between w-full animate-fade-in">
-                <button onClick={() => setSelectedMessages([])} className="p-2 rounded-full hover:bg-muted text-foreground transition-colors">
-                    <CloseIcon className="w-6 h-6" />
+      {/* Header */}
+      {isSelectionMode ? (
+        <div className="p-3 border-b border-border flex items-center justify-between bg-background/80 backdrop-blur-sm sticky top-0 z-10 shadow-sm">
+             <button onClick={() => setSelectedMessages([])} className="p-2 rounded-full hover:bg-muted text-foreground">
+                <CloseIcon className="w-6 h-6" />
+            </button>
+            <p className="font-bold text-foreground">{selectedMessages.length} Selected</p>
+            <button onClick={handleDeleteTrigger} className="p-2 rounded-full hover:bg-muted text-destructive">
+                <TrashIcon className="w-6 h-6" />
+            </button>
+        </div>
+      ) : (
+        <div className="p-3 border-b border-border flex items-center justify-between bg-background/80 backdrop-blur-md sticky top-0 z-10 shadow-sm">
+            <div className="flex items-center space-x-3 flex-1 overflow-hidden">
+                <button onClick={onClose} className="md:hidden p-2 rounded-full hover:bg-muted -ml-1">
+                    <ArrowLeftIcon className="w-6 h-6 text-foreground" />
                 </button>
-                <p className="font-bold text-foreground text-lg">{selectedMessages.length} Selected</p>
-                <button onClick={handleDeleteTrigger} className="p-2 rounded-full hover:bg-destructive/10 text-destructive transition-colors">
-                    <TrashIcon className="w-6 h-6" />
-                </button>
-            </div>
-        ) : (
-            <div className="flex items-center space-x-2 w-full">
-                <button onClick={onClose} className="md:hidden p-2 rounded-full hover:bg-muted transition-colors text-foreground -ml-1">
-                    <ArrowLeftIcon className="w-6 h-6" />
-                </button>
-                
-                <div className="flex items-center space-x-3 flex-1 overflow-hidden cursor-pointer" onClick={!isGroupChat && otherUser ? () => onNavigate(`#/profile/${otherUser.id}`) : undefined}>
-                    {isGroupChat ? (
-                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
-                            <UsersIcon className="w-5 h-5"/>
-                        </div>
-                    ) : (
-                        <Avatar src={otherUser?.avatarUrl} name={chatName || 'User'} size="md" className="border border-border"/>
-                    )}
-                    <div className="flex-1 min-w-0">
-                        <p className="font-bold text-foreground truncate text-base leading-tight">{chatName}</p>
-                        {isGroupChat ? (
-                             <p className="text-xs text-muted-foreground font-medium truncate">{conversation.participantIds.length} members</p>
-                        ) : (
-                            <p className="text-xs text-muted-foreground truncate font-medium">{otherUser?.department || 'Online'}</p>
-                        )}
+                {isGroupChat ? (
+                    <div className="h-10 w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center flex-shrink-0">
+                        <UsersIcon className="w-6 h-6"/>
                     </div>
+                ) : (
+                    <div className="cursor-pointer flex-shrink-0" onClick={() => onNavigate(`#/profile/${otherUser.id}`)}>
+                        <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="md" />
+                    </div>
+                )}
+                <div className={!isGroupChat && otherUser ? "cursor-pointer flex-1 overflow-hidden" : "flex-1 overflow-hidden"} onClick={!isGroupChat && otherUser ? () => onNavigate(`#/profile/${otherUser.id}`) : undefined}>
+                    <p className="font-bold text-foreground truncate">{chatName}</p>
+                    {isGroupChat ? (
+                         <p className="text-xs text-muted-foreground">{conversation.participantIds.length} members</p>
+                    ) : (
+                        <p className="text-xs text-muted-foreground truncate">{otherUser?.department}</p>
+                    )}
                 </div>
             </div>
-        )}
-      </header>
+        </div>
+      )}
 
-      {/* Scrollable Messages Area */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-1 z-10 w-full scroll-smooth custom-scrollbar overscroll-contain">
+      {/* Messages */}
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-2 z-10">
         {visibleMessages.map((msg, index) => {
           const sender = users[msg.senderId];
           const isCurrentUser = msg.senderId === currentUser.id;
@@ -230,22 +230,18 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
           
           const prevMessage = index > 0 ? visibleMessages[index - 1] : null;
           const showDateSeparator = !prevMessage || !isSameDay(msg.timestamp, prevMessage.timestamp);
-          
-          // Grouping logic for consecutive messages
-          const isSequence = prevMessage && prevMessage.senderId === msg.senderId && !showDateSeparator;
 
           return (
             <React.Fragment key={msg.id}>
               {showDateSeparator && (
-                <div className="flex justify-center my-5 py-1">
+                <div className="flex justify-center my-4">
                   <span className="bg-muted/60 backdrop-blur-sm text-muted-foreground text-[10px] font-bold px-3 py-1 rounded-full border border-border/50 shadow-sm">
                     {formatDateSeparator(msg.timestamp)}
                   </span>
                 </div>
               )}
-              
               <div 
-                  className={`flex w-full ${isCurrentUser ? 'justify-end' : 'justify-start'} ${isSequence ? 'mt-0.5' : 'mt-3'}`}
+                  className={`flex items-end gap-2 animate-bubble-in ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
                   onClick={() => handleMessageTap(msg.id)}
                   onMouseDown={() => handleLongPressStart(msg.id)}
                   onMouseUp={handleLongPressEnd}
@@ -253,65 +249,47 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
                   onTouchStart={() => handleLongPressStart(msg.id)}
                   onTouchEnd={handleLongPressEnd}
               >
-                <div className={`flex max-w-[80%] sm:max-w-[65%] ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'}`}>
-                    {/* Avatar for received messages */}
-                    {!isCurrentUser && (
-                        <div className="flex-shrink-0 w-8 mr-2 flex flex-col justify-end">
-                            {!isSequence && sender && <Avatar src={sender.avatarUrl} name={sender.name} size="sm" className="shadow-sm" />}
-                        </div>
-                    )}
-
-                    <div className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}>
-                        {!isCurrentUser && !isSequence && conversation.isGroupChat && sender && (
-                            <span className="text-[10px] font-bold text-muted-foreground ml-1 mb-1">{sender.name}</span>
-                        )}
-                        
-                        <div className={`
-                            relative px-4 py-2.5 text-[15px] shadow-sm transition-all
-                            ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}
-                            ${isCurrentUser 
-                                ? 'bg-primary text-primary-foreground rounded-2xl rounded-tr-sm' 
-                                : 'bg-card text-card-foreground border border-border rounded-2xl rounded-tl-sm'}
-                        `}>
-                            <p className="whitespace-pre-wrap break-words leading-snug">{msg.text}</p>
-                        </div>
-                        
-                        {/* Timestamp only on last of sequence or if selected */}
-                        <span className={`text-[9px] font-medium text-muted-foreground/70 mt-0.5 px-1 ${isSelectionMode ? 'block' : 'opacity-0 group-hover:opacity-100 transition-opacity'} ${isCurrentUser ? 'text-right' : 'text-left'}`}>
-                            {formatTimestamp(msg.timestamp)}
-                        </span>
-                    </div>
+                {!isCurrentUser && sender && <Avatar src={sender.avatarUrl} name={sender.name} size="sm" className="shadow-sm mb-1"/>}
+                <div className="flex flex-col max-w-[80%] sm:max-w-[65%]">
+                   {!isCurrentUser && conversation.isGroupChat && sender && (
+                      <p className="text-[10px] font-bold text-muted-foreground mb-1 px-2">{sender.name}</p>
+                  )}
+                  <div className={`relative px-4 py-2.5 text-[15px] shadow-sm transition-all ${
+                      isSelected 
+                        ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' 
+                        : (isCurrentUser 
+                            ? 'bg-gradient-to-br from-primary to-blue-600 text-primary-foreground rounded-2xl rounded-tr-sm' 
+                            : 'bg-card text-card-foreground border border-border rounded-2xl rounded-tl-sm'
+                          )
+                  }`}>
+                      <p className="whitespace-pre-wrap break-words leading-snug">{msg.text}</p>
+                  </div>
+                   <p className={`text-[10px] font-bold text-muted-foreground mt-1 px-1 opacity-80 ${isCurrentUser ? 'text-right' : 'text-left'}`}>
+                       {formatTimestamp(msg.timestamp)}
+                   </p>
                 </div>
               </div>
             </React.Fragment>
           );
         })}
-        <div ref={messagesEndRef} className="h-1" />
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Static Footer (Input) */}
-      <div className="flex-none z-50 w-full bg-card border-t border-border p-3 safe-area-bottom relative">
-        <form onSubmit={handleSubmit} className="flex items-end gap-2 bg-muted/40 p-1.5 rounded-[24px] border border-border focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
-          <textarea
-            id="chat-textarea"
+      {/* Input */}
+      <div className="p-3 border-t border-border bg-card/95 backdrop-blur-md z-20 safe-area-bottom">
+        <form onSubmit={handleSubmit} className="flex items-center gap-2 bg-muted/40 p-1.5 rounded-[24px] border border-border focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+          <input
+            type="text"
             value={text}
-            onChange={handleTextareaInput}
-            onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) handleSubmit(e); }}
-            placeholder="Message..."
-            className="flex-1 bg-transparent border-none focus:ring-0 outline-none px-4 py-2.5 text-foreground placeholder:text-muted-foreground min-h-[44px] max-h-[120px] resize-none custom-scrollbar"
-            rows={1}
-            style={{ lineHeight: '1.5' }}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Type a message..."
+            className="flex-1 bg-transparent border-none focus:ring-0 outline-none px-4 py-2.5 text-foreground placeholder:text-muted-foreground min-h-[44px]"
           />
-          <button 
-            type="submit" 
-            className="p-2.5 m-0.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-0 disabled:scale-50 transition-all duration-200 shadow-md shadow-primary/20 flex-shrink-0" 
-            disabled={!text.trim()}
-          >
+          <button type="submit" className="p-2.5 m-0.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-0 disabled:scale-50 transition-all duration-200 shadow-md shadow-primary/20 flex-shrink-0" disabled={!text.trim()}>
             <SendIcon className="w-5 h-5" />
           </button>
         </form>
       </div>
-
       <DeleteMessageModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}

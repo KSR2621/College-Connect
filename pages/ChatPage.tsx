@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import Avatar from '../components/Avatar';
 import ChatPanel from '../components/ChatPanel';
 import NewConversationModal from '../components/NewConversationModal';
+import BottomNavBar from '../components/BottomNavBar';
 import { auth } from '../firebase';
 import { 
     MessageIcon, UsersIcon, SearchIcon, PlusIcon, TrashIcon, EditIcon, CloseIcon, ChevronRightIcon
@@ -201,7 +202,7 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                     </div>
 
                     {/* Chat List - Scrollable */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar px-2 pb-2">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar px-2 pb-20 lg:pb-2">
                         {filteredConversations.length > 0 ? (
                             <div className="space-y-1">
                                 {filteredConversations.map(convo => {
@@ -329,6 +330,10 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                 currentUser={currentUser}
                 onSelectUser={handleSelectUser}
             />
+
+            <div className={selectedConversationId ? "hidden md:block" : "block"}>
+                <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath} />
+            </div>
         </div>
     );
 };
