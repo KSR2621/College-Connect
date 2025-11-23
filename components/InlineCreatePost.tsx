@@ -15,42 +15,44 @@ const InlineCreatePost: React.FC<InlineCreatePostProps> = ({ user, onOpenCreateM
   return (
     <>
         <div className="mb-4 animate-fade-in">
-            <div className="bg-card rounded-xl shadow-sm border border-border p-4 pb-2">
+            <div className="bg-card dark:bg-slate-900 rounded-xl shadow-sm border border-border p-3 md:p-4">
+                {/* Top Row: Avatar + Input Trigger */}
                 <div className="flex items-center gap-3 mb-2">
                     <div className="flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity">
-                        <Avatar src={user.avatarUrl} name={user.name} size="lg" className="w-12 h-12" />
+                        <Avatar src={user.avatarUrl} name={user.name} size="md" className="w-10 h-10 md:w-12 md:h-12 border border-border" />
                     </div>
                     <button
-                        className="flex-1 text-left bg-background hover:bg-muted/60 border border-border/60 hover:border-muted-foreground/30 transition-all duration-200 rounded-full px-5 h-12 text-muted-foreground font-semibold text-sm shadow-sm hover:shadow-md"
+                        className="flex-1 text-left bg-white dark:bg-slate-950 hover:bg-muted/50 border border-input rounded-full h-10 md:h-12 px-4 md:px-5 text-sm font-semibold text-muted-foreground transition-all duration-200 text-ellipsis overflow-hidden whitespace-nowrap shadow-sm hover:shadow-md"
                         onClick={() => onOpenCreateModal('post')}
                     >
                         Start a post
                     </button>
                 </div>
                 
-                <div className="flex items-center justify-between -mx-2 pt-1">
+                {/* Bottom Row: Action Buttons */}
+                <div className="flex items-center justify-between -mx-2 md:-mx-0 pt-2">
                     <button 
                         onClick={() => setComingSoonFeature('Media')} 
-                        className="flex items-center justify-center gap-2 px-2 py-3 rounded-lg hover:bg-muted/50 transition-colors group flex-1"
+                        className="flex-1 flex items-center justify-center gap-2 px-2 py-3 rounded-lg hover:bg-muted/50 dark:hover:bg-slate-800 transition-colors group"
                     >
-                        <PhotoIcon className="w-6 h-6 text-sky-500" />
-                        <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground">Media</span>
+                        <PhotoIcon className="w-5 h-5 md:w-6 md:h-6 text-sky-500" />
+                        <span className="text-xs md:text-sm font-semibold text-muted-foreground group-hover:text-foreground">Media</span>
                     </button>
                     
                     <button 
                         onClick={() => onOpenCreateModal('event')} 
-                        className="flex items-center justify-center gap-2 px-2 py-3 rounded-lg hover:bg-muted/50 transition-colors group flex-1"
+                        className="flex-1 flex items-center justify-center gap-2 px-2 py-3 rounded-lg hover:bg-muted/50 dark:hover:bg-slate-800 transition-colors group"
                     >
-                        <EventIcon className="w-6 h-6 text-amber-600" />
-                        <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground">Event</span>
+                        <EventIcon className="w-5 h-5 md:w-6 md:h-6 text-amber-600" />
+                        <span className="text-xs md:text-sm font-semibold text-muted-foreground group-hover:text-foreground">Event</span>
                     </button>
 
                     <button 
                         onClick={() => setComingSoonFeature('Article')} 
-                        className="flex items-center justify-center gap-2 px-2 py-3 rounded-lg hover:bg-muted/50 transition-colors group flex-1"
+                        className="flex-1 flex items-center justify-center gap-2 px-2 py-3 rounded-lg hover:bg-muted/50 dark:hover:bg-slate-800 transition-colors group"
                     >
-                        <FileTextIcon className="w-6 h-6 text-rose-500" />
-                        <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground">Article</span>
+                        <FileTextIcon className="w-5 h-5 md:w-6 md:h-6 text-rose-500" />
+                        <span className="text-xs md:text-sm font-semibold text-muted-foreground group-hover:text-foreground whitespace-nowrap">Write article</span>
                     </button>
                 </div>
             </div>
