@@ -128,13 +128,13 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
     const allUsersList = useMemo(() => Object.values(users), [users]);
 
     return (
-        <div className="bg-background h-full flex flex-col overflow-hidden">
+        <div className="bg-background h-[100dvh] md:h-screen flex flex-col overflow-hidden">
             <div className="hidden md:block flex-none">
                 <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
             </div>
 
-            {/* Main Content Area - Relative for absolute positioning of mobile panes */}
-            <main className="flex-1 relative w-full max-w-7xl mx-auto md:px-4 md:py-4 h-[calc(100vh-64px)] md:h-auto">
+            {/* Main Content Area */}
+            <main className="flex-1 relative w-full max-w-7xl mx-auto md:px-4 md:py-4 h-full overflow-hidden">
                 
                 {/* LEFT SIDEBAR (Chat List) */}
                 <div 
