@@ -1,12 +1,13 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import type { User, Post, Group, ReactionType, Story, GroupResource } from '../types';
+import type { User, Post, Group, ReactionType, Story, GroupResource, GroupCategory, GroupPrivacy } from '../types';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
 import Feed from '../components/Feed';
 import CreatePostModal from '../components/CreatePostModal';
 import Avatar from '../components/Avatar';
 import ToggleSwitch from '../components/ToggleSwitch';
+import EditGroupModal from '../components/EditGroupModal';
 import { 
     ArrowLeftIcon, UsersIcon, LockIcon, PlusIcon, SettingsIcon, TrashIcon, 
     LogOutIcon, StarIcon, MessageIcon, SendIcon, GlobeIcon, CalendarIcon, 
@@ -42,12 +43,14 @@ interface GroupDetailPageProps {
   onSendGroupMessage: (groupId: string, text: string) => void;
   onRemoveGroupMember: (groupId: string, memberId: string) => void;
   onToggleFollowGroup: (groupId: string) => void;
+  onUpdateGroup: (groupId: string, data: { name: string; description: string; category: GroupCategory; privacy: GroupPrivacy }) => void;
 }
 
 const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
-    const { group, currentUser, users, posts, groups, onNavigate, currentPath, onAddPost, onAddStory, onJoinGroupRequest, onApproveJoinRequest, onDeclineJoinRequest, onDeleteGroup, onSendGroupMessage, onRemoveGroupMember, onToggleFollowGroup, ...postCardProps } = props;
+    const { group, currentUser, users, posts, groups, onNavigate, currentPath, onAddPost, onAddStory, onJoinGroupRequest, onApproveJoinRequest, onDeclineJoinRequest, onDeleteGroup, onSendGroupMessage, onRemoveGroupMember, onToggleFollowGroup, onUpdateGroup, ...postCardProps } = props;
     
     const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
+    const [isEditGroupModalOpen, setIsEditGroupModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'about' | 'feed' | 'chat' | 'events' | 'members' | 'resources' | 'settings'>('about');
     const [chatInput, setChatInput] = useState('');
     const chatEndRef = useRef<HTMLDivElement>(null);
@@ -81,11 +84,19 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
     const groupEvents = posts.filter(p => p.groupId === group.id && p.isEvent).sort((a, b) => (b.eventDetails?.date ? new Date(b.eventDetails.date).getTime() : 0) - (a.eventDetails?.date ? new Date(a.eventDetails.date).getTime() : 0));
 
     // Visibility Settings Logic
-    const visSettings = group.visibilitySettings || { feed: true, events: true, members: true, resources: true };
-    const canViewFeed = isMember || (!isPrivate && visSettings.feed);
-    const canViewEvents = isMember || (!isPrivate && visSettings.events);
-    const canViewMembers = isMember || (!isPrivate && visSettings.members);
-    const canViewResources = isMember || (!isPrivate && visSettings.resources);
+    // Default behavior: Public groups show everything by default, Private groups hide everything by default.
+    const defaultVisibility = isPrivate 
+        ? { about: true, feed: false, events: false, members: false, resources: false }
+        : { about: true, feed: true, events: true, members: true, resources: true };
+
+    const visSettings = group.visibilitySettings || defaultVisibility;
+
+    // Visibility Checks
+    const canViewAbout = isMember || visSettings.about !== false; // Default to true if undefined
+    const canViewFeed = isMember || visSettings.feed !== false;
+    const canViewEvents = isMember || visSettings.events !== false;
+    const canViewMembers = isMember || visSettings.members !== false;
+    const canViewResources = isMember || visSettings.resources !== false;
     const canViewChat = isMember; // Chat always private to members
 
     const handleSendMessage = (e: React.FormEvent) => {
@@ -127,7 +138,7 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
     }
 
     const handleToggleVisibility = async (setting: keyof NonNullable<Group['visibilitySettings']>) => {
-        const currentSettings = group.visibilitySettings || { feed: true, events: true, members: true, resources: true };
+        const currentSettings = group.visibilitySettings || defaultVisibility;
         const newSettings = { ...currentSettings, [setting]: !currentSettings[setting] };
         
         await db.collection('groups').doc(group.id).update({
@@ -149,22 +160,20 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
         </button>
     );
 
-    const renderContent = () => {
-        // Global block for Private groups for non-members
-        if (!isMember && isPrivate && activeTab !== 'about') {
-             return (
-                <div className="flex flex-col items-center justify-center py-24 text-muted-foreground bg-card rounded-3xl border border-border shadow-sm mt-6 mx-4 animate-fade-in">
-                    <div className="w-24 h-24 bg-muted/50 rounded-full flex items-center justify-center mb-6 ring-4 ring-muted/30">
-                        <LockIcon className="w-10 h-10 opacity-50"/>
-                    </div>
-                    <h3 className="text-2xl font-bold text-foreground">Private Group</h3>
-                    <p className="mt-2 text-base">Join this group to view its content.</p>
-                </div>
-            );
-        }
+    const PrivatePlaceholder: React.FC<{ message: string; icon: React.ElementType }> = ({ message, icon: Icon }) => (
+        <div className="flex flex-col items-center justify-center py-24 text-muted-foreground bg-card rounded-3xl border border-border shadow-sm mt-2 mx-auto max-w-md animate-fade-in">
+            <div className="w-20 h-20 bg-muted/50 rounded-full flex items-center justify-center mb-6 ring-4 ring-muted/30">
+                <Icon className="w-8 h-8 opacity-50"/>
+            </div>
+            <h3 className="text-xl font-bold text-foreground">Content Private</h3>
+            <p className="mt-2 text-sm">{message}</p>
+        </div>
+    );
 
+    const renderContent = () => {
         switch (activeTab) {
             case 'about':
+                if (!canViewAbout) return <PrivatePlaceholder message="The group description is private." icon={InfoIcon} />;
                 return (
                     <div className="space-y-6 p-4 animate-fade-in">
                         <div className="bg-card dark:bg-slate-900 rounded-2xl border border-border p-6 shadow-sm">
@@ -201,7 +210,7 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                     </div>
                 );
             case 'feed':
-                if (!canViewFeed) return <div className="p-12 text-center text-muted-foreground">Feed is private.</div>;
+                if (!canViewFeed) return <PrivatePlaceholder message="Posts are visible to members only." icon={GlobeIcon} />;
                 return (
                     <div className="animate-fade-in p-4">
                         <Feed 
@@ -275,7 +284,7 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                     </div>
                 );
             case 'events':
-                if (!canViewEvents) return <div className="p-12 text-center text-muted-foreground">Events are private.</div>;
+                if (!canViewEvents) return <PrivatePlaceholder message="Events are visible to members only." icon={CalendarIcon} />;
                 return (
                     <div className="p-4 space-y-4 animate-fade-in">
                         <div className="flex justify-between items-center mb-2">
@@ -306,7 +315,7 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                     </div>
                 );
             case 'members':
-                if (!canViewMembers) return <div className="p-12 text-center text-muted-foreground">Members list is private.</div>;
+                if (!canViewMembers) return <PrivatePlaceholder message="Members list is visible to members only." icon={UsersIcon} />;
                 return (
                     <div className="p-4 space-y-6 animate-fade-in">
                         {isAdmin && pendingUsers.length > 0 && (
@@ -359,7 +368,7 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                     </div>
                 );
             case 'resources':
-                if (!canViewResources) return <div className="p-12 text-center text-muted-foreground">Resources are private.</div>;
+                if (!canViewResources) return <PrivatePlaceholder message="Resources are available to members only." icon={FileIcon} />;
                 return (
                     <div className="p-4 space-y-6 animate-fade-in">
                         <div className="flex justify-between items-center">
@@ -453,7 +462,12 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                                                 <p className="font-bold text-foreground text-sm">Edit Group Info</p>
                                                 <p className="text-xs text-muted-foreground mt-0.5">Update name, description, or category.</p>
                                             </div>
-                                            <button className="bg-secondary/10 text-secondary hover:bg-secondary/20 px-4 py-2 rounded-lg text-xs font-bold transition-colors border border-secondary/20">Edit</button>
+                                            <button 
+                                                onClick={() => setIsEditGroupModalOpen(true)}
+                                                className="bg-secondary/10 text-secondary hover:bg-secondary/20 px-4 py-2 rounded-lg text-xs font-bold transition-colors border border-secondary/20"
+                                            >
+                                                Edit
+                                            </button>
                                         </div>
                                         <div className="w-full h-px bg-border"></div>
                                         <div className="flex items-center justify-between">
@@ -463,52 +477,49 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                                                     Current: <span className="font-semibold capitalize text-foreground">{group.privacy || 'Public'}</span>
                                                 </p>
                                             </div>
-                                            <button className="bg-muted hover:bg-muted/80 text-foreground border border-border px-4 py-2 rounded-lg text-xs font-bold transition-colors">Change</button>
+                                            <button 
+                                                onClick={() => setIsEditGroupModalOpen(true)}
+                                                className="bg-muted hover:bg-muted/80 text-foreground border border-border px-4 py-2 rounded-lg text-xs font-bold transition-colors"
+                                            >
+                                                Change
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Visibility Settings (Public Groups Only) */}
-                                {group.privacy === 'public' ? (
-                                    <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
-                                        <div className="px-6 py-4 border-b border-border bg-muted/10 flex items-center gap-2">
-                                            <EyeIcon className="w-5 h-5 text-primary" />
-                                            <h3 className="font-bold text-foreground">Public Visibility</h3>
+                                {/* Visibility Settings */}
+                                <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+                                    <div className="px-6 py-4 border-b border-border bg-muted/10 flex items-center gap-2">
+                                        <EyeIcon className="w-5 h-5 text-primary" />
+                                        <h3 className="font-bold text-foreground">Content Visibility</h3>
+                                    </div>
+                                    <div className="p-6 space-y-5">
+                                        <p className="text-sm text-muted-foreground mb-4 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
+                                            <InfoIcon className="w-4 h-4 inline-block mr-1 -mt-0.5"/> 
+                                            Control what non-members can see. {isPrivate ? "As a Private group, content is hidden by default, but you can choose to make specific sections public." : "As a Public group, content is visible by default, but you can choose to hide specific sections."}
+                                        </p>
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-medium text-sm text-foreground">About Tab</span>
+                                            <ToggleSwitch id="vis-about" checked={visSettings.about !== false} onChange={() => handleToggleVisibility('about')} />
                                         </div>
-                                        <div className="p-6 space-y-5">
-                                            <p className="text-sm text-muted-foreground mb-4 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
-                                                <InfoIcon className="w-4 h-4 inline-block mr-1 -mt-0.5"/> 
-                                                Control what non-members can see before joining.
-                                            </p>
-                                            <div className="flex items-center justify-between">
-                                                <span className="font-medium text-sm text-foreground">Posts Feed</span>
-                                                <ToggleSwitch id="vis-feed" checked={visSettings.feed !== false} onChange={() => handleToggleVisibility('feed')} />
-                                            </div>
-                                            <div className="flex items-center justify-between">
-                                                <span className="font-medium text-sm text-foreground">Events Calendar</span>
-                                                <ToggleSwitch id="vis-events" checked={visSettings.events !== false} onChange={() => handleToggleVisibility('events')} />
-                                            </div>
-                                            <div className="flex items-center justify-between">
-                                                <span className="font-medium text-sm text-foreground">Members List</span>
-                                                <ToggleSwitch id="vis-members" checked={visSettings.members !== false} onChange={() => handleToggleVisibility('members')} />
-                                            </div>
-                                            <div className="flex items-center justify-between">
-                                                <span className="font-medium text-sm text-foreground">Resources & Files</span>
-                                                <ToggleSwitch id="vis-resources" checked={visSettings.resources !== false} onChange={() => handleToggleVisibility('resources')} />
-                                            </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-medium text-sm text-foreground">Posts Feed</span>
+                                            <ToggleSwitch id="vis-feed" checked={visSettings.feed !== false} onChange={() => handleToggleVisibility('feed')} />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-medium text-sm text-foreground">Events Calendar</span>
+                                            <ToggleSwitch id="vis-events" checked={visSettings.events !== false} onChange={() => handleToggleVisibility('events')} />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-medium text-sm text-foreground">Members List</span>
+                                            <ToggleSwitch id="vis-members" checked={visSettings.members !== false} onChange={() => handleToggleVisibility('members')} />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-medium text-sm text-foreground">Resources & Files</span>
+                                            <ToggleSwitch id="vis-resources" checked={visSettings.resources !== false} onChange={() => handleToggleVisibility('resources')} />
                                         </div>
                                     </div>
-                                ) : (
-                                    <div className="bg-amber-50 dark:bg-amber-900/10 p-6 rounded-2xl border border-amber-200 dark:border-amber-800 flex items-start gap-4">
-                                        <LockIcon className="w-6 h-6 text-amber-600 mt-1 flex-shrink-0"/>
-                                        <div>
-                                            <h4 className="font-bold text-amber-800 dark:text-amber-200">Private Group</h4>
-                                            <p className="text-sm text-amber-700 dark:text-amber-400 mt-1 leading-relaxed">
-                                                Content in this group is hidden from non-members by default. Visibility settings are disabled to ensure privacy.
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
+                                </div>
 
                                 {/* Danger Zone */}
                                 <div className="bg-red-50 dark:bg-red-950/30 p-6 rounded-2xl border border-red-200 dark:border-red-900/50">
@@ -626,6 +637,15 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                 onAddPost={onAddPost}
                 groupId={group.id}
             />
+
+            {isEditGroupModalOpen && (
+                <EditGroupModal
+                    isOpen={isEditGroupModalOpen}
+                    onClose={() => setIsEditGroupModalOpen(false)}
+                    group={group}
+                    onUpdateGroup={onUpdateGroup}
+                />
+            )}
 
             <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
         </div>

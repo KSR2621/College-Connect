@@ -149,6 +149,7 @@ export type Group = {
     tagline?: string;
     coverImage?: string;
     visibilitySettings?: {
+        about: boolean;
         feed: boolean;
         events: boolean;
         members: boolean;

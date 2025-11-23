@@ -439,6 +439,9 @@ const App: React.FC = () => {
         const rawData = { ...data, collegeId: currentUser.collegeId, creatorId: currentUser.id, memberIds: [currentUser.id], pendingMemberIds: [], messages: [], followers: [] };
         await db.collection('groups').add(cleanData(rawData));
     };
+    const handleUpdateGroup = async (groupId: string, data: any) => {
+        await db.collection('groups').doc(groupId).update(cleanData(data));
+    };
     const handleDeleteGroup = async (groupId: string) => { await db.collection('groups').doc(groupId).delete(); };
     const handleJoinGroupRequest = async (groupId: string) => { await db.collection('groups').doc(groupId).update({ pendingMemberIds: FieldValue.arrayUnion(currentUser.id) }); };
     const handleApproveJoinRequest = async (groupId: string, userId: string) => { await db.collection('groups').doc(groupId).update({ memberIds: FieldValue.arrayUnion(userId), pendingMemberIds: FieldValue.arrayRemove(userId) }); };
@@ -747,7 +750,7 @@ const App: React.FC = () => {
             />
         )}
         
-        {currentPath.startsWith('#/groups/') && currentUser && <GroupDetailPage group={groups.find(g => g.id === currentPath.split('/')[2])!} currentUser={currentUser} users={users} posts={posts.filter(p => p.groupId === currentPath.split('/')[2])} groups={groups} onNavigate={setCurrentPath} currentPath={currentPath} onAddPost={handleAddPost} onAddStory={handleAddStory} {...postCardProps} onJoinGroupRequest={handleJoinGroupRequest} onApproveJoinRequest={handleApproveJoinRequest} onDeclineJoinRequest={handleDeclineJoinRequest} onDeleteGroup={handleDeleteGroup} onSendGroupMessage={handleSendGroupMessage} onRemoveGroupMember={handleRemoveGroupMember} onToggleFollowGroup={handleToggleFollowGroup} />}
+        {currentPath.startsWith('#/groups/') && currentUser && <GroupDetailPage group={groups.find(g => g.id === currentPath.split('/')[2])!} currentUser={currentUser} users={users} posts={posts.filter(p => p.groupId === currentPath.split('/')[2])} groups={groups} onNavigate={setCurrentPath} currentPath={currentPath} onAddPost={handleAddPost} onAddStory={handleAddStory} {...postCardProps} onJoinGroupRequest={handleJoinGroupRequest} onApproveJoinRequest={handleApproveJoinRequest} onDeclineJoinRequest={handleDeclineJoinRequest} onDeleteGroup={handleDeleteGroup} onSendGroupMessage={handleSendGroupMessage} onRemoveGroupMember={handleRemoveGroupMember} onToggleFollowGroup={handleToggleFollowGroup} onUpdateGroup={handleUpdateGroup} />}
         {currentPath === '#/opportunities' && currentUser && <OpportunitiesPage currentUser={currentUser} users={users} posts={posts} onNavigate={setCurrentPath} currentPath={currentPath} onAddPost={handleAddPost} postCardProps={postCardProps} />}
         {currentPath === '#/events' && currentUser && <EventsPage currentUser={currentUser} users={users} events={posts.filter(p => p.isEvent)} groups={groups} onNavigate={setCurrentPath} currentPath={currentPath} onAddPost={handleAddPost} {...postCardProps} />}
         {currentPath === '#/chat' && currentUser && <ChatPage currentUser={currentUser} users={users} conversations={conversations} onSendMessage={handleSendMessage} onDeleteMessagesForEveryone={handleDeleteMessagesForEveryone} onDeleteMessagesForSelf={handleDeleteMessagesForSelf} onDeleteConversations={handleDeleteConversations} onCreateOrOpenConversation={handleCreateOrOpenConversation} onNavigate={setCurrentPath} currentPath={currentPath} />}
