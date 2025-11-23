@@ -128,17 +128,24 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
     const allUsersList = useMemo(() => Object.values(users), [users]);
 
     return (
-        <div className="bg-background min-h-screen h-screen flex flex-col overflow-hidden">
-            <div className="hidden md:block">
+        <div className="bg-background h-screen flex flex-col overflow-hidden">
+            <div className="hidden md:block flex-none">
                 <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
             </div>
 
-            <main className="flex-1 flex overflow-hidden relative">
+            <main className="flex-1 flex relative overflow-hidden">
                 {/* Sidebar (Chat List) */}
-                <div className={`w-full md:w-80 lg:w-96 bg-card border-r border-border flex flex-col h-full absolute md:relative z-20 transition-transform duration-300 ${selectedConversationId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}`}>
+                {/* Mobile: Absolute positioning for slide effect. Desktop: Relative flex item. */}
+                <div 
+                    className={`
+                        absolute inset-0 z-20 w-full h-full bg-card border-r border-border flex flex-col transition-transform duration-300 ease-out
+                        md:relative md:w-80 lg:w-96 md:translate-x-0 md:z-auto
+                        ${selectedConversationId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}
+                    `}
+                >
                     
-                    {/* Sidebar Header */}
-                    <div className="px-4 py-4 flex items-center justify-between shrink-0 bg-card/50 backdrop-blur-md border-b border-border">
+                    {/* Sidebar Header - Static */}
+                    <div className="px-4 py-4 flex items-center justify-between shrink-0 bg-card border-b border-border flex-none h-16">
                         <h1 className="text-2xl font-black text-foreground tracking-tight">Messages</h1>
                         <div className="flex gap-2">
                             <button 
@@ -162,8 +169,8 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                         </div>
                     </div>
 
-                    {/* Search & Filter */}
-                    <div className="p-4 space-y-4">
+                    {/* Search & Filter - Static */}
+                    <div className="p-4 space-y-4 flex-none">
                         <div className="relative group">
                             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                             <input 
@@ -192,7 +199,7 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                         </div>
                     </div>
 
-                    {/* Chat List */}
+                    {/* Chat List - Scrollable */}
                     <div className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-3">
                         {filteredConversations.length > 0 ? (
                             <div className="space-y-2">
@@ -252,7 +259,6 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                                                             </>
                                                         ) : <span className="italic opacity-50">Start chatting</span>}
                                                     </p>
-                                                    {/* New Message Dot could go here */}
                                                 </div>
                                             </div>
 
@@ -295,7 +301,14 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                 </div>
 
                 {/* Chat Panel */}
-                <div className={`flex-1 bg-muted/10 relative flex flex-col h-full transform transition-transform duration-300 z-30 md:z-0 md:translate-x-0 ${selectedConversationId ? 'translate-x-0' : 'translate-x-full'}`}>
+                {/* Mobile: Absolute positioning for slide effect. Desktop: Relative flex-1. */}
+                <div 
+                    className={`
+                        absolute inset-0 z-30 w-full h-full bg-background flex flex-col transition-transform duration-300 ease-out
+                        md:relative md:flex-1 md:translate-x-0 md:z-auto md:bg-muted/10
+                        ${selectedConversationId ? 'translate-x-0' : 'translate-x-full'}
+                    `}
+                >
                     {selectedConversation ? (
                         <ChatPanel
                             conversation={selectedConversation}
