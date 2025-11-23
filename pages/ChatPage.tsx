@@ -76,7 +76,7 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
         longPressTimerRef.current = setTimeout(() => {
             isLongPressRef.current = true;
             if (navigator.vibrate) navigator.vibrate(50); // Haptic feedback
-            if (window.confirm('Are you sure you want to delete this conversation? This cannot be undone.')) {
+            if (window.confirm('Delete this conversation?')) {
                 onDeleteConversations([id]);
                 if (selectedConversationId === id) setSelectedConversationId(null);
             }
@@ -133,9 +133,8 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                 <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
             </div>
 
-            <main className="flex-1 flex relative overflow-hidden">
+            <main className="flex-1 flex relative overflow-hidden h-full">
                 {/* Sidebar (Chat List) */}
-                {/* Mobile: Absolute positioning for slide effect. Desktop: Relative flex item. */}
                 <div 
                     className={`
                         absolute inset-0 z-20 w-full h-full bg-card border-r border-border flex flex-col transition-transform duration-300 ease-out
@@ -145,8 +144,8 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                 >
                     
                     {/* Sidebar Header - Static */}
-                    <div className="px-4 py-4 flex items-center justify-between shrink-0 bg-card border-b border-border flex-none h-16">
-                        <h1 className="text-2xl font-black text-foreground tracking-tight">Messages</h1>
+                    <div className="px-4 py-3 flex items-center justify-between shrink-0 bg-card border-b border-border flex-none h-16">
+                        <h1 className="text-xl font-black text-foreground tracking-tight">Messages</h1>
                         <div className="flex gap-2">
                             <button 
                                 onClick={() => setIsEditMode(!isEditMode)} 
@@ -170,15 +169,15 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                     </div>
 
                     {/* Search & Filter - Static */}
-                    <div className="p-4 space-y-4 flex-none">
+                    <div className="p-4 space-y-4 flex-none bg-card">
                         <div className="relative group">
                             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                             <input 
                                 type="text" 
-                                placeholder="Search conversations..." 
+                                placeholder="Search..." 
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="w-full bg-muted/50 hover:bg-muted border border-transparent focus:bg-background focus:border-primary rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:outline-none transition-all shadow-sm placeholder:text-muted-foreground"
+                                className="w-full bg-muted/50 hover:bg-muted border border-transparent focus:bg-background focus:border-primary rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none transition-all shadow-sm placeholder:text-muted-foreground"
                             />
                         </div>
                         
@@ -200,9 +199,9 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                     </div>
 
                     {/* Chat List - Scrollable */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-3">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar px-2 pb-2">
                         {filteredConversations.length > 0 ? (
-                            <div className="space-y-2">
+                            <div className="space-y-1">
                                 {filteredConversations.map(convo => {
                                     const isGroup = convo.isGroupChat;
                                     const otherParticipantId = !isGroup ? convo.participantIds.find(id => id !== currentUser.id) : null;
@@ -222,10 +221,9 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                                             onMouseLeave={handleLongPressEnd}
                                             onTouchStart={() => handleLongPressStart(convo.id)}
                                             onTouchEnd={handleLongPressEnd}
-                                            onTouchMove={handleLongPressEnd}
-                                            className={`group relative flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-200 border select-none ${
+                                            className={`group relative flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 border select-none ${
                                                 isActive 
-                                                ? 'bg-primary/10 border-primary/20 shadow-inner' 
+                                                ? 'bg-primary/10 border-primary/20' 
                                                 : 'bg-card border-transparent hover:bg-muted hover:border-border/50'
                                             }`}
                                         >
@@ -235,7 +233,7 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                                                         <UsersIcon className="w-6 h-6"/>
                                                     </div>
                                                 ) : (
-                                                    <Avatar src={otherUser?.avatarUrl} name={name} size="lg" className="w-12 h-12 shadow-sm ring-2 ring-background" />
+                                                    <Avatar src={otherUser?.avatarUrl} name={name} size="lg" className="w-12 h-12 shadow-sm ring-1 ring-border" />
                                                 )}
                                             </div>
                                             
@@ -251,7 +249,7 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                                                     )}
                                                 </div>
                                                 <div className="flex justify-between items-center">
-                                                    <p className={`text-xs truncate pr-4 flex-1 ${isActive ? 'text-foreground/70' : 'text-muted-foreground'}`}>
+                                                    <p className={`text-xs truncate pr-4 flex-1 ${isActive ? 'text-foreground/80' : 'text-muted-foreground'}`}>
                                                         {lastMessage ? (
                                                             <>
                                                                 {lastMessage.senderId === currentUser.id && <span className="font-bold mr-1">You:</span>}
@@ -301,10 +299,9 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                 </div>
 
                 {/* Chat Panel */}
-                {/* Mobile: Absolute positioning for slide effect. Desktop: Relative flex-1. */}
                 <div 
                     className={`
-                        absolute inset-0 z-30 w-full h-full bg-background flex flex-col transition-transform duration-300 ease-out
+                        absolute inset-0 z-30 w-full h-full bg-background flex flex-col transition-transform duration-300 ease-in-out
                         md:relative md:flex-1 md:translate-x-0 md:z-auto md:bg-muted/10
                         ${selectedConversationId ? 'translate-x-0' : 'translate-x-full'}
                     `}

@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import type { User, Conversation, Message } from '../types';
 import Avatar from '../components/Avatar';
-import { SendIcon, ArrowLeftIcon, OptionsIcon, TrashIcon, CloseIcon, UsersIcon } from '../components/Icons';
+import { SendIcon, ArrowLeftIcon, TrashIcon, CloseIcon, UsersIcon } from '../components/Icons';
 
 interface ChatPanelProps {
   conversation: Conversation;
@@ -53,7 +53,7 @@ const DeleteMessageModal: React.FC<{
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-xs border border-border animate-scale-in" onClick={e => e.stopPropagation()}>
+            <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-xs border border-border" onClick={e => e.stopPropagation()}>
                 <h3 className="font-bold text-lg text-center mb-4 text-foreground">Delete message(s)?</h3>
                 <div className="space-y-3">
                     {canDeleteForEveryone && (
@@ -89,40 +89,30 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
     return conversation.messages.filter(msg => !msg.deletedFor?.includes(currentUser.id));
   }, [conversation.messages, currentUser.id]);
 
-  // Effect to scroll to bottom when a new conversation is opened
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-    // Reset message length tracking for the new conversation
     prevMessagesLength.current = conversation.messages.length;
   }, [conversation.id]);
 
-  // Effect to handle smart scrolling for new messages
   useEffect(() => {
     const currentMessagesLength = visibleMessages.length;
-
-    // Only run if new messages have been added
     if (currentMessagesLength > prevMessagesLength.current) {
       const messagesContainer = messagesContainerRef.current;
       if (messagesContainer) {
         const lastMessage = visibleMessages[currentMessagesLength - 1];
         const isFromCurrentUser = lastMessage.senderId === currentUser.id;
-        
-        const scrollThreshold = 150; // pixels
+        const scrollThreshold = 150;
         const isScrolledNearBottom = messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + scrollThreshold;
 
-        // Auto-scroll if the message is from the current user or if they are already near the bottom
         if (isFromCurrentUser || isScrolledNearBottom) {
           messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         }
       }
     }
-    // Update the ref after the check
     prevMessagesLength.current = currentMessagesLength;
   }, [visibleMessages, currentUser.id]);
 
-
   useEffect(() => {
-    // Clear selection when conversation changes
     setSelectedMessages([]);
   }, [conversation.id]);
 
@@ -145,8 +135,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
                 ? prev.filter(id => id !== messageId)
                 : [...prev, messageId]
         );
-    } else {
-        // Regular click action (if any) could go here
     }
   };
 
@@ -154,6 +142,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
     wasLongPress.current = false;
     longPressTimerRef.current = setTimeout(() => {
         wasLongPress.current = true;
+        if (navigator.vibrate) navigator.vibrate(50);
         if (!selectedMessages.includes(messageId)) {
             setSelectedMessages(prev => [...prev, messageId]);
         }
@@ -185,7 +174,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
 
       {/* Static Header */}
       {isSelectionMode ? (
-        <header className="flex-none h-16 px-4 flex items-center justify-between bg-card border-b border-border z-20 shadow-sm">
+        <header className="flex-none h-16 px-4 flex items-center justify-between bg-card border-b border-border z-20 shadow-sm relative">
              <button onClick={() => setSelectedMessages([])} className="p-2 rounded-full hover:bg-muted text-foreground transition-colors">
                 <CloseIcon className="w-6 h-6" />
             </button>
@@ -195,10 +184,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
             </button>
         </header>
       ) : (
-        <header className="flex-none h-16 px-4 flex items-center justify-between bg-card border-b border-border z-20 shadow-sm">
+        <header className="flex-none h-16 px-4 flex items-center justify-between bg-card border-b border-border z-20 shadow-sm relative">
             <div className="flex items-center space-x-3 flex-1 overflow-hidden">
-                <button onClick={onClose} className="md:hidden p-1 rounded-full hover:bg-muted transition-colors -ml-2">
-                    <ArrowLeftIcon className="w-6 h-6 text-foreground" />
+                <button onClick={onClose} className="md:hidden p-1 rounded-full hover:bg-muted transition-colors -ml-2 text-foreground">
+                    <ArrowLeftIcon className="w-6 h-6" />
                 </button>
                 {isGroupChat ? (
                     <div className="h-10 w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center flex-shrink-0">
@@ -222,7 +211,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
       )}
 
       {/* Scrollable Messages Area */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-2 z-10 bg-background/50">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-2 z-10">
         {visibleMessages.map((msg, index) => {
           const sender = users[msg.senderId];
           const isCurrentUser = msg.senderId === currentUser.id;
@@ -254,12 +243,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
                    {!isCurrentUser && conversation.isGroupChat && sender && (
                       <p className="text-[10px] font-bold text-muted-foreground mb-1 px-3">{sender.name}</p>
                   )}
-                  <div className={`relative px-4 py-2.5 rounded-2xl text-sm transition-all shadow-sm ${
+                  <div className={`relative px-4 py-2.5 text-sm transition-all shadow-sm ${
                       isSelected 
-                        ? 'bg-primary/30 border-2 border-primary' 
+                        ? 'bg-primary/30 border-2 border-primary rounded-xl' 
                         : (isCurrentUser 
-                            ? 'bg-gradient-to-br from-primary to-blue-600 text-primary-foreground rounded-br-none' 
-                            : 'bg-card text-foreground border border-border rounded-bl-none'
+                            ? 'bg-gradient-to-br from-primary to-blue-600 text-white rounded-2xl rounded-tr-sm' 
+                            : 'bg-card text-foreground border border-border rounded-2xl rounded-tl-sm'
                           )
                   }`}>
                       <p className="whitespace-pre-wrap break-words leading-relaxed">{msg.text}</p>
