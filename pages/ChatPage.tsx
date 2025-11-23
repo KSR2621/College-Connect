@@ -128,7 +128,7 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
     const allUsersList = useMemo(() => Object.values(users), [users]);
 
     return (
-        <div className="bg-background h-[100dvh] md:h-screen flex flex-col overflow-hidden">
+        <div className="fixed inset-0 bg-background flex flex-col overflow-hidden overscroll-none">
             <div className="hidden md:block flex-none">
                 <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
             </div>

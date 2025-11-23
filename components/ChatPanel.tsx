@@ -178,12 +178,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
   }
 
   return (
-    <div className="flex flex-col h-full w-full bg-background relative overflow-hidden">
+    <div className="flex flex-col h-full w-full bg-background relative overflow-hidden overscroll-none">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] z-0"></div>
 
       {/* Static Header */}
-      <header className="flex-none z-20 w-full bg-card/95 backdrop-blur-md border-b border-border shadow-sm h-16 flex items-center px-2 sm:px-4">
+      <header className="flex-none z-50 w-full bg-card/95 backdrop-blur-md border-b border-border shadow-sm h-16 flex items-center px-2 sm:px-4 relative">
         {isSelectionMode ? (
             <div className="flex items-center justify-between w-full animate-fade-in">
                 <button onClick={() => setSelectedMessages([])} className="p-2 rounded-full hover:bg-muted text-foreground transition-colors">
@@ -222,7 +222,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
       </header>
 
       {/* Scrollable Messages Area */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-1 z-10 w-full scroll-smooth custom-scrollbar">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-1 z-10 w-full scroll-smooth custom-scrollbar overscroll-contain">
         {visibleMessages.map((msg, index) => {
           const sender = users[msg.senderId];
           const isCurrentUser = msg.senderId === currentUser.id;
@@ -290,7 +290,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
       </div>
 
       {/* Static Footer (Input) */}
-      <div className="flex-none z-20 w-full bg-card border-t border-border p-3 safe-area-bottom">
+      <div className="flex-none z-50 w-full bg-card border-t border-border p-3 safe-area-bottom relative">
         <form onSubmit={handleSubmit} className="flex items-end gap-2 bg-muted/40 p-1.5 rounded-[24px] border border-border focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
           <textarea
             id="chat-textarea"
