@@ -1,61 +1,114 @@
+
 import React, { useState } from 'react';
+import type { GroupCategory, GroupPrivacy } from '../types';
+import { GlobeIcon, LockIcon, UsersIcon, BriefcaseIcon } from './Icons';
 
 interface CreateGroupModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateGroup: (groupDetails: { name: string; description: string }) => void;
+  onCreateGroup: (groupDetails: { name: string; description: string; category: GroupCategory; privacy: GroupPrivacy }) => void;
 }
+
+const categories: GroupCategory[] = ['Academic', 'Cultural', 'Sports', 'Tech', 'Social', 'Other'];
 
 const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onClose, onCreateGroup }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [category, setCategory] = useState<GroupCategory>('Social');
+  const [privacy, setPrivacy] = useState<GroupPrivacy>('public');
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim() && description.trim()) {
-      onCreateGroup({ name, description });
+      onCreateGroup({ name, description, category, privacy });
       setName('');
       setDescription('');
+      setCategory('Social');
+      setPrivacy('public');
       onClose();
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose}>
-      <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
-        <h2 className="text-2xl font-bold mb-4 text-foreground">Create a New Group</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="groupName" className="block text-sm font-medium text-text-muted mb-1">Group Name</label>
+    <div className="fixed inset-0 bg-black/70 z-50 flex justify-center items-center p-4 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+      <div className="bg-card rounded-2xl shadow-2xl p-0 w-full max-w-md overflow-hidden border border-border" onClick={e => e.stopPropagation()}>
+        <div className="p-6 border-b border-border bg-muted/20">
+            <h2 className="text-2xl font-black text-foreground tracking-tight">Create Community</h2>
+            <p className="text-muted-foreground text-sm mt-1">Start a new group for students to connect.</p>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          <div className="space-y-2">
+            <label htmlFor="groupName" className="block text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Group Name</label>
             <input
               id="groupName"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Hiking Club"
+              placeholder="e.g., Robotics Club"
               required
-              className="w-full px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-4 py-3 text-foreground bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-muted-foreground/50 font-medium"
             />
           </div>
-          <div>
-            <label htmlFor="groupDescription" className="block text-sm font-medium text-text-muted mb-1">Description</label>
+          
+          <div className="space-y-2">
+            <label htmlFor="groupDescription" className="block text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Description</label>
             <textarea
               id="groupDescription"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What is this group about?"
+              placeholder="What's this group about?"
               required
-              rows={4}
-              className="w-full px-4 py-2 text-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              rows={3}
+              className="w-full px-4 py-3 text-foreground bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none transition-all placeholder:text-muted-foreground/50"
             />
           </div>
-          <div className="flex justify-end gap-3 mt-6">
-            <button type="button" onClick={onClose} className="px-4 py-2 font-semibold text-foreground bg-muted rounded-lg hover:bg-muted/80">
+
+          <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Category</label>
+                <div className="relative">
+                    <select 
+                        value={category} 
+                        onChange={(e) => setCategory(e.target.value as GroupCategory)} 
+                        className="w-full appearance-none px-4 py-3 bg-input border border-border rounded-xl text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
+                    >
+                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                        <BriefcaseIcon className="w-4 h-4"/>
+                    </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Privacy</label>
+                <div className="flex bg-input rounded-xl p-1 border border-border">
+                    <button 
+                        type="button"
+                        onClick={() => setPrivacy('public')} 
+                        className={`flex-1 flex items-center justify-center py-2 rounded-lg text-xs font-bold transition-all ${privacy === 'public' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                    >
+                        <GlobeIcon className="w-3 h-3 mr-1"/> Public
+                    </button>
+                    <button 
+                        type="button"
+                        onClick={() => setPrivacy('private')} 
+                        className={`flex-1 flex items-center justify-center py-2 rounded-lg text-xs font-bold transition-all ${privacy === 'private' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                    >
+                        <LockIcon className="w-3 h-3 mr-1"/> Private
+                    </button>
+                </div>
+              </div>
+          </div>
+
+          <div className="pt-4 flex justify-end gap-3">
+            <button type="button" onClick={onClose} className="px-5 py-2.5 font-bold text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors">
               Cancel
             </button>
-            <button type="submit" className="px-4 py-2 font-bold text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50" disabled={!name.trim() || !description.trim()}>
+            <button type="submit" className="px-6 py-2.5 font-bold text-primary-foreground bg-primary rounded-xl hover:bg-primary/90 disabled:opacity-50 shadow-lg shadow-primary/25 transition-transform hover:scale-[1.02]" disabled={!name.trim() || !description.trim()}>
               Create Group
             </button>
           </div>

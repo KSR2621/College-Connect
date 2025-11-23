@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import type { User, Group } from '../types';
+import type { User, Group, GroupCategory, GroupPrivacy } from '../types';
 import Header from '../components/Header';
 import GroupCard from '../components/GroupCard';
 import CreateGroupModal from '../components/CreateGroupModal';
@@ -13,7 +13,7 @@ interface GroupsPageProps {
   groups: Group[];
   onNavigate: (path: string) => void;
   currentPath: string;
-  onCreateGroup: (groupDetails: { name: string; description: string; }) => void;
+  onCreateGroup: (groupDetails: { name: string; description: string; category: GroupCategory; privacy: GroupPrivacy }) => void;
   onJoinGroupRequest: (groupId: string) => void;
   onToggleFollowGroup: (groupId: string) => void;
 }

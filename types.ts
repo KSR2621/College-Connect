@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 // FIX: Removed the 'Director/Principle' type as it was redundant. The value 'Director' is used.
@@ -119,16 +120,40 @@ export type Story = {
   groupId?: string;
 }
 
+export type GroupCategory = 'Academic' | 'Cultural' | 'Sports' | 'Tech' | 'Social' | 'Other';
+export type GroupPrivacy = 'public' | 'private';
+
+export type GroupResource = {
+    id: string;
+    title: string;
+    url: string; // Can be a link or a file URL
+    type: 'pdf' | 'image' | 'link' | 'other';
+    uploadedBy: string;
+    timestamp: number;
+}
+
 export type Group = {
     id: string;
     name: string;
     description: string;
+    category?: GroupCategory;
+    privacy?: GroupPrivacy;
     collegeId?: string;
     memberIds: string[];
     creatorId: string;
     pendingMemberIds?: string[];
     messages?: Message[];
     followers?: string[];
+    resources?: GroupResource[];
+    // Optional tagline if we want a short bio
+    tagline?: string;
+    coverImage?: string;
+    visibilitySettings?: {
+        feed: boolean;
+        events: boolean;
+        members: boolean;
+        resources: boolean;
+    };
 }
 
 export type Message = {

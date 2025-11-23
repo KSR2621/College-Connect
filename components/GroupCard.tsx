@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import type { Group, User } from '../types';
-import { UsersIcon, StarIcon, ShareIcon } from './Icons';
+import { UsersIcon, StarIcon, ShareIcon, LockIcon, GlobeIcon } from './Icons';
 
 interface GroupCardProps {
   group: Group;
@@ -35,6 +35,7 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, currentUser, onNavigate, o
   const isMember = group.memberIds.includes(currentUser.id);
   const isPending = group.pendingMemberIds?.includes(currentUser.id);
   const isFollowing = currentUser.followingGroups?.includes(group.id);
+  const isPrivate = group.privacy === 'private';
 
   const handleInvite = (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -68,6 +69,18 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, currentUser, onNavigate, o
             {/* Banner */}
             <div className={`relative h-28 bg-gradient-to-r ${gradient} flex items-center justify-center`}>
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 mix-blend-overlay"></div>
+                
+                <div className="absolute top-3 right-3 flex gap-2">
+                    {group.category && (
+                        <span className="px-2 py-1 bg-black/20 backdrop-blur-md rounded-lg text-[10px] font-bold text-white border border-white/10 uppercase tracking-wide">
+                            {group.category}
+                        </span>
+                    )}
+                    <div className="w-6 h-6 bg-black/20 backdrop-blur-md rounded-lg flex items-center justify-center border border-white/10 text-white" title={isPrivate ? "Private Group" : "Public Group"}>
+                        {isPrivate ? <LockIcon className="w-3 h-3"/> : <GlobeIcon className="w-3 h-3"/>}
+                    </div>
+                </div>
+
                 {/* Glass Icon Container */}
                 <div className="relative w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20 shadow-lg">
                     <UsersIcon className="w-7 h-7 text-white drop-shadow-md" />
