@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import type { User } from '../types';
 import Avatar from './Avatar';
-import { PhotoIcon, EventIcon, VideoIcon, SparkleIcon, CloseIcon } from './Icons';
+import { PhotoIcon, EventIcon, FileTextIcon, SparkleIcon, CloseIcon } from './Icons';
 
 interface InlineCreatePostProps {
   user: User;
@@ -14,53 +14,44 @@ const InlineCreatePost: React.FC<InlineCreatePostProps> = ({ user, onOpenCreateM
 
   return (
     <>
-        <div className="mb-8 animate-fade-in">
-            <div className="bg-card dark:bg-slate-900 rounded-3xl shadow-sm border border-border/60 p-5 transition-all duration-300 hover:shadow-md group">
-                <div className="flex items-center gap-4 mb-5">
-                    <div className="flex-shrink-0 cursor-pointer hover:scale-105 transition-transform duration-200 relative">
-                        <div className="absolute -inset-0.5 bg-gradient-to-tr from-primary to-secondary rounded-full opacity-50 blur-[1px]"></div>
-                        <div className="relative">
-                            <Avatar src={user.avatarUrl} name={user.name} size="md" className="ring-2 ring-card" />
-                        </div>
+        <div className="mb-6 animate-fade-in">
+            <div className="bg-card rounded-xl shadow-sm border border-border p-4">
+                <div className="flex items-center gap-3 mb-2">
+                    <div className="flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity">
+                        <Avatar src={user.avatarUrl} name={user.name} size="lg" />
                     </div>
                     <button
-                        className="flex-1 text-left bg-muted/40 hover:bg-muted/60 transition-all cursor-pointer rounded-2xl px-5 py-3.5 text-muted-foreground text-base font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 border border-transparent hover:border-primary/10"
+                        className="flex-1 text-left bg-background hover:bg-muted/50 border border-border hover:border-muted-foreground/30 transition-all rounded-full px-5 h-12 text-muted-foreground font-medium text-sm shadow-sm"
                         onClick={() => onOpenCreateModal('post')}
-                        aria-label="Create a new post"
                     >
-                        What's happening on campus, {user.name.split(' ')[0]}?
+                        Start a post
                     </button>
                 </div>
                 
-                <div className="flex items-center justify-between gap-2 px-1">
+                <div className="flex items-center justify-between px-1 sm:px-4 pt-1">
                     <button 
-                        onClick={() => setComingSoonFeature('Photo Uploads')} 
-                        className="flex-1 flex items-center justify-center gap-2.5 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 transition-all group/btn active:scale-95"
+                        onClick={() => setComingSoonFeature('Media')} 
+                        className="flex items-center gap-2 p-3 rounded-lg hover:bg-muted/50 transition-colors group flex-1 justify-center sm:justify-start"
                     >
-                        <div className="p-1.5 rounded-lg bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm group-hover/btn:scale-110 transition-transform">
-                            <PhotoIcon className="w-5 h-5" />
-                        </div>
-                        <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300 transition-colors">Photo</span>
+                        <PhotoIcon className="w-6 h-6 text-sky-500" />
+                        <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground hidden sm:inline">Media</span>
+                        <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground sm:hidden">Photo</span>
                     </button>
                     
                     <button 
-                        onClick={() => setComingSoonFeature('Video Uploads')} 
-                        className="flex-1 flex items-center justify-center gap-2.5 py-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/10 hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all group/btn active:scale-95"
+                        onClick={() => onOpenCreateModal('event')} 
+                        className="flex items-center gap-2 p-3 rounded-lg hover:bg-muted/50 transition-colors group flex-1 justify-center sm:justify-start"
                     >
-                        <div className="p-1.5 rounded-lg bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm group-hover/btn:scale-110 transition-transform">
-                            <VideoIcon className="w-5 h-5" />
-                        </div>
-                        <span className="text-sm font-bold text-blue-700 dark:text-blue-300 transition-colors">Video</span>
+                        <EventIcon className="w-6 h-6 text-amber-600" />
+                        <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground">Event</span>
                     </button>
 
                     <button 
-                        onClick={() => onOpenCreateModal('event')} 
-                        className="flex-1 flex items-center justify-center gap-2.5 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 dark:hover:bg-amber-900/20 transition-all group/btn active:scale-95"
+                        onClick={() => setComingSoonFeature('Article')} 
+                        className="flex items-center gap-2 p-3 rounded-lg hover:bg-muted/50 transition-colors group flex-1 justify-center sm:justify-start"
                     >
-                        <div className="p-1.5 rounded-lg bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 shadow-sm group-hover/btn:scale-110 transition-transform">
-                            <EventIcon className="w-5 h-5" />
-                        </div>
-                        <span className="text-sm font-bold text-amber-700 dark:text-amber-300 transition-colors">Event</span>
+                        <FileTextIcon className="w-6 h-6 text-rose-500" />
+                        <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground">Article</span>
                     </button>
                 </div>
             </div>
@@ -81,14 +72,14 @@ const InlineCreatePost: React.FC<InlineCreatePostProps> = ({ user, onOpenCreateM
                     
                     <h3 className="text-2xl font-black text-foreground mb-2">Coming Soon! 🚀</h3>
                     <p className="text-muted-foreground mb-8 text-sm leading-relaxed">
-                        We're working hard to bring <span className="font-bold text-foreground">{comingSoonFeature}</span> to CampusConnect. Stay tuned for future updates!
+                        <span className="font-bold text-foreground">{comingSoonFeature}</span> creation is under development. Stay tuned!
                     </p>
                     
                     <button 
                         onClick={() => setComingSoonFeature(null)} 
                         className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-bold text-sm hover:bg-primary/90 shadow-lg shadow-primary/25 transition-all transform hover:scale-[1.02] active:scale-95"
                     >
-                        Can't Wait!
+                        Got it
                     </button>
                 </div>
             </div>

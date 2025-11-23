@@ -48,44 +48,44 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ groups, events, currentUser
     <div className="sticky top-24 space-y-6">
       {/* Upcoming Events */}
       {upcomingEvents.length > 0 && (
-         <div className="relative p-[2px] rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 h-full relative z-10">
-                <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center justify-between">
+         <div className="animated-border-wrapper">
+             <div className="bg-card rounded-[14px] p-5 shadow-sm h-full">
+                <h3 className="font-bold text-foreground mb-4 flex items-center justify-between">
                     Upcoming Events
                     <span className="text-xs text-primary cursor-pointer hover:underline" onClick={() => onNavigate('#/events')}>See all</span>
                 </h3>
                 <div className="space-y-4">
                     {upcomingEvents.map(event => (
                         <div key={event.id} className="flex items-start space-x-3 cursor-pointer group" onClick={() => onNavigate('#/events')}>
-                            <div className="flex-shrink-0 h-12 w-12 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl flex flex-col items-center justify-center shadow-sm group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                            <div className="flex-shrink-0 h-12 w-12 bg-muted text-muted-foreground rounded-xl flex flex-col items-center justify-center shadow-sm group-hover:bg-primary/10 group-hover:text-primary transition-colors">
                                 <span className="text-[10px] font-bold uppercase">{new Date(event.eventDetails!.date).toLocaleString('default', { month: 'short' })}</span>
                                 <span className="text-lg font-bold leading-none">{new Date(event.eventDetails!.date).getDate()}</span>
                             </div>
                             <div className="flex-1 overflow-hidden pt-0.5">
-                                <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm truncate group-hover:text-primary transition-colors">{event.eventDetails?.title}</p>
-                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{event.eventDetails?.location}</p>
+                                <p className="font-semibold text-foreground text-sm truncate group-hover:text-primary transition-colors">{event.eventDetails?.title}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5 truncate">{event.eventDetails?.location}</p>
                             </div>
                         </div>
                     ))}
                 </div>
-            </div>
+             </div>
          </div>
       )}
 
       {/* People You May Know */}
        {suggestedUsers.length > 0 && (
-        <div className="relative p-[2px] rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 h-full relative z-10">
-                <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4">People You May Know</h3>
+        <div className="animated-border-wrapper">
+            <div className="bg-card rounded-[14px] p-5 shadow-sm h-full">
+                <h3 className="font-bold text-foreground mb-4">People You May Know</h3>
                 <div className="space-y-4">
                     {suggestedUsers.map(user => (
                         <div key={user.id} className="flex items-center space-x-3">
                             <Avatar src={user.avatarUrl} name={user.name} size="md" />
                             <div className="flex-1 overflow-hidden">
-                                <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm truncate">{user.name}</p>
-                                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user.department}</p>
+                                <p className="font-semibold text-foreground text-sm truncate">{user.name}</p>
+                                <p className="text-xs text-muted-foreground truncate">{user.department}</p>
                             </div>
-                            <button onClick={() => onNavigate(`#/profile/${user.id}`)} className="text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 py-1.5 px-3 rounded-lg transition-colors">
+                            <button onClick={() => onNavigate(`#/profile/${user.id}`)} className="text-xs font-bold bg-muted hover:bg-muted/80 text-foreground py-1.5 px-3 rounded-lg transition-colors">
                                 View
                             </button>
                         </div>
@@ -97,9 +97,9 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ groups, events, currentUser
 
       {/* Suggested Groups */}
       {suggestedGroups.length > 0 && (
-        <div className="relative p-[2px] rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 h-full relative z-10">
-                <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center justify-between">
+        <div className="animated-border-wrapper">
+            <div className="bg-card rounded-[14px] p-5 shadow-sm h-full">
+                <h3 className="font-bold text-foreground mb-4 flex items-center justify-between">
                     Suggested Groups
                     <span className="text-xs text-primary cursor-pointer hover:underline" onClick={() => onNavigate('#/groups')}>See all</span>
                 </h3>
@@ -116,8 +116,8 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ groups, events, currentUser
                             <UsersIcon className="w-5 h-5 opacity-90"/>
                         </div>
                         <div className="flex-1 overflow-hidden">
-                            <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm truncate group-hover:text-primary transition-colors">{group.name}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">{group.memberIds.length} members</p>
+                            <p className="font-semibold text-foreground text-sm truncate group-hover:text-primary transition-colors">{group.name}</p>
+                            <p className="text-xs text-muted-foreground">{group.memberIds.length} members</p>
                         </div>
                         </div>
                     );

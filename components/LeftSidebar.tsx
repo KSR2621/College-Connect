@@ -28,36 +28,36 @@ const NavLink: React.FC<{
 const LeftSidebar: React.FC<LeftSidebarProps> = ({ currentUser, onNavigate }) => {
   return (
     <div className="sticky top-24 space-y-6">
-      <div className="relative p-[2px] rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800">
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 relative z-10 h-full">
-            {/* User Info */}
-            <div className="flex flex-col items-center text-center pb-6 border-b border-slate-100 dark:border-slate-800">
-            <div className="relative group cursor-pointer" onClick={() => onNavigate(`#/profile/${currentUser.id}`)}>
-                <Avatar 
-                    src={currentUser.avatarUrl} 
-                    name={currentUser.name} 
-                    size="xl" 
-                    className="mb-3 shadow-sm group-hover:opacity-90 transition-opacity w-20 h-20 text-2xl border-4 border-slate-50 dark:border-slate-800"
-                />
-            </div>
-            <h2 
-                className="font-bold text-lg text-slate-900 dark:text-slate-100 cursor-pointer hover:underline"
-                onClick={() => onNavigate(`#/profile/${currentUser.id}`)}
-                >
-                    {currentUser.name}
-                </h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">{currentUser.department}</p>
-            </div>
+        <div className="animated-border-wrapper">
+            <div className="bg-card rounded-[14px] p-6 shadow-sm h-full">
+                {/* User Info */}
+                <div className="flex flex-col items-center text-center pb-6 border-b border-border">
+                    <div className="relative group cursor-pointer" onClick={() => onNavigate(`#/profile/${currentUser.id}`)}>
+                        <Avatar 
+                            src={currentUser.avatarUrl} 
+                            name={currentUser.name} 
+                            size="xl" 
+                            className="mb-3 shadow-sm group-hover:opacity-90 transition-opacity w-20 h-20 text-2xl"
+                        />
+                    </div>
+                    <h2 
+                        className="font-bold text-lg text-foreground cursor-pointer hover:underline"
+                        onClick={() => onNavigate(`#/profile/${currentUser.id}`)}
+                    >
+                        {currentUser.name}
+                    </h2>
+                    <p className="text-sm text-muted-foreground font-medium mt-1">{currentUser.department}</p>
+                </div>
 
-            {/* Navigation Links */}
-            <nav className="mt-4 space-y-1">
-                <NavLink icon={UserIcon} label="My Profile" path={`#/profile/${currentUser.id}`} onNavigate={onNavigate} />
-                <NavLink icon={UsersIcon} label="My Groups" path="#/groups" onNavigate={onNavigate} />
-                <NavLink icon={CalendarIcon} label="Events" path="#/events" onNavigate={onNavigate} />
-                <NavLink icon={BriefcaseIcon} label="Opportunities" path="#/opportunities" onNavigate={onNavigate} />
-            </nav>
+                {/* Navigation Links */}
+                <nav className="mt-4 space-y-1">
+                    <NavLink icon={UserIcon} label="My Profile" path={`#/profile/${currentUser.id}`} onNavigate={onNavigate} />
+                    <NavLink icon={UsersIcon} label="My Groups" path="#/groups" onNavigate={onNavigate} />
+                    <NavLink icon={CalendarIcon} label="Events" path="#/events" onNavigate={onNavigate} />
+                    <NavLink icon={BriefcaseIcon} label="Opportunities" path="#/opportunities" onNavigate={onNavigate} />
+                </nav>
+            </div>
         </div>
-      </div>
     </div>
   );
 };

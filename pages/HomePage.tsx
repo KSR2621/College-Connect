@@ -85,7 +85,14 @@ const HomePage: React.FC<HomePageProps> = (props) => {
     }, [posts.length]);
 
     return (
-        <div className="bg-background min-h-screen">
+        <div className="min-h-screen bg-background relative isolate">
+            {/* Colorful Background Blobs for Light Mode */}
+            <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-purple-400/10 blur-[100px] animate-pulse dark:bg-purple-900/10"></div>
+                <div className="absolute top-[20%] right-[-5%] w-[30%] h-[30%] rounded-full bg-blue-400/10 blur-[80px] animate-pulse delay-1000 dark:bg-blue-900/10"></div>
+                <div className="absolute bottom-[-10%] left-[20%] w-[40%] h-[40%] rounded-full bg-pink-400/10 blur-[100px] animate-pulse delay-2000 dark:bg-pink-900/10"></div>
+            </div>
+
             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
             
             {/* New Posts Toast */}

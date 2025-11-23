@@ -187,19 +187,27 @@
             position: relative;
             overflow: hidden;
         }
-        .animated-border::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            border-radius: inherit;
+        /* Use pseudo-element for border to not affect layout */
+        .animated-border-wrapper {
             padding: 2px;
-            background: linear-gradient(45deg, hsl(var(--primary)), hsl(var(--secondary)));
-            -webkit-mask: 
-                linear-gradient(#fff 0 0) content-box, 
-                linear-gradient(#fff 0 0);
-            -webkit-mask-composite: xor;
-            mask-composite: exclude;
-            pointer-events: none;
+            border-radius: 1rem; /* Matches rounded-2xl usually */
+            background: linear-gradient(60deg, #f79533, #f37055, #ef4e7b, #a166ab, #5073b8, #1098ad, #07b39b, #6fba82);
+            background-size: 300% 300%;
+            animation: animatedgradient 4s ease alternate infinite;
+        }
+        
+        @keyframes animatedgradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        /* Ensure content inside covers the padding area background */
+        .animated-border-wrapper > * {
+            height: 100%;
+            width: 100%;
+            background-color: hsl(var(--card));
+            border-radius: calc(1rem - 2px);
         }
     </style>
     <script>
