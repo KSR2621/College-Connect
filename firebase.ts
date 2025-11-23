@@ -1,3 +1,4 @@
+
 // This declaration informs TypeScript that a global variable named 'firebase'
 // will exist at runtime, provided by the <script> tags in index.html.
 // This prevents compile-time errors without using ES module imports that cause race conditions.
@@ -20,8 +21,20 @@ if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 
-// Initialize and export services for the rest of the app to use.
+// Initialize services
+const db = firebase.firestore();
+
+// Enable offline persistence
+db.enablePersistence({ synchronizeTabs: true })
+  .catch((err: any) => {
+      if (err.code == 'failed-precondition') {
+          console.warn('Persistence failed: Multiple tabs open');
+      } else if (err.code == 'unimplemented') {
+          console.warn('Persistence failed: Not supported');
+      }
+  });
+
 export const auth = firebase.auth();
-export const db = firebase.firestore();
+export { db };
 export const storage = firebase.storage();
 export const FieldValue = firebase.firestore.FieldValue;

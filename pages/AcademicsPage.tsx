@@ -1,6 +1,5 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-// FIX: Changed from 'import type' to a regular import to fix "'College' only refers to a type" error.
 import { User, Course, Notice, DepartmentChat, Message, AttendanceStatus, Feedback, College } from '../types';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
@@ -395,7 +394,7 @@ const NoticeCard: React.FC<{ notice: Notice; author: User | undefined; currentUs
                 <div className="flex items-center space-x-2 mt-3 text-xs text-muted-foreground">
                     {author && <span className="font-semibold text-foreground">{author.name}</span>}
                     <span>&bull;</span>
-                    <span>{new Date(notice.timestamp).toLocaleDateString()}</span>
+                    <span>{new Date(notice.timestamp).toLocaleDateString()}</p>
                 </div>
                 
                 <div className="prose prose-sm prose-invert max-w-none mt-2 text-card-foreground line-clamp-3 text-sm" dangerouslySetInnerHTML={{ __html: notice.content }} />
@@ -470,11 +469,16 @@ const DiscoverCourseCard: React.FC<{
 };
 
 const StudentAcademicsDashboard: React.FC<AcademicsPageProps> = (props) => {
-    const { currentUser, onNavigate, courses, notices, users, onRequestToJoinCourse, onDeleteNotice } = props;
+    const { currentUser, onNavigate, courses, notices, users, onRequestToJoinCourse, onDeleteNotice, currentPath } = props;
     const [activeSection, setActiveSection] = useState('dashboard');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [discoverSearch, setDiscoverSearch] = useState('');
     const [noticeSearch, setNoticeSearch] = useState('');
+
+    const handleLogout = async () => {
+        await auth.signOut();
+        onNavigate('#/');
+    };
 
     const { enrolledCourses, discoverableCourses } = useMemo(() => {
         const enrolled: Course[] = [];
@@ -717,137 +721,148 @@ const StudentAcademicsDashboard: React.FC<AcademicsPageProps> = (props) => {
     };
 
     return (
-        <div className="flex flex-col md:flex-row h-[calc(100vh-64px)] bg-background">
-             {/* Mobile Sub-header */}
-            <div className="md:hidden bg-background border-b border-border p-4 flex justify-between items-center sticky top-0 z-30 shadow-sm">
-                <span className="font-bold text-lg capitalize text-foreground">{activeSection.replace(/_/g, ' ')}</span>
-                <button onClick={() => setMobileMenuOpen(true)} className="p-2 rounded-lg hover:bg-muted text-muted-foreground">
-                    <MenuIcon className="w-6 h-6" />
-                </button>
-            </div>
+        <div className="flex flex-col h-screen bg-background">
+             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
+             
+             {/* Main Flex Container for Sidebar + Content */}
+             <div className="flex flex-1 overflow-hidden relative flex-col md:flex-row">
+                {/* Mobile Sub-header */}
+                <div className="md:hidden bg-background border-b border-border p-4 flex justify-between items-center flex-shrink-0">
+                    <span className="font-bold text-lg capitalize text-foreground">{activeSection.replace(/_/g, ' ')}</span>
+                    <button onClick={() => setMobileMenuOpen(true)} className="p-2 rounded-lg hover:bg-muted text-muted-foreground">
+                        <MenuIcon className="w-6 h-6" />
+                    </button>
+                </div>
 
-             {/* Sidebar */}
-            <aside className={`fixed inset-y-0 left-0 z-40 w-72 bg-card border-r border-border transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                <div className="p-6 h-full overflow-y-auto flex flex-col">
-                     <div className="flex justify-between items-center mb-8 md:hidden">
-                        <h2 className="text-xl font-bold text-foreground">Menu</h2>
-                        <button onClick={() => setMobileMenuOpen(false)}><CloseIcon className="w-6 h-6 text-muted-foreground" /></button>
-                    </div>
-                    
-                    <div className="space-y-1.5 flex-1">
-                        <SidebarItem id="dashboard" label="Dashboard" icon={ChartBarIcon} onClick={() => handleSectionChange('dashboard')} active={activeSection === 'dashboard'} />
+                {/* Sidebar */}
+                <aside className={`fixed inset-y-0 left-0 z-40 w-72 bg-card border-r border-border transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                    <div className="p-6 h-full overflow-y-auto flex flex-col">
+                        <div className="flex justify-between items-center mb-8 md:hidden">
+                            <h2 className="text-xl font-bold text-foreground">Menu</h2>
+                            <button onClick={() => setMobileMenuOpen(false)}><CloseIcon className="w-6 h-6 text-muted-foreground" /></button>
+                        </div>
                         
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2 px-4">Academics</p>
-                        <SidebarItem id="courses" label="My Courses" icon={BookOpenIcon} onClick={() => handleSectionChange('courses')} active={activeSection === 'courses'} />
-                        <SidebarItem id="attendance" label="Attendance" icon={CheckSquareIcon} onClick={() => handleSectionChange('attendance')} active={activeSection === 'attendance'} />
-                        <SidebarItem id="assignments" label="Assignments" icon={ClipboardListIcon} onClick={() => handleSectionChange('assignments')} active={activeSection === 'assignments'} />
-                        <SidebarItem id="exams" label="Exams & Results" icon={AwardIcon} onClick={() => handleSectionChange('exams')} active={activeSection === 'exams'} />
-                        <SidebarItem id="timetable" label="Timetable" icon={CalendarIcon} onClick={() => handleSectionChange('timetable')} active={activeSection === 'timetable'} />
+                        <div className="space-y-1.5 flex-1">
+                            <SidebarItem id="dashboard" label="Dashboard" icon={ChartBarIcon} onClick={() => handleSectionChange('dashboard')} active={activeSection === 'dashboard'} />
+                            
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2 px-4">Academics</p>
+                            <SidebarItem id="courses" label="My Courses" icon={BookOpenIcon} onClick={() => handleSectionChange('courses')} active={activeSection === 'courses'} />
+                            <SidebarItem id="attendance" label="Attendance" icon={CheckSquareIcon} onClick={() => handleSectionChange('attendance')} active={activeSection === 'attendance'} />
+                            <SidebarItem id="assignments" label="Assignments" icon={ClipboardListIcon} onClick={() => handleSectionChange('assignments')} active={activeSection === 'assignments'} />
+                            <SidebarItem id="exams" label="Exams & Results" icon={AwardIcon} onClick={() => handleSectionChange('exams')} active={activeSection === 'exams'} />
+                            <SidebarItem id="timetable" label="Timetable" icon={CalendarIcon} onClick={() => handleSectionChange('timetable')} active={activeSection === 'timetable'} />
+                            
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2 px-4">Community</p>
+                            <SidebarItem id="notices" label="Notices" icon={MegaphoneIcon} onClick={() => handleSectionChange('notices')} active={activeSection === 'notices'} />
+                            <SidebarItem id="discover" label="Discover Courses" icon={SearchIcon} onClick={() => handleSectionChange('discover')} active={activeSection === 'discover'} />
+                            
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2 px-4">Personal</p>
+                            <SidebarItem id="settings" label="Settings" icon={SettingsIcon} onClick={() => handleSectionChange('settings')} active={activeSection === 'settings'} />
+                        </div>
                         
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2 px-4">Community</p>
-                        <SidebarItem id="notices" label="Notices" icon={MegaphoneIcon} onClick={() => handleSectionChange('notices')} active={activeSection === 'notices'} />
-                        <SidebarItem id="discover" label="Discover Courses" icon={SearchIcon} onClick={() => handleSectionChange('discover')} active={activeSection === 'discover'} />
-                        
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2 px-4">Personal</p>
-                        <SidebarItem id="settings" label="Settings" icon={SettingsIcon} onClick={() => handleSectionChange('settings')} active={activeSection === 'settings'} />
-                    </div>
-                    
-                    <div className="mt-6 pt-6 border-t border-border px-4">
-                        <div className="flex items-center gap-3">
-                            <Avatar src={currentUser.avatarUrl} name={currentUser.name} size="sm" />
-                            <div className="overflow-hidden">
-                                <p className="text-sm font-bold text-foreground truncate">{currentUser.name}</p>
-                                <p className="text-xs text-muted-foreground truncate">{currentUser.department}</p>
+                        <div className="mt-6 pt-6 border-t border-border px-4">
+                            <div className="flex items-center gap-3">
+                                <Avatar src={currentUser.avatarUrl} name={currentUser.name} size="sm" />
+                                <div className="overflow-hidden">
+                                    <p className="text-sm font-bold text-foreground truncate">{currentUser.name}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{currentUser.department}</p>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </aside>
-            
-            {mobileMenuOpen && <div className="fixed inset-0 z-30 bg-black/50 md:hidden backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}></div>}
+                </aside>
+                
+                {mobileMenuOpen && <div className="fixed inset-0 z-30 bg-black/50 md:hidden backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}></div>}
 
-            {/* Main Content */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-8 md:px-10 lg:px-12 bg-background/50">
-                {activeSection === 'dashboard' && <StudentDashboardHome />}
-                
-                {activeSection === 'courses' && (
-                    <div className="animate-fade-in space-y-6">
-                        <SectionHeader title="My Courses" subtitle="Access your enrolled subjects and materials." />
-                        <CourseGrid courses={enrolledCourses} onNavigate={onNavigate} emptyState={{title: "No courses yet", subtitle:"Head over to the Discover tab to join your first course."}}/>
-                    </div>
-                )}
-                
-                {activeSection === 'attendance' && <StudentAttendanceView />}
-                {activeSection === 'assignments' && <StudentAssignmentsView />}
-                
-                {activeSection === 'discover' && (
-                     <div className="space-y-6 animate-fade-in">
-                        <SectionHeader title="Discover Courses" subtitle={`Available for ${currentUser.department}, Year ${currentUser.yearOfStudy}`} />
-                        <div className="relative w-full max-w-md mb-6">
-                            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <input type="text" placeholder="Search subjects..." value={discoverSearch} onChange={(e) => setDiscoverSearch(e.target.value)} className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"/>
+                {/* Main Content */}
+                <div className="flex-1 overflow-y-auto p-4 pb-32 lg:pb-8 md:px-10 lg:px-12 bg-background/50">
+                    {activeSection === 'dashboard' && <StudentDashboardHome />}
+                    
+                    {activeSection === 'courses' && (
+                        <div className="animate-fade-in space-y-6">
+                            <SectionHeader title="My Courses" subtitle="Access your enrolled subjects and materials." />
+                            <CourseGrid courses={enrolledCourses} onNavigate={onNavigate} emptyState={{title: "No courses yet", subtitle:"Head over to the Discover tab to join your first course."}}/>
                         </div>
-                        <div className="space-y-3">
-                            {filteredDiscoverableCourses.length > 0 ? filteredDiscoverableCourses.map(course => (
-                                <DiscoverCourseCard 
-                                    key={course.id} 
-                                    course={course}
-                                    faculty={users[course.facultyId]}
-                                    onRequestToJoin={onRequestToJoinCourse}
-                                    hasRequested={course.pendingStudents?.includes(currentUser.id) || false}
-                                />
-                            )) : (
-                                <div className="text-center py-12 bg-card rounded-2xl border border-border">
-                                    <SearchIcon className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3"/>
-                                    <p className="text-muted-foreground font-medium">No courses found matching your search.</p>
-                                </div>
-                            )}
+                    )}
+                    
+                    {activeSection === 'attendance' && <StudentAttendanceView />}
+                    {activeSection === 'assignments' && <StudentAssignmentsView />}
+                    
+                    {activeSection === 'discover' && (
+                        <div className="space-y-6 animate-fade-in">
+                            <SectionHeader title="Discover Courses" subtitle={`Available for ${currentUser.department}, Year ${currentUser.yearOfStudy}`} />
+                            <div className="relative w-full max-w-md mb-6">
+                                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <input type="text" placeholder="Search subjects..." value={discoverSearch} onChange={(e) => setDiscoverSearch(e.target.value)} className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"/>
+                            </div>
+                            <div className="space-y-3">
+                                {filteredDiscoverableCourses.length > 0 ? filteredDiscoverableCourses.map(course => (
+                                    <DiscoverCourseCard 
+                                        key={course.id} 
+                                        course={course}
+                                        faculty={users[course.facultyId]}
+                                        onRequestToJoin={onRequestToJoinCourse}
+                                        hasRequested={course.pendingStudents?.includes(currentUser.id) || false}
+                                    />
+                                )) : (
+                                    <div className="text-center py-12 bg-card rounded-2xl border border-border">
+                                        <SearchIcon className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3"/>
+                                        <p className="text-muted-foreground font-medium">No courses found matching your search.</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                )}
-                
-                {activeSection === 'notices' && (
-                     <div className="space-y-6 animate-fade-in">
-                         <SectionHeader title="Notice Board" subtitle="Important announcements." />
-                         <div className="relative w-full max-w-md mb-6">
-                            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <input type="text" placeholder="Search notices..." value={noticeSearch} onChange={(e) => setNoticeSearch(e.target.value)} className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"/>
+                    )}
+                    
+                    {activeSection === 'notices' && (
+                        <div className="space-y-6 animate-fade-in">
+                            <SectionHeader title="Notice Board" subtitle="Important announcements." />
+                            <div className="relative w-full max-w-md mb-6">
+                                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <input type="text" placeholder="Search notices..." value={noticeSearch} onChange={(e) => setNoticeSearch(e.target.value)} className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"/>
+                            </div>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                {filteredNotices.length > 0 ? (
+                                    filteredNotices.map(notice => (
+                                        <NoticeCard key={notice.id} notice={notice} author={users[notice.authorId]} currentUser={currentUser} onDelete={onDeleteNotice} />
+                                    ))
+                                ) : (
+                                <div className="col-span-2"><NoticeEmptyState message="No relevant notices found" subMessage="It's all quiet on the announcement front for now." /></div>
+                                )}
+                            </div>
                         </div>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                            {filteredNotices.length > 0 ? (
-                                filteredNotices.map(notice => (
-                                    <NoticeCard key={notice.id} notice={notice} author={users[notice.authorId]} currentUser={currentUser} onDelete={onDeleteNotice} />
-                                ))
-                            ) : (
-                               <div className="col-span-2"><NoticeEmptyState message="No relevant notices found" subMessage="It's all quiet on the announcement front for now." /></div>
-                            )}
+                    )}
+                    
+                    {/* Placeholders */}
+                    {(activeSection === 'exams' || activeSection === 'timetable' || activeSection === 'settings') && (
+                        <div className="flex flex-col items-center justify-center h-[60vh] text-center animate-fade-in">
+                            <div className="p-6 bg-card rounded-full shadow-sm border border-border mb-4">
+                                <SettingsIcon className="w-12 h-12 text-muted-foreground" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-foreground">{activeSection.charAt(0).toUpperCase() + activeSection.slice(1)} Module</h2>
+                            <p className="text-muted-foreground mt-2 max-w-md">This section is currently under development.</p>
                         </div>
-                    </div>
-                )}
-                
-                {/* Placeholders */}
-                {(activeSection === 'exams' || activeSection === 'timetable' || activeSection === 'settings') && (
-                     <div className="flex flex-col items-center justify-center h-[60vh] text-center animate-fade-in">
-                        <div className="p-6 bg-card rounded-full shadow-sm border border-border mb-4">
-                            <SettingsIcon className="w-12 h-12 text-muted-foreground" />
-                        </div>
-                        <h2 className="text-2xl font-bold text-foreground">{activeSection.charAt(0).toUpperCase() + activeSection.slice(1)} Module</h2>
-                        <p className="text-muted-foreground mt-2 max-w-md">This section is currently under development.</p>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
+            <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
         </div>
     );
 };
 
 const FacultyAcademicsDashboard: React.FC<AcademicsPageProps> = (props) => {
-    const { currentUser, onNavigate, courses, onCreateCourse, notices, users, onCreateNotice, onDeleteNotice, departmentChats, onSendDepartmentMessage, colleges, onCreateUser } = props;
+    const { currentUser, onNavigate, courses, onCreateCourse, notices, users, onCreateNotice, onDeleteNotice, departmentChats, onSendDepartmentMessage, colleges, onCreateUser, currentPath } = props;
     
     const [activeSection, setActiveSection] = useState('dashboard');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [isAddCourseModalOpen, setIsAddCourseModalOpen] = useState(false);
     const [isCreateNoticeModalOpen, setIsCreateNoticeModalOpen] = useState(false);
     const [isCreateStudentModalOpen, setIsCreateStudentModalOpen] = useState(false);
+
+    const handleLogout = async () => {
+        await auth.signOut();
+        onNavigate('#/');
+    };
 
     if ((currentUser.tag === 'Teacher' || currentUser.tag === 'HOD/Dean') && currentUser.isApproved === false) {
         return (
@@ -1183,280 +1198,95 @@ const FacultyAcademicsDashboard: React.FC<AcademicsPageProps> = (props) => {
                     ))}
                 </div>
             ) : (
-                 <div className="text-center bg-card rounded-2xl border-2 border-dashed border-border p-16 text-muted-foreground">
-                    <BookOpenIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-bold text-foreground">No Classes Assigned</h3>
-                    <p className="mt-2 text-sm">Start by creating a new course to manage.</p>
-                </div>
+                <p className="text-muted-foreground text-center py-8">No classes scheduled.</p>
             )}
         </div>
     );
 
-    const AttendanceView = () => (
-        <div className="space-y-6 animate-fade-in">
-             <SectionHeader title="Attendance Management" subtitle="Track and mark daily attendance for your classes."/>
-             <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
-                 <table className="w-full text-left">
-                     <thead className="bg-muted/50 border-b border-border text-xs font-bold uppercase text-muted-foreground tracking-wider">
-                         <tr>
-                             <th className="p-5">Course</th>
-                             <th className="p-5">Class Details</th>
-                             <th className="p-5">Today's Status</th>
-                             <th className="p-5 text-right">Action</th>
-                         </tr>
-                     </thead>
-                     <tbody className="divide-y divide-border text-sm">
-                         {myCourses.map(course => {
-                             const isTakenToday = course.attendanceRecords?.some(r => new Date(r.date).toDateString() === new Date().toDateString());
-                             return (
-                                 <tr key={course.id} className="hover:bg-muted/30 transition-colors">
-                                     <td className="p-5 font-bold text-foreground">{course.subject}</td>
-                                     <td className="p-5 text-muted-foreground">Year {course.year} • {course.department}</td>
-                                     <td className="p-5">
-                                         {isTakenToday ? (
-                                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">
-                                                 <CheckCircleIcon className="w-3 h-3 mr-1.5"/> Marked
-                                             </span>
-                                         ) : (
-                                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
-                                                 <ClockIcon className="w-3 h-3 mr-1.5"/> Pending
-                                             </span>
-                                         )}
-                                     </td>
-                                     <td className="p-5 text-right">
-                                         <button 
-                                            onClick={() => onNavigate(`#/academics/${course.id}/attendance`)}
-                                            className={`px-4 py-2 rounded-lg font-bold text-xs transition-colors ${isTakenToday ? 'bg-muted text-muted-foreground hover:bg-border' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
-                                         >
-                                             {isTakenToday ? 'View Report' : 'Mark Now'}
-                                         </button>
-                                     </td>
-                                 </tr>
-                             )
-                         })}
-                         {myCourses.length === 0 && (
-                             <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">No courses available.</td></tr>
-                         )}
-                     </tbody>
-                 </table>
-             </div>
-        </div>
-    );
-
-    const AssignmentsView = () => (
-        <div className="space-y-6 animate-fade-in">
-            <SectionHeader title="Assignments & Homework" subtitle="Manage ongoing tasks and grading."/>
-            <div className="bg-card rounded-2xl shadow-sm border border-border p-6">
-                 {myCourses.some(c => c.assignments && c.assignments.length > 0) ? (
-                     <div className="space-y-6">
-                        {myCourses.map(course => (
-                            (course.assignments && course.assignments.length > 0) && (
-                                <div key={course.id}>
-                                    <h4 className="font-bold text-foreground mb-3 flex items-center justify-between">
-                                        <span>{course.subject}</span>
-                                        <button onClick={() => onNavigate(`#/academics/${course.id}/assignments`)} className="text-xs font-bold text-primary bg-primary/5 px-3 py-1 rounded-lg hover:bg-primary/10">+ New</button>
-                                    </h4>
-                                    <div className="space-y-3">
-                                        {course.assignments.map(ass => (
-                                            <div key={ass.id} className="flex items-center justify-between p-4 rounded-xl border border-border hover:border-primary/30 hover:shadow-sm transition-all bg-muted/30">
-                                                <div className="flex items-start gap-4">
-                                                    <div className="p-3 bg-card rounded-lg border border-border text-primary">
-                                                        <ClipboardListIcon className="w-5 h-5"/>
-                                                    </div>
-                                                    <div>
-                                                        <h5 className="font-bold text-foreground text-sm">{ass.title}</h5>
-                                                        <p className="text-xs text-muted-foreground mt-1">Due: {new Date(ass.dueDate).toLocaleDateString()}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-4">
-                                                    <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-300">Active</span>
-                                                    <a href={ass.fileUrl} target="_blank" rel="noreferrer" className="text-xs font-bold text-muted-foreground hover:text-primary underline">View File</a>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )
-                        ))}
-                     </div>
-                 ) : (
-                    <div className="text-center py-12">
-                        <ClipboardListIcon className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3"/>
-                        <p className="text-muted-foreground">No active assignments.</p>
-                        <p className="text-sm text-muted-foreground mt-1">Select a course to create one.</p>
-                    </div>
-                 )}
-            </div>
-        </div>
-    );
-
-    const ResourcesView = () => (
-         <div className="space-y-6 animate-fade-in">
-            <SectionHeader title="Study Material" subtitle="Upload notes and resources for your students."/>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {myCourses.map(course => (
-                     <div key={course.id} className="bg-card p-6 rounded-2xl shadow-sm border border-border flex flex-col">
-                         <div className="flex justify-between items-start mb-4">
-                             <h4 className="font-bold text-lg text-foreground">{course.subject}</h4>
-                             <button onClick={() => onNavigate(`#/academics/${course.id}/notes`)} className="bg-primary/5 text-primary hover:bg-primary/10 p-2 rounded-lg transition-colors">
-                                 <UploadIcon className="w-5 h-5"/>
-                             </button>
-                         </div>
-                         <div className="space-y-3 flex-1">
-                             {(course.notes || []).slice(0, 3).map(note => (
-                                 <a key={note.id} href={note.fileUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors group">
-                                     <div className="p-2 bg-muted/50 rounded text-muted-foreground group-hover:text-primary transition-colors"><FileTextIcon className="w-4 h-4"/></div>
-                                     <span className="text-sm font-medium text-foreground group-hover:text-primary truncate flex-1">{note.title}</span>
-                                 </a>
-                             ))}
-                             {(course.notes || []).length === 0 && <div className="h-20 flex items-center justify-center text-xs text-muted-foreground border-2 border-dashed border-border rounded-lg">Empty Folder</div>}
-                         </div>
-                         <div className="pt-4 mt-4 border-t border-border text-center">
-                             <button onClick={() => onNavigate(`#/academics/${course.id}/notes`)} className="text-xs font-bold text-muted-foreground hover:text-primary">View All Files</button>
-                         </div>
-                     </div>
-                ))}
-             </div>
-         </div>
-    );
-
-    // Placeholder Views for unimplemented features
-    const PlaceholderView = ({ title, icon: Icon, message }: any) => (
-        <div className="flex flex-col items-center justify-center h-[60vh] text-center animate-fade-in">
-            <div className="p-6 bg-card rounded-full shadow-sm border border-border mb-4">
-                <Icon className="w-12 h-12 text-muted-foreground" />
-            </div>
-            <h2 className="text-2xl font-bold text-foreground">{title}</h2>
-            <p className="text-muted-foreground mt-2 max-w-md">{message || "This module is under development."}</p>
-        </div>
-    );
-
     return (
-        <div className="flex flex-col md:flex-row h-[calc(100vh-64px)] bg-background">
-             {/* Mobile Sub-header */}
-            <div className="md:hidden bg-background border-b border-border p-4 flex justify-between items-center sticky top-0 z-30 shadow-sm">
-                <span className="font-bold text-lg capitalize text-foreground">{activeSection.replace(/_/g, ' ')}</span>
-                <button onClick={() => setMobileMenuOpen(true)} className="p-2 rounded-lg hover:bg-muted text-muted-foreground">
-                    <MenuIcon className="w-6 h-6" />
-                </button>
-            </div>
+        <div className="flex flex-col h-screen bg-background">
+             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
+             
+             <div className="flex flex-1 overflow-hidden relative flex-col md:flex-row">
+                {/* Mobile Sub-header */}
+                <div className="md:hidden bg-background border-b border-border p-4 flex justify-between items-center flex-shrink-0">
+                    <span className="font-bold text-lg capitalize text-foreground">{activeSection.replace(/_/g, ' ')}</span>
+                    <button onClick={() => setMobileMenuOpen(true)} className="p-2 rounded-lg hover:bg-muted text-muted-foreground">
+                        <MenuIcon className="w-6 h-6" />
+                    </button>
+                </div>
 
-             {/* Sidebar */}
-            <aside className={`fixed inset-y-0 left-0 z-40 w-72 bg-card border-r border-border transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                <div className="p-6 h-full overflow-y-auto flex flex-col">
-                     <div className="flex justify-between items-center mb-8 md:hidden">
-                        <h2 className="text-xl font-bold text-foreground">Menu</h2>
-                        <button onClick={() => setMobileMenuOpen(false)}><CloseIcon className="w-6 h-6 text-muted-foreground" /></button>
-                    </div>
-                    
-                    <div className="space-y-1.5 flex-1">
-                        <SidebarItem id="dashboard" label="Dashboard" icon={ChartBarIcon} onClick={() => handleSectionChange('dashboard')} active={activeSection === 'dashboard'} />
+                {/* Sidebar */}
+                <aside className={`fixed inset-y-0 left-0 z-40 w-72 bg-card border-r border-border transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                    <div className="p-6 h-full overflow-y-auto flex flex-col">
+                        <div className="flex justify-between items-center mb-8 md:hidden">
+                            <h2 className="text-xl font-bold text-foreground">Menu</h2>
+                            <button onClick={() => setMobileMenuOpen(false)}><CloseIcon className="w-6 h-6 text-muted-foreground" /></button>
+                        </div>
                         
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2 px-4">Teaching</p>
-                        <SidebarItem id="classes" label="Classes & Timetable" icon={CalendarIcon} onClick={() => handleSectionChange('classes')} active={activeSection === 'classes'} />
-                        <SidebarItem id="attendance" label="Attendance" icon={CheckSquareIcon} onClick={() => handleSectionChange('attendance')} active={activeSection === 'attendance'} />
-                        <SidebarItem id="assignments" label="Assignments" icon={ClipboardListIcon} onClick={() => handleSectionChange('assignments')} active={activeSection === 'assignments'} />
-                        <SidebarItem id="materials" label="Study Material" icon={UploadIcon} onClick={() => handleSectionChange('materials')} active={activeSection === 'materials'} />
+                        <div className="space-y-1.5 flex-1">
+                            <SidebarItem id="dashboard" label="Dashboard" icon={ChartBarIcon} onClick={() => handleSectionChange('dashboard')} active={activeSection === 'dashboard'} />
+                            
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2 px-4">Teaching</p>
+                            <SidebarItem id="classes" label="My Classes" icon={BookOpenIcon} onClick={() => handleSectionChange('classes')} active={activeSection === 'classes'} />
+                            <SidebarItem id="students" label="Student Progress" icon={UsersIcon} onClick={() => handleSectionChange('students')} active={activeSection === 'students'} />
+                            <SidebarItem id="attendance" label="Attendance" icon={CheckSquareIcon} onClick={() => handleSectionChange('attendance')} active={activeSection === 'attendance'} />
+                            <SidebarItem id="assignments" label="Assignments" icon={ClipboardListIcon} onClick={() => handleSectionChange('assignments')} active={activeSection === 'assignments'} />
+                            
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2 px-4">Community</p>
+                            <SidebarItem id="notices" label="Notices" icon={MegaphoneIcon} onClick={() => handleSectionChange('notices')} active={activeSection === 'notices'} />
+                            
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2 px-4">Personal</p>
+                            <SidebarItem id="settings" label="Settings" icon={SettingsIcon} onClick={() => handleSectionChange('settings')} active={activeSection === 'settings'} />
+                        </div>
                         
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2 px-4">Analysis & Ops</p>
-                        <SidebarItem id="exams" label="Exams & Evaluation" icon={FileTextIcon} onClick={() => handleSectionChange('exams')} active={activeSection === 'exams'} />
-                        <SidebarItem id="students" label="Student Progress" icon={UsersIcon} onClick={() => handleSectionChange('students')} active={activeSection === 'students'} />
-                        <SidebarItem id="communication" label="Communication" icon={MessageIcon} onClick={() => handleSectionChange('communication')} active={activeSection === 'communication'} />
-                        
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2 px-4">Personal</p>
-                        <SidebarItem id="leave" label="Leave Status" icon={ClockIcon} onClick={() => handleSectionChange('leave')} active={activeSection === 'leave'} />
-                        <SidebarItem id="settings" label="Settings" icon={SettingsIcon} onClick={() => handleSectionChange('settings')} active={activeSection === 'settings'} />
-                    </div>
-                    
-                    <div className="mt-6 pt-6 border-t border-border px-4">
-                        <div className="flex items-center gap-3">
-                            <Avatar src={currentUser.avatarUrl} name={currentUser.name} size="sm" />
-                            <div className="overflow-hidden">
-                                <p className="text-sm font-bold text-foreground truncate">{currentUser.name}</p>
-                                <p className="text-xs text-muted-foreground truncate">{currentUser.department}</p>
+                        <div className="mt-6 pt-6 border-t border-border px-4">
+                            <div className="flex items-center gap-3">
+                                <Avatar src={currentUser.avatarUrl} name={currentUser.name} size="sm" />
+                                <div className="overflow-hidden">
+                                    <p className="text-sm font-bold text-foreground truncate">{currentUser.name}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{currentUser.department}</p>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </aside>
-            
-            {mobileMenuOpen && <div className="fixed inset-0 z-30 bg-black/50 md:hidden backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}></div>}
+                </aside>
+                
+                {mobileMenuOpen && <div className="fixed inset-0 z-30 bg-black/50 md:hidden backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}></div>}
 
-            {/* Main Content */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-8 md:px-10 lg:px-12 bg-background/50">
-                {activeSection === 'dashboard' && <DashboardHome />}
-                {activeSection === 'classes' && <ClassesView />}
-                {activeSection === 'attendance' && <AttendanceView />}
-                {activeSection === 'assignments' && <AssignmentsView />}
-                {activeSection === 'materials' && <ResourcesView />}
-                {activeSection === 'exams' && <PlaceholderView title="Exams & Evaluation" icon={FileTextIcon} />}
-                {activeSection === 'students' && <StudentProgressView />}
-                {activeSection === 'communication' && (
-                    <div className="space-y-6 animate-fade-in">
-                        <SectionHeader title="Communication" subtitle="Manage announcements and messages." />
-                        <div className="bg-card p-8 rounded-2xl text-center border border-border shadow-sm">
-                             <div className="bg-primary/5 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <MegaphoneIcon className="w-10 h-10 text-primary"/>
-                             </div>
-                             <h3 className="text-lg font-bold text-foreground">Post an Announcement</h3>
-                             <p className="text-muted-foreground mb-6 max-w-md mx-auto">Send notifications to your classes or departments to keep everyone in the loop.</p>
-                             <button onClick={() => setIsCreateNoticeModalOpen(true)} className="bg-primary text-primary-foreground px-8 py-3 rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all transform hover:scale-105">Create Notice</button>
+                {/* Main Content */}
+                <div className="flex-1 overflow-y-auto p-4 pb-32 lg:pb-8 md:px-10 lg:px-12 bg-background/50">
+                    {activeSection === 'dashboard' && <DashboardHome />}
+                    {activeSection === 'classes' && <ClassesView />}
+                    {activeSection === 'students' && <StudentProgressView />}
+                    
+                    {['attendance', 'assignments', 'notices', 'settings'].includes(activeSection) && (
+                         <div className="flex flex-col items-center justify-center h-[60vh] text-center animate-fade-in">
+                            <div className="p-6 bg-card rounded-full shadow-sm border border-border mb-4">
+                                <SettingsIcon className="w-12 h-12 text-muted-foreground" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-foreground">{activeSection.charAt(0).toUpperCase() + activeSection.slice(1)} Module</h2>
+                            <p className="text-muted-foreground mt-2 max-w-md">
+                                {activeSection === 'notices' ? 'Use the Notice Board page to post announcements.' : 'Please select a specific course from "My Classes" to manage this.'}
+                            </p>
                         </div>
-                        
-                        <div className="bg-card p-6 rounded-2xl border border-border shadow-sm">
-                            <h3 className="font-bold text-foreground mb-4">Previous Notices</h3>
-                            {notices.filter(n => n.authorId === currentUser.id).length > 0 ? (
-                                <div className="space-y-2">
-                                    {notices.filter(n => n.authorId === currentUser.id).map(n => (
-                                        <div key={n.id} className="p-4 bg-muted/30 rounded-xl border border-border flex justify-between items-center hover:bg-card hover:shadow-md transition-all">
-                                            <div>
-                                                <h5 className="font-bold text-foreground">{n.title}</h5>
-                                                <p className="text-xs text-muted-foreground mt-1">{new Date(n.timestamp).toLocaleDateString()}</p>
-                                            </div>
-                                            <button onClick={() => onDeleteNotice(n.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"><TrashIcon className="w-5 h-5"/></button>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : <p className="text-muted-foreground text-sm text-center py-4">No notices sent yet.</p>}
-                        </div>
-                    </div>
-                )}
-                {activeSection === 'leave' && <PlaceholderView title="Leave Management" icon={ClockIcon} message="Apply for leave and view your attendance record here." />}
-                {activeSection === 'settings' && <PlaceholderView title="Settings" icon={SettingsIcon} message="Manage your profile and account preferences." />}
+                    )}
+                </div>
             </div>
 
             {isAddCourseModalOpen && <CreateCourseModal onClose={() => setIsAddCourseModalOpen(false)} onAddCourse={onCreateCourse} departmentOptions={collegeDepartments} />}
             {isCreateNoticeModalOpen && <CreateNoticeModal onClose={() => setIsCreateNoticeModalOpen(false)} onCreateNotice={onCreateNotice} departmentOptions={collegeDepartments} availableYears={allCollegeYears} />}
             {isCreateStudentModalOpen && <CreateStudentAccountModal isOpen={isCreateStudentModalOpen} onClose={() => setIsCreateStudentModalOpen(false)} department={currentUser.department} onCreateUser={onCreateUser} availableYears={myDepartmentYears} />}
-
+            
+            <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
         </div>
     );
 };
 
 const AcademicsPage: React.FC<AcademicsPageProps> = (props) => {
-    const { currentUser, onNavigate, currentPath } = props;
-    const handleLogout = async () => { await auth.signOut(); onNavigate('#/'); };
-
-    if (currentUser.tag === 'Student') {
-        return (
-             <div className="bg-background min-h-screen flex flex-col">
-                <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
-                <div className="flex-1">
-                    <StudentAcademicsDashboard {...props} />
-                </div>
-            </div>
-        );
-    }
-    
-    // For Teacher, HOD, Director roles (Using the new layout, ignoring HOD specifics here as HOD has their own page, but fallback works)
-    return (
-        <div className="bg-background min-h-screen flex flex-col">
-            <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
-            <div className="flex-1">
-                <FacultyAcademicsDashboard {...props} />
-            </div>
-        </div>
-    );
+    return props.currentUser.tag === 'Student' 
+        ? <StudentAcademicsDashboard {...props} /> 
+        : <FacultyAcademicsDashboard {...props} />;
 };
 
 export default AcademicsPage;

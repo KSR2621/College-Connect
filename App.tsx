@@ -32,6 +32,73 @@ declare global {
   }
 }
 
+// Helper to remove undefined keys from an object
+const cleanData = (data: any) => {
+    const cleaned: any = {};
+    Object.keys(data).forEach(key => {
+        if (data[key] !== undefined) {
+            cleaned[key] = data[key];
+        }
+    });
+    return cleaned;
+};
+
+// Helper to convert Data URL to Blob (Manual robust conversion)
+const dataURLtoBlob = (dataurl: string) => {
+    try {
+        const arr = dataurl.split(',');
+        if (arr.length < 2) return null;
+        const mimeMatch = arr[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while(n--){
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new Blob([u8arr], {type:mime});
+    } catch (e) {
+        console.error("Error converting data URL to blob", e);
+        return null;
+    }
+};
+
+// New Helper: Compress Image on Client Side
+const compressImage = (source: File | string, maxWidth = 800, quality = 0.7): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            // Maintain aspect ratio
+            if (width > maxWidth) {
+                height = (height * maxWidth) / width;
+                width = maxWidth;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                reject(new Error("No context"));
+                return;
+            }
+            ctx.drawImage(img, 0, 0, width, height);
+            const result = canvas.toDataURL('image/jpeg', quality);
+            resolve(result);
+        };
+        img.onerror = (e) => reject(e);
+        
+        if (typeof source === 'string') {
+            img.src = source;
+        } else {
+            img.src = URL.createObjectURL(source);
+        }
+    });
+};
+
 const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
@@ -212,23 +279,91 @@ const App: React.FC = () => {
     const handleUpdateCollegeClasses = async (collegeId: string, department: string, classes: { [year: number]: string[] }) => {
         await db.collection('colleges').doc(collegeId).update({ [`classes.${department}`]: classes });
     };
+    
     const handleAddPost = async (postDetails: any) => {
         if (!currentUser) return;
-        const { content, mediaDataUrls, mediaType, eventDetails, groupId, isConfession, confessionMood, isOpportunity, opportunityDetails } = postDetails;
-        let uploadedMediaUrls: string[] = [];
-        if (mediaDataUrls && mediaDataUrls.length > 0) {
-            const uploadPromises = mediaDataUrls.map(async (dataUrl: string) => {
-                const blob = await (await fetch(dataUrl)).blob();
-                const storageRef = storage.ref().child(`posts/${Date.now()}-${Math.random()}`);
-                const snapshot = await storageRef.put(blob);
-                return snapshot.ref.getDownloadURL();
-            });
-            uploadedMediaUrls = await Promise.all(uploadPromises);
+        
+        try {
+            const { content, mediaDataUrls, mediaType, eventDetails, groupId, isConfession, confessionMood, isOpportunity, opportunityDetails } = postDetails;
+            let uploadedMediaUrls: string[] = [];
+            
+            if (mediaDataUrls && mediaDataUrls.length > 0) {
+                const count = mediaDataUrls.length;
+                // Calculate aggressive targets for Firestore fallback (limit 1MB doc)
+                // ~800KB budget for images -> split by count
+                const fallbackMaxWidth = count > 2 ? 400 : 600;
+                const fallbackQuality = count > 2 ? 0.5 : 0.6;
+
+                const uploadPromises = mediaDataUrls.map(async (dataUrl: string) => {
+                    try {
+                        // 1. Basic Compression for Storage
+                        const compressedDataUrl = await compressImage(dataUrl, 1024, 0.8);
+                        
+                        // 2. Try to upload to Firebase Storage
+                        const blob = dataURLtoBlob(compressedDataUrl);
+                        if (!blob) throw new Error("Failed to create blob");
+                        const filename = `posts/${Date.now()}-${Math.random().toString(36).substring(7)}`;
+                        const storageRef = storage.ref().child(filename);
+                        const snapshot = await storageRef.put(blob);
+                        return await snapshot.ref.getDownloadURL();
+                    } catch (storageError) {
+                        console.warn("Storage upload failed, falling back to Firestore Base64.", storageError);
+                        
+                        // 3. Fallback: Store as Base64 in Firestore
+                        return await compressImage(dataUrl, fallbackMaxWidth, fallbackQuality);
+                    }
+                });
+                
+                const results = await Promise.all(uploadPromises);
+                uploadedMediaUrls = results.filter(url => url !== null) as string[];
+            }
+            
+            // Construct post object carefully to avoid undefined values
+            const postData: any = {
+                authorId: currentUser.id, 
+                collegeId: currentUser.collegeId, 
+                content: content || '', 
+                mediaUrls: uploadedMediaUrls, 
+                timestamp: Date.now(), 
+                reactions: {}, 
+                comments: [], 
+                isEvent: !!eventDetails, 
+                isConfession: !!isConfession, 
+                isOpportunity: !!isOpportunity, 
+            };
+
+            if (uploadedMediaUrls.length > 0) {
+                postData.mediaType = 'image'; 
+            } else if (mediaType) {
+                postData.mediaType = mediaType;
+            }
+            
+            if (groupId) {
+                postData.groupId = groupId;
+            }
+            
+            if (eventDetails) {
+                postData.eventDetails = eventDetails;
+            }
+            
+            if (confessionMood) {
+                postData.confessionMood = confessionMood;
+            }
+            
+            if (opportunityDetails) {
+                postData.opportunityDetails = opportunityDetails;
+            }
+
+            // Send to Firestore
+            await db.collection('posts').add(postData);
+
+        } catch (error) {
+            console.error("Error adding post:", error);
+            alert("Failed to post. Images might be too large or connection is unstable.");
+            throw error; 
         }
-        await db.collection('posts').add({
-            authorId: currentUser.id, collegeId: currentUser.collegeId, content, mediaUrls: uploadedMediaUrls, mediaType: uploadedMediaUrls.length > 0 ? mediaType : undefined, timestamp: Date.now(), reactions: {}, comments: [], groupId, isEvent: !!eventDetails, eventDetails, isConfession: !!isConfession, confessionMood, isOpportunity: !!isOpportunity, opportunityDetails
-        });
     };
+
     const handleReaction = async (postId: string, reaction: ReactionType) => {
         if (!currentUser) return;
         const postRef = db.collection('posts').doc(postId);
@@ -266,7 +401,8 @@ const App: React.FC = () => {
     };
     const handleSharePost = async (originalPost: Post, commentary: string, shareTarget: any) => {
         const sharedPostInfo = originalPost.sharedPost || { originalId: originalPost.id, originalAuthorId: originalPost.authorId, originalTimestamp: originalPost.timestamp, originalContent: originalPost.content, originalMediaUrls: originalPost.mediaUrls, originalMediaType: originalPost.mediaType, originalIsEvent: originalPost.isEvent, originalEventDetails: originalPost.eventDetails, originalIsConfession: originalPost.isConfession };
-        await db.collection('posts').add({ authorId: currentUser.id, collegeId: currentUser.collegeId, content: commentary, timestamp: Date.now(), reactions: {}, comments: [], groupId: shareTarget.type === 'group' ? shareTarget.id : undefined, sharedPost: sharedPostInfo });
+        const rawData = { authorId: currentUser.id, collegeId: currentUser.collegeId, content: commentary, timestamp: Date.now(), reactions: {}, comments: [], groupId: shareTarget.type === 'group' ? shareTarget.id : undefined, sharedPost: sharedPostInfo };
+        await db.collection('posts').add(cleanData(rawData));
     };
     
     const handleCreateOrOpenConversation = async (otherUserId: string) => {
@@ -282,8 +418,6 @@ const App: React.FC = () => {
         await handleSendMessage(conversationId, `Shared a post by ${authorName}:\n"${postContent}"`);
     };
     const handleDeleteMessagesForEveryone = async (conversationId: string, messageIds: string[]) => {
-         // Logic to remove message from array
-         // For simplicity in this restoration:
          const ref = db.collection('conversations').doc(conversationId);
          const doc = await ref.get();
          if(doc.exists) {
@@ -292,7 +426,6 @@ const App: React.FC = () => {
          }
     };
     const handleDeleteMessagesForSelf = async (conversationId: string, messageIds: string[]) => {
-        // Mark deletedFor
          const ref = db.collection('conversations').doc(conversationId);
          const doc = await ref.get();
          if(doc.exists) {
@@ -303,7 +436,8 @@ const App: React.FC = () => {
     const handleDeleteConversations = async (ids: string[]) => { ids.forEach(id => db.collection('conversations').doc(id).delete()); };
 
     const handleCreateGroup = async (data: any) => {
-        await db.collection('groups').add({ ...data, collegeId: currentUser.collegeId, creatorId: currentUser.id, memberIds: [currentUser.id], pendingMemberIds: [], messages: [], followers: [] });
+        const rawData = { ...data, collegeId: currentUser.collegeId, creatorId: currentUser.id, memberIds: [currentUser.id], pendingMemberIds: [], messages: [], followers: [] };
+        await db.collection('groups').add(cleanData(rawData));
     };
     const handleDeleteGroup = async (groupId: string) => { await db.collection('groups').doc(groupId).delete(); };
     const handleJoinGroupRequest = async (groupId: string) => { await db.collection('groups').doc(groupId).update({ pendingMemberIds: FieldValue.arrayUnion(currentUser.id) }); };
@@ -319,16 +453,34 @@ const App: React.FC = () => {
 
     const handleAddAchievement = async (ach: Achievement) => { await db.collection('users').doc(currentUser.id).update({ achievements: FieldValue.arrayUnion(ach) }); };
     const handleAddInterest = async (int: string) => { await db.collection('users').doc(currentUser.id).update({ interests: FieldValue.arrayUnion(int) }); };
+    
     const handleUpdateProfile = async (data: any, file?: File) => {
         if (file) {
-            const snap = await storage.ref().child(`avatars/${currentUser.id}`).put(file);
-            data.avatarUrl = await snap.ref.getDownloadURL();
+            try {
+                // 1. Compress aggressively for avatar
+                const compressedDataUrl = await compressImage(file, 300, 0.6);
+                
+                try {
+                    const blob = dataURLtoBlob(compressedDataUrl);
+                    if(blob) {
+                        const snap = await storage.ref().child(`avatars/${currentUser.id}`).put(blob);
+                        data.avatarUrl = await snap.ref.getDownloadURL();
+                    } else { throw new Error("Blob conversion failed"); }
+                } catch (storageErr) {
+                    console.warn("Avatar upload failed, utilizing fallback storage.", storageErr);
+                    // Fallback to Base64 directly
+                    data.avatarUrl = compressedDataUrl;
+                }
+            } catch (e) {
+                console.error("Error processing profile image", e);
+            }
         }
-        await db.collection('users').doc(currentUser.id).update(data);
+        await db.collection('users').doc(currentUser.id).update(cleanData(data));
     };
     
     const handleAddStory = async (data: any) => {
-        await db.collection('stories').add({ ...data, authorId: currentUser.id, collegeId: currentUser.collegeId, timestamp: Date.now(), viewedBy: [] });
+        const rawData = { ...data, authorId: currentUser.id, collegeId: currentUser.collegeId, timestamp: Date.now(), viewedBy: [] };
+        await db.collection('stories').add(cleanData(rawData));
     };
     const handleMarkStoryAsViewed = async (id: string) => { await db.collection('stories').doc(id).update({ viewedBy: FieldValue.arrayUnion(currentUser.id) }); };
     const handleDeleteStory = async (id: string) => { await db.collection('stories').doc(id).delete(); };
@@ -338,10 +490,11 @@ const App: React.FC = () => {
     };
 
     const handleCreateCourse = async (data: any) => {
-        await db.collection('courses').add({ ...data, facultyId: currentUser.id, collegeId: currentUser.collegeId, students: [], pendingStudents: [], notes: [], assignments: [], attendanceRecords: [], messages: [], feedback: [] });
+        const rawData = { ...data, facultyId: currentUser.id, collegeId: currentUser.collegeId, students: [], pendingStudents: [], notes: [], assignments: [], attendanceRecords: [], messages: [], feedback: [] };
+        await db.collection('courses').add(cleanData(rawData));
     };
     const handleUpdateCourse = async (courseId: string, data: any) => {
-        await db.collection('courses').doc(courseId).update(data);
+        await db.collection('courses').doc(courseId).update(cleanData(data));
     };
     const handleAddNote = async (cid: string, note: any) => { await db.collection('courses').doc(cid).update({ notes: FieldValue.arrayUnion({ ...note, id: Date.now().toString() }) }); };
     const handleAddAssignment = async (cid: string, ass: any) => { await db.collection('courses').doc(cid).update({ assignments: FieldValue.arrayUnion({ ...ass, id: Date.now().toString() }) }); };
@@ -356,7 +509,10 @@ const App: React.FC = () => {
     const handleSendCourseMessage = async (cid: string, text: string) => { await db.collection('courses').doc(cid).update({ messages: FieldValue.arrayUnion({ id: Date.now().toString(), senderId: currentUser.id, text, timestamp: Date.now() }) }); };
     const handleUpdateCoursePersonalNote = async (cid: string, uid: string, content: string) => { await db.collection('courses').doc(cid).update({ [`personalNotes.${uid}`]: content }); };
     const handleSaveFeedback = async (cid: string, data: any) => { await db.collection('courses').doc(cid).update({ feedback: FieldValue.arrayUnion({ ...data, studentId: currentUser.id, timestamp: Date.now() }) }); };
-    const handleCreateNotice = async (data: any) => { await db.collection('notices').add({ ...data, authorId: currentUser.id, collegeId: currentUser.collegeId, timestamp: Date.now() }); };
+    const handleCreateNotice = async (data: any) => { 
+        const rawData = { ...data, authorId: currentUser.id, collegeId: currentUser.collegeId, timestamp: Date.now() };
+        await db.collection('notices').add(cleanData(rawData));
+    };
     const handleDeleteNotice = async (id: string) => { await db.collection('notices').doc(id).delete(); };
 
     const handleCreatePersonalNote = async (title: string, content: string) => {
@@ -420,19 +576,20 @@ const App: React.FC = () => {
         if (user) await db.collection('users').doc(userId).update({ isFrozen: !user.isFrozen });
     };
     const handleUpdateUserRole = async (userId: string, data: any) => {
-        await db.collection('users').doc(userId).update(data);
+        await db.collection('users').doc(userId).update(cleanData(data));
     };
     const handleCreateUser = async (userData: Omit<User, 'id'>, password?: string): Promise<void> => {
         // If password is provided, create Auth user immediately (Director adding HOD)
         if (password) {
             try {
                 const { user } = await auth.createUserWithEmailAndPassword(userData.email, password);
-                await db.collection('users').doc(user.uid).set({
+                const rawData = {
                     ...userData,
                     collegeId: currentUser.collegeId,
                     isRegistered: true, // Pre-registered
                     isApproved: true,   // Director creations are automatically approved
-                });
+                };
+                await db.collection('users').doc(user.uid).set(cleanData(rawData));
             } catch (e) {
                 console.error("Error creating user with password:", e);
                 throw e;
@@ -440,25 +597,26 @@ const App: React.FC = () => {
         } else {
             // Invited users (Students/Teachers added by Faculty/HOD)
             // Creates a "shadow" user doc to be claimed later
-            // Explicitly return the promise
-            return db.collection('users').add({ 
+            const rawData = { 
                 ...userData, 
                 collegeId: currentUser.collegeId,
                 isRegistered: false,
                 isApproved: false 
-            }).then(() => void 0);
+            };
+            return db.collection('users').add(cleanData(rawData)).then(() => void 0);
         }
     };
     const handleCreateUsersBatch = async (usersData: Omit<User, 'id'>[]) => {
         const batch = db.batch();
         usersData.forEach(u => {
             const ref = db.collection('users').doc();
-            batch.set(ref, { 
+            const rawData = { 
                 ...u, 
                 collegeId: currentUser.collegeId,
                 isRegistered: false,
                 isApproved: false 
-            });
+            };
+            batch.set(ref, cleanData(rawData));
         });
         await batch.commit();
         return { successCount: usersData.length, errors: [] };

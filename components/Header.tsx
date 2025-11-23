@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { User } from '../types';
 import Avatar from './Avatar';
@@ -18,7 +19,6 @@ const navItems = [
     { path: '#/home', icon: HomeIcon, activeIcon: HomeIconSolid, label: 'Home' },
     { path: '#/search', icon: SearchIcon, activeIcon: SearchIconSolid, label: 'Search' },
     { path: '#/academics', icon: BookOpenIcon, activeIcon: BookOpenIconSolid, label: 'Academics' },
-    { path: '#/personal-notes', icon: NotebookIcon, activeIcon: NotebookIcon, label: 'Notes' },
     { path: '#/groups', icon: UsersIcon, activeIcon: UsersIconSolid, label: 'Groups' },
     { path: '#/events', icon: CalendarIcon, activeIcon: CalendarIconSolid, label: 'Events' },
     { path: '#/opportunities', icon: BriefcaseIcon, activeIcon: BriefcaseIconSolid, label: 'Opportunities' },
@@ -86,9 +86,6 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onLogout, onNavigate, curr
                     <div className="flex items-center space-x-2">
                         {/* Mobile Icons */}
                         <div className="flex items-center lg:hidden">
-                             <button onClick={() => onNavigate('#/personal-notes')} className="p-2 text-foreground hover:text-primary rounded-full" aria-label="Personal Notes">
-                                <NotebookIcon className="w-6 h-6" />
-                            </button>
                             <button onClick={() => onNavigate('#/academics')} className="p-2 text-foreground hover:text-primary rounded-full" aria-label="Academics">
                                 <BookOpenIcon className="w-6 h-6" />
                             </button>

@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
+
+import React, { useState, useRef, useEffect } from 'react';
 import type { User } from '../types';
 import Avatar from './Avatar';
-import { PostIcon, EventIcon, PhotoIcon, VideoIcon, GhostIcon, LinkIcon, CloseIcon } from './Icons';
+import { PostIcon, EventIcon, PhotoIcon, CloseIcon, CalendarIcon, ClockIcon, LinkIcon, BuildingIcon, SparkleIcon } from './Icons';
 
 interface CreatePostProps {
   user: User;
@@ -22,70 +23,54 @@ interface CreatePostProps {
 const StyleButton: React.FC<{ onMouseDown: (e: React.MouseEvent) => void; children: React.ReactNode }> = ({ onMouseDown, children }) => (
     <button 
       type="button" 
-      onMouseDown={onMouseDown} // Use onMouseDown to prevent the editor from losing focus
-      className="font-semibold text-sm w-8 h-8 flex items-center justify-center rounded-md border border-border transition-colors hover:bg-muted"
+      onMouseDown={onMouseDown}
+      className="font-bold text-sm w-8 h-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
     >
       {children}
     </button>
 );
 
-
 const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isConfessionMode = false, isModalMode = false, defaultType }) => {
   const [postType, setPostType] = useState<'post' | 'event'>(defaultType || 'post');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showFeaturePopup, setShowFeaturePopup] = useState(false);
   
   const [eventDetails, setEventDetails] = useState({ title: '', date: '', time: '', location: '', link: '' });
   const [mediaDataUrls, setMediaDataUrls] = useState<string[]>([]);
-  const [mediaPreviews, setMediaPreviews] = useState<string[]>([]);
-  const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
+  
+  const [hasText, setHasText] = useState(false);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
 
+  // Load Draft
+  useEffect(() => {
+      const draft = localStorage.getItem('postDraft');
+      if (draft && !isModalMode && postType === 'post') {
+          if (editorRef.current) {
+              editorRef.current.innerHTML = draft;
+              setHasText(!!draft.trim());
+          }
+      }
+  }, [isModalMode, postType]);
+
   const clearMedia = () => {
     setMediaDataUrls([]);
-    setMediaPreviews([]);
-    setMediaType(null);
     if(imageInputRef.current) imageInputRef.current.value = '';
   };
 
   const removeMediaItem = (index: number) => {
     setMediaDataUrls(urls => urls.filter((_, i) => i !== index));
-    setMediaPreviews(previews => previews.filter((_, i) => i !== index));
-    if (mediaDataUrls.length === 1) { // if it was the last one
-        setMediaType(null);
-    }
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files) {
-        if (files.length + mediaDataUrls.length > 5) {
-            alert("You can upload a maximum of 5 images.");
-            return;
-        }
+    // Intercept file change if manually triggered, though we block the button now
+    setShowFeaturePopup(true);
+    return;
+  };
 
-        // FIX: Explicitly type 'file' as File to resolve properties 'type', 'size', and 'name'.
-        Array.from(files).forEach((file: File) => {
-            if (file.type.startsWith('video/')) {
-                alert("Video uploads are not supported. Please select an image.");
-                return;
-            }
-            if (file.size > 700 * 1024) { 
-                alert(`Image "${file.name}" is too large (max 700KB).`);
-                return;
-            }
-      
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const result = reader.result as string;
-                setMediaDataUrls(prev => [...prev, result]);
-                setMediaPreviews(prev => [...prev, result]);
-                setMediaType('image');
-            };
-            // FIX: The 'file' is now correctly typed as File, which is a Blob, satisfying readAsDataURL.
-            reader.readAsDataURL(file);
-        });
-    }
+  const triggerFeaturePopup = () => {
+      setShowFeaturePopup(true);
   };
 
   const applyStyle = (e: React.MouseEvent, command: string) => {
@@ -94,145 +79,291 @@ const CreatePost: React.FC<CreatePostProps> = ({ user, onAddPost, groupId, isCon
     editorRef.current?.focus();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleInput = () => {
+      const text = editorRef.current?.innerText.trim();
+      const html = editorRef.current?.innerHTML || '';
+      setHasText(!!text);
+      
+      // Save draft for main posts only
+      if (!isModalMode && postType === 'post') {
+          localStorage.setItem('postDraft', html);
+      }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
 
     const finalContent = editorRef.current?.innerHTML || '';
-    const currentTextContent = editorRef.current?.innerText.trim() || '';
+    const currentTextContent = editorRef.current?.innerText.trim() || editorRef.current?.textContent?.trim() || '';
 
     if (postType === 'post' && !currentTextContent && mediaDataUrls.length === 0) {
-        alert("Please write something or add an image to create a post.");
+        alert("Please write something to create a post.");
         return;
     }
 
     let finalEventDetails;
     if (postType === 'event' && !isConfessionMode) {
-        if (!eventDetails.title || !eventDetails.date || !eventDetails.time || !eventDetails.location) {
+        const title = eventDetails.title.trim();
+        const date = eventDetails.date;
+        const time = eventDetails.time;
+        const location = eventDetails.location.trim();
+
+        if (!title || !date || !time || !location) {
             alert("Please fill in all required event details: Title, Date, Time, and Location.");
             return;
         }
-        const combinedDateTime = new Date(`${eventDetails.date}T${eventDetails.time}`).toISOString();
-        finalEventDetails = {
-            title: eventDetails.title,
-            date: combinedDateTime,
-            location: eventDetails.location,
-            link: eventDetails.link
-        };
+
+        try {
+            const combinedDateTime = new Date(`${date}T${time}`);
+            if (isNaN(combinedDateTime.getTime())) {
+                alert("Invalid date or time entered.");
+                return;
+            }
+            finalEventDetails = {
+                title,
+                date: combinedDateTime.toISOString(),
+                location,
+                link: eventDetails.link.trim()
+            };
+        } catch (error) {
+            console.error("Date parsing error:", error);
+            alert("Failed to process event date/time. Please check your inputs.");
+            return;
+        }
     }
 
-    onAddPost({
-      content: finalContent,
-      mediaDataUrls,
-      mediaType,
-      eventDetails: finalEventDetails,
-      groupId,
-      isConfession: isConfessionMode,
-    });
+    setIsSubmitting(true);
+    try {
+        // Explicitly determine mediaType
+        const determinedMediaType = mediaDataUrls.length > 0 ? 'image' : null;
 
-    // Reset form
-    if (editorRef.current) editorRef.current.innerHTML = '';
-    setEventDetails({ title: '', date: '', time: '', location: '', link: '' });
-    clearMedia();
+        await onAddPost({
+            content: finalContent,
+            mediaDataUrls,
+            mediaType: determinedMediaType,
+            eventDetails: finalEventDetails,
+            groupId,
+            isConfession: isConfessionMode,
+        });
+
+        // Reset form
+        if (editorRef.current) {
+            editorRef.current.innerHTML = '';
+            setHasText(false);
+        }
+        // Clear draft
+        localStorage.removeItem('postDraft');
+        
+        setEventDetails({ title: '', date: '', time: '', location: '', link: '' });
+        clearMedia();
+    } catch (error) {
+        console.error("Failed to post:", error);
+        alert("Failed to create post. Please try again.");
+    } finally {
+        setIsSubmitting(false);
+    }
   };
   
-  const containerClasses = isModalMode
-    ? "p-4 bg-slate-50"
-    : "p-1 bg-gradient-to-br from-primary via-secondary to-accent rounded-xl shadow-lg mb-6";
-    
-  const inputBaseClasses = "w-full text-foreground bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition duration-200";
-  const inputSizeClasses = "px-3 py-2 text-sm";
-  const inputIconPadding = "pl-10";
+  // Check if event fields are valid for disabling the button
+  const isEventFormValid = postType === 'event' 
+    ? eventDetails.title.trim() && eventDetails.date && eventDetails.time && eventDetails.location.trim()
+    : true;
 
+  const isPostFormValid = postType === 'post'
+    ? hasText || mediaDataUrls.length > 0
+    : true;
 
   return (
-    <div className={containerClasses}>
-      <div className={isModalMode ? "" : "bg-card rounded-lg"}>
-        <div className="flex items-start space-x-4 p-4">
-            {isConfessionMode ? (
-                <div className="flex-shrink-0 h-12 w-12 bg-primary/10 text-primary rounded-full flex items-center justify-center border-2 border-primary/20">
-                    <GhostIcon className="h-7 w-7"/>
+    <>
+    <div className="flex flex-col h-full bg-card relative">
+        {/* Post Type Switcher */}
+        {!isConfessionMode && (
+            <div className="flex p-2 bg-muted/30 mx-4 mt-4 rounded-xl">
+                <button 
+                    type="button" 
+                    onClick={() => setPostType('post')} 
+                    className={`flex-1 py-2 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all duration-200 ${postType === 'post' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                >
+                    <PostIcon className="w-4 h-4"/> Regular Post
+                </button>
+                <button 
+                    type="button" 
+                    onClick={() => setPostType('event')} 
+                    className={`flex-1 py-2 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all duration-200 ${postType === 'event' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                >
+                    <EventIcon className="w-4 h-4"/> Event
+                </button>
+            </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex gap-3 mb-4 items-center">
+                <Avatar src={user.avatarUrl} name={user.name} size="md" />
+                <div>
+                    <p className="font-bold text-sm text-foreground leading-none">{user.name}</p>
+                    <div className="flex items-center gap-1 mt-1">
+                        <span className="text-[10px] font-bold bg-muted text-muted-foreground px-1.5 py-0.5 rounded">{groupId ? 'Group' : 'Public'}</span>
+                        {postType === 'event' && <span className="text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded">Event</span>}
+                    </div>
                 </div>
-            ) : (
-                <Avatar src={user.avatarUrl} name={user.name} size="lg" />
-            )}
-        
-            <div className="flex-1">
-            {!isConfessionMode && (
-                <div className="bg-muted/50 rounded-lg p-1 flex gap-1 mb-3">
-                    <button onClick={() => setPostType('post')} className={`flex-1 flex items-center justify-center space-x-2 py-2 px-3 text-sm font-semibold rounded-md transition-all duration-200 ${postType === 'post' ? 'bg-card shadow-sm text-primary' : 'text-text-muted hover:bg-card/50'}`}>
-                        <PostIcon className="w-5 h-5"/> <span>Create Post</span>
-                    </button>
-                    <button onClick={() => setPostType('event')} className={`flex-1 flex items-center justify-center space-x-2 py-2 px-3 text-sm font-semibold rounded-md transition-all duration-200 ${postType === 'event' ? 'bg-card shadow-sm text-primary' : 'text-text-muted hover:bg-card/50'}`}>
-                        <EventIcon className="w-5 h-5"/> <span>Create Event</span>
-                    </button>
-                </div>
-            )}
-            
-            <form onSubmit={handleSubmit}>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
                 {postType === 'event' && !isConfessionMode && (
-                <div className="space-y-3 mb-3">
-                    <input type="text" placeholder="Event Title*" className={`${inputBaseClasses} ${inputSizeClasses}`} value={eventDetails.title} onChange={e => setEventDetails({...eventDetails, title: e.target.value})} />
-                    <div className="flex gap-3">
-                        <input type="date" aria-label="Event Date" className={`${inputBaseClasses} ${inputSizeClasses}`} value={eventDetails.date} onChange={e => setEventDetails({...eventDetails, date: e.target.value})} />
-                        <input type="time" aria-label="Event Time" className={`${inputBaseClasses} ${inputSizeClasses}`} value={eventDetails.time} onChange={e => setEventDetails({...eventDetails, time: e.target.value})} />
+                    <div className="space-y-4 bg-muted/30 p-4 rounded-2xl border border-border animate-fade-in">
+                        <input 
+                            type="text" 
+                            disabled={isSubmitting} 
+                            placeholder="Event Title" 
+                            className="w-full bg-transparent text-xl font-bold placeholder:text-muted-foreground/60 border-b border-border/50 pb-2 focus:outline-none focus:border-primary transition-colors text-foreground"
+                            value={eventDetails.title} 
+                            onChange={e => setEventDetails({...eventDetails, title: e.target.value})} 
+                        />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-muted-foreground uppercase">Date</label>
+                                <div className="relative">
+                                    <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/>
+                                    <input type="date" disabled={isSubmitting} className="w-full bg-card border border-border rounded-lg pl-10 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none text-foreground" value={eventDetails.date} onChange={e => setEventDetails({...eventDetails, date: e.target.value})} />
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-muted-foreground uppercase">Time</label>
+                                <div className="relative">
+                                    <ClockIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/>
+                                    <input type="time" disabled={isSubmitting} className="w-full bg-card border border-border rounded-lg pl-10 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none text-foreground" value={eventDetails.time} onChange={e => setEventDetails({...eventDetails, time: e.target.value})} />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-muted-foreground uppercase">Location</label>
+                            <div className="relative">
+                                <BuildingIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/>
+                                <input type="text" disabled={isSubmitting} placeholder="Where is it happening?" className="w-full bg-card border border-border rounded-lg pl-10 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none text-foreground" value={eventDetails.location} onChange={e => setEventDetails({...eventDetails, location: e.target.value})} />
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-muted-foreground uppercase">Link (Optional)</label>
+                            <div className="relative">
+                                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <input type="url" disabled={isSubmitting} placeholder="Registration or info link" className="w-full bg-card border border-border rounded-lg pl-10 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none text-foreground" value={eventDetails.link} onChange={e => setEventDetails({...eventDetails, link: e.target.value})} />
+                            </div>
+                        </div>
                     </div>
-                    <input type="text" placeholder="Location*" className={`${inputBaseClasses} ${inputSizeClasses}`} value={eventDetails.location} onChange={e => setEventDetails({...eventDetails, location: e.target.value})} />
-                    <div className="relative">
-                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted/70" />
-                        <input type="url" placeholder="Link (e.g., meeting, tickets)" className={`${inputBaseClasses} ${inputSizeClasses} ${inputIconPadding}`} value={eventDetails.link} onChange={e => setEventDetails({...eventDetails, link: e.target.value})} />
-                    </div>
-                </div>
                 )}
                 
-                <div className="border border-border rounded-lg bg-slate-50 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/50 transition-all duration-200">
+                <div 
+                    className={`min-h-[120px] relative cursor-text`}
+                    onClick={() => !isSubmitting && editorRef.current?.focus()}
+                >
                     <div
                         ref={editorRef}
-                        contentEditable={true}
-                        data-placeholder={isConfessionMode ? "Share your confession anonymously..." : (postType === 'event' ? "Describe your event..." : `What's on your mind, ${user.name.split(' ')[0]}?`)}
-                        className="w-full min-h-[120px] max-h-[400px] overflow-y-auto no-scrollbar p-3 bg-transparent text-card-foreground text-lg focus:outline-none resize-y empty:before:content-[attr(data-placeholder)] empty:before:text-text-muted empty:before:cursor-text"
+                        contentEditable={!isSubmitting}
+                        suppressContentEditableWarning={true}
+                        onInput={handleInput}
+                        data-placeholder={postType === 'event' ? "Describe the event details..." : "What's on your mind?"}
+                        className="w-full h-full outline-none text-xl text-foreground placeholder:text-muted-foreground empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/50 cursor-text leading-relaxed"
                     />
-                    <div className="p-2 border-t border-border flex items-center">
-                        <StyleButton onMouseDown={(e) => applyStyle(e, 'bold')}><b>B</b></StyleButton>
-                    </div>
                 </div>
 
-                {mediaPreviews.length > 0 && (
-                    <div className="mt-4 grid grid-cols-3 sm:grid-cols-5 gap-2">
-                        {mediaPreviews.map((preview, index) => (
-                            <div key={index} className="relative aspect-square">
-                                <img src={preview} alt={`Preview ${index + 1}`} className="rounded-lg object-cover w-full h-full" />
-                                <button type="button" onClick={() => removeMediaItem(index)} className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 leading-none w-5 h-5 flex items-center justify-center hover:bg-black">
-                                    <CloseIcon className="w-4 h-4" />
+                {mediaDataUrls.length > 0 && (
+                    <div className={`grid gap-1 rounded-xl overflow-hidden ${
+                        mediaDataUrls.length === 1 ? 'grid-cols-1' : 
+                        mediaDataUrls.length === 2 ? 'grid-cols-2' : 
+                        mediaDataUrls.length === 3 ? 'grid-cols-2' : 'grid-cols-2'
+                    }`}>
+                        {mediaDataUrls.map((preview, index) => (
+                            <div key={index} className={`relative group bg-muted ${
+                                mediaDataUrls.length === 3 && index === 0 ? 'row-span-2' : ''
+                            }`}>
+                                <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-full object-cover aspect-square sm:aspect-video" />
+                                <button 
+                                    type="button" 
+                                    disabled={isSubmitting} 
+                                    onClick={() => removeMediaItem(index)} 
+                                    className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100 shadow-sm backdrop-blur-sm"
+                                >
+                                    <CloseIcon className="w-3 h-3" />
                                 </button>
                             </div>
                         ))}
+                        {mediaDataUrls.length < 5 && (
+                            <button 
+                                type="button"
+                                onClick={triggerFeaturePopup}
+                                className="flex flex-col items-center justify-center bg-muted/30 hover:bg-muted/60 aspect-square sm:aspect-video transition-colors text-muted-foreground hover:text-primary group border-2 border-dashed border-border/50 hover:border-primary/30"
+                            >
+                                <div className="p-3 rounded-full bg-background shadow-sm group-hover:scale-110 transition-transform">
+                                    <PhotoIcon className="w-6 h-6"/>
+                                </div>
+                                <span className="text-xs font-bold mt-2">Add Photo</span>
+                            </button>
+                        )}
                     </div>
                 )}
-
-
-                <div className="flex justify-between items-center mt-4 pt-4 border-t border-border">
-                <div className="flex space-x-1">
-                    <input type="file" accept="image/*" ref={imageInputRef} onChange={handleFileChange} multiple className="hidden" />
-                    {!isConfessionMode && (
-                        <>
-                        <button type="button" onClick={() => imageInputRef.current?.click()} className="flex items-center text-text-muted hover:text-primary p-2 rounded-full hover:bg-primary/10 transition-colors" aria-label="Add photo">
-                        <PhotoIcon className="w-6 h-6" />
-                        </button>
-                        <button type="button" className="flex items-center text-text-muted/50 p-2 rounded-full cursor-not-allowed" aria-label="Add video (disabled)" title="Video uploads are not supported">
-                        <VideoIcon className="w-6 h-6" />
-                        </button>
-                        </>
-                    )}
-                </div>
-                <button type="submit" className="bg-gradient-to-r from-primary to-secondary text-primary-foreground font-bold py-2.5 px-8 rounded-full hover:shadow-lg hover:shadow-primary/30 transition-all transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100 disabled:shadow-none">
-                    Post
-                </button>
-                </div>
             </form>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-4 border-t border-border bg-muted/5 flex items-center justify-between">
+            <div className="flex items-center gap-1">
+                <input type="file" accept="image/*" ref={imageInputRef} onChange={handleFileChange} multiple className="hidden" disabled={isSubmitting} />
+                {!isConfessionMode && (
+                    <>
+                        <button 
+                            type="button" 
+                            disabled={isSubmitting} 
+                            onClick={triggerFeaturePopup} 
+                            className="p-2.5 text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20 rounded-full transition-colors" 
+                            title="Add Photo"
+                        >
+                            <PhotoIcon className="w-5 h-5" />
+                        </button>
+                        <div className="w-px h-6 bg-border mx-2"></div>
+                        <StyleButton onMouseDown={(e) => applyStyle(e, 'bold')}>B</StyleButton>
+                        <StyleButton onMouseDown={(e) => applyStyle(e, 'italic')}>I</StyleButton>
+                    </>
+                )}
+            </div>
+            <button 
+                onClick={handleSubmit}
+                disabled={isSubmitting || !isEventFormValid || !isPostFormValid}
+                className="bg-primary text-primary-foreground font-bold py-2.5 px-6 rounded-full hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary/20 transform active:scale-95"
+            >
+                {isSubmitting ? 'Posting...' : postType === 'event' ? 'Create Event' : 'Post'}
+            </button>
+        </div>
+    </div>
+
+    {/* Coming Soon Popup Modal */}
+    {showFeaturePopup && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4" onClick={() => setShowFeaturePopup(false)}>
+            <div className="bg-card p-8 rounded-3xl shadow-2xl border border-border max-w-sm w-full text-center transform transition-all scale-100 relative overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary via-purple-500 to-secondary"></div>
+                <button onClick={() => setShowFeaturePopup(false)} className="absolute top-4 right-4 p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                    <CloseIcon className="w-5 h-5" />
+                </button>
+                
+                <div className="w-20 h-20 bg-gradient-to-br from-emerald-400/20 to-blue-500/20 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-6 ring-4 ring-emerald-500/10">
+                    <SparkleIcon className="w-10 h-10 animate-pulse" />
+                </div>
+                
+                <h3 className="text-2xl font-black text-foreground mb-2">Coming Soon! 📸</h3>
+                <p className="text-muted-foreground mb-8 text-sm leading-relaxed">
+                    Media uploads are currently in development. We're adding secure storage to bring you the best experience.
+                </p>
+                
+                <button 
+                    onClick={() => setShowFeaturePopup(false)} 
+                    className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-bold text-sm hover:bg-primary/90 shadow-lg shadow-primary/25 transition-all transform hover:scale-[1.02] active:scale-95"
+                >
+                    Got it
+                </button>
             </div>
         </div>
-      </div>
-    </div>
+    )}
+    </>
   );
 };
 

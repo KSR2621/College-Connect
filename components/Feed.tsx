@@ -1,8 +1,8 @@
 
-
 import React from 'react';
-import type { Post, User, Group, ReactionType, Comment } from '../types';
+import type { Post, User, Group, ReactionType } from '../types';
 import PostCard from './PostCard';
+import { CheckCircleIcon } from './Icons';
 
 interface FeedProps {
   posts: Post[];
@@ -24,11 +24,19 @@ const Feed: React.FC<FeedProps> = (props) => {
   const { posts, users, currentUser, onReaction, onAddComment, onDeletePost, onDeleteComment, onCreateOrOpenConversation, onSharePostAsMessage, onSharePost, onToggleSavePost, groups, onNavigate } = props;
   
   if (posts.length === 0) {
-    return <div className="text-center text-text-muted mt-8">No posts to show.</div>;
+    return (
+        <div className="text-center py-16 animate-fade-in">
+            <div className="bg-muted/50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 border border-border">
+                <span className="text-4xl">📭</span>
+            </div>
+            <h3 className="text-lg font-bold text-foreground">No posts yet</h3>
+            <p className="text-muted-foreground">Be the first to share something with your campus!</p>
+        </div>
+    );
   }
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 pb-8">
       {posts.map((post, index) => {
           const author = users[post.authorId];
           // Don't render post if author data is not yet available (unless it's a confession)
@@ -37,7 +45,7 @@ const Feed: React.FC<FeedProps> = (props) => {
             <PostCard 
               key={post.id}
               post={post}
-              author={author} // author can be null for confessions
+              author={author}
               currentUser={currentUser}
               users={users}
               onReaction={onReaction}
@@ -54,6 +62,14 @@ const Feed: React.FC<FeedProps> = (props) => {
             />
           );
       })}
+      
+      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground opacity-60 animate-fade-in">
+          <div className="p-3 bg-muted rounded-full mb-3">
+            <CheckCircleIcon className="w-6 h-6" />
+          </div>
+          <p className="text-sm font-semibold">You're all caught up!</p>
+          <p className="text-xs">Check back later for more updates.</p>
+      </div>
     </div>
   );
 };

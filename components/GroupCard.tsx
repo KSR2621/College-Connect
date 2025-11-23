@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { Group } from '../types';
 import { UsersIcon, StarIcon, ArrowRightIcon } from './Icons';
@@ -30,39 +31,41 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, onNavigate }) => {
   
   return (
     <div 
-      className="bg-card rounded-xl shadow-card hover:shadow-card-hover transition-all duration-300 cursor-pointer border border-border flex flex-col h-full overflow-hidden group hover:-translate-y-1" 
-      onClick={() => onNavigate(`#/groups/${group.id}`)}
+        className={`relative p-[2px] rounded-2xl bg-gradient-to-r ${gradient} hover:shadow-lg transition-all duration-300 group hover:-translate-y-1 cursor-pointer h-full`}
+        onClick={() => onNavigate(`#/groups/${group.id}`)}
     >
-      {/* Banner */}
-      <div className={`relative h-24 bg-gradient-to-r ${gradient} flex items-center justify-center`}>
-         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/az-subtle.png')] opacity-20"></div>
-         <UsersIcon className="w-10 h-10 text-white/50" />
-      </div>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl h-full relative z-10 overflow-hidden flex flex-col">
+            {/* Banner */}
+            <div className={`relative h-24 bg-gradient-to-r ${gradient} flex items-center justify-center`}>
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/az-subtle.png')] opacity-20"></div>
+                <UsersIcon className="w-10 h-10 text-white/50" />
+            </div>
 
-      {/* Content */}
-      <div className="p-4 flex flex-col flex-grow">
-        <h3 className="text-lg font-bold text-card-foreground mb-1 truncate">{group.name}</h3>
-        <p className="text-sm text-text-muted mb-4 line-clamp-2 flex-grow min-h-[40px]">{group.description}</p>
-        
-        <div className="flex items-center text-sm text-text-muted space-x-4 border-t border-border pt-3">
-          <div className="flex items-center">
-              <UsersIcon className="w-4 h-4 mr-1.5" />
-              <span className="font-medium">{group.memberIds.length}</span>
-              <span className="ml-1">members</span>
-          </div>
-          <div className="flex items-center">
-              <StarIcon className="w-4 h-4 mr-1.5" />
-              <span className="font-medium">{group.followers?.length || 0}</span>
-              <span className="ml-1">followers</span>
-          </div>
+            {/* Content */}
+            <div className="p-4 flex flex-col flex-grow">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-1 truncate">{group.name}</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 line-clamp-2 flex-grow min-h-[40px]">{group.description}</p>
+                
+                <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 space-x-4 border-t border-slate-100 dark:border-slate-800 pt-3">
+                <div className="flex items-center">
+                    <UsersIcon className="w-4 h-4 mr-1.5" />
+                    <span className="font-medium">{group.memberIds.length}</span>
+                    <span className="ml-1">members</span>
+                </div>
+                <div className="flex items-center">
+                    <StarIcon className="w-4 h-4 mr-1.5" />
+                    <span className="font-medium">{group.followers?.length || 0}</span>
+                    <span className="ml-1">followers</span>
+                </div>
+                </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="bg-slate-50 dark:bg-slate-800/50 group-hover:bg-primary/10 transition-colors duration-300 p-3 mt-auto text-center font-semibold text-sm text-primary flex items-center justify-center gap-2">
+                View Group
+                <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
         </div>
-      </div>
-      
-       {/* Footer */}
-      <div className="bg-muted/50 group-hover:bg-primary/10 transition-colors duration-300 p-3 mt-auto text-center font-semibold text-sm text-primary flex items-center justify-center gap-2">
-          View Group
-          <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-      </div>
     </div>
   );
 };

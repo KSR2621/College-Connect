@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef } from 'react';
 import type { User, PersonalNote } from '../types';
 import Header from '../components/Header';
@@ -121,7 +122,7 @@ const PersonalNotesPage: React.FC<PersonalNotesPageProps> = (props) => {
         <div className="bg-slate-50 min-h-screen">
             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
             
-            <main className="container mx-auto pt-8 pb-20 md:pb-8 h-[calc(100vh-64px-32px)]">
+            <main className="container mx-auto pt-8 pb-20 lg:pb-8 h-[calc(100vh-64px-32px)]">
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 h-full">
                     {/* Note List (Sidebar) */}
                     <div className={`md:flex flex-col ${viewToShow ? 'hidden md:flex' : 'flex'}`}>

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { User, Group } from '../types';
 import Header from '../components/Header';
@@ -35,7 +36,7 @@ const GroupsPage: React.FC<GroupsPageProps> = ({ currentUser, groups, onNavigate
     <div className="bg-muted/50 min-h-screen">
       <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
       
-      <main className="container mx-auto px-4 pt-8 pb-20 md:pb-8">
+      <main className="container mx-auto px-4 pt-8 pb-20 lg:pb-8">
         {/* Hero Section */}
         <div className="relative bg-card p-8 rounded-2xl shadow-lg border border-border overflow-hidden mb-12 text-center">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-secondary/10 opacity-50"></div>

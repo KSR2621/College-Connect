@@ -1,7 +1,8 @@
+
 import React from 'react';
 import type { User } from '../types';
 import Avatar from './Avatar';
-import { UserIcon, UsersIcon, GhostIcon, BookmarkIcon, CalendarIcon, BriefcaseIcon, NotebookIcon, MegaphoneIcon } from './Icons';
+import { UserIcon, UsersIcon, CalendarIcon, BriefcaseIcon } from './Icons';
 
 interface LeftSidebarProps {
   currentUser: User;
@@ -16,43 +17,46 @@ const NavLink: React.FC<{
 }> = ({ icon: Icon, label, path, onNavigate }) => (
     <a 
         onClick={() => onNavigate(path)}
-        className="flex items-center space-x-4 p-3 rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-primary cursor-pointer transition-colors group"
+        className="flex items-center space-x-4 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
     >
-        <Icon className="w-6 h-6 text-text-muted group-hover:text-primary transition-colors" />
-        <span className="font-semibold text-foreground">{label}</span>
+        <Icon className="w-6 h-6 text-slate-500 dark:text-slate-400 group-hover:text-primary transition-colors" />
+        <span className="font-semibold text-slate-700 dark:text-slate-200 group-hover:text-primary transition-colors">{label}</span>
     </a>
 );
 
 
 const LeftSidebar: React.FC<LeftSidebarProps> = ({ currentUser, onNavigate }) => {
   return (
-    <div className="sticky top-20">
-      <div className="bg-card dark:bg-slate-800 rounded-lg shadow-sm border border-border dark:border-slate-700 p-4">
-        {/* User Info */}
-        <div className="flex flex-col items-center text-center pb-4 border-b border-border dark:border-slate-700">
-          <Avatar 
-            src={currentUser.avatarUrl} 
-            name={currentUser.name} 
-            size="xl" 
-            className="mb-3 cursor-pointer"
-            onClick={() => onNavigate(`#/profile/${currentUser.id}`)}
-          />
-          <h2 
-            className="font-bold text-lg text-foreground cursor-pointer"
-            onClick={() => onNavigate(`#/profile/${currentUser.id}`)}
-            >
-                {currentUser.name}
-            </h2>
-          <p className="text-sm text-text-muted">{currentUser.department}</p>
-        </div>
+    <div className="sticky top-24 space-y-6">
+      <div className="relative p-[2px] rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 relative z-10 h-full">
+            {/* User Info */}
+            <div className="flex flex-col items-center text-center pb-6 border-b border-slate-100 dark:border-slate-800">
+            <div className="relative group cursor-pointer" onClick={() => onNavigate(`#/profile/${currentUser.id}`)}>
+                <Avatar 
+                    src={currentUser.avatarUrl} 
+                    name={currentUser.name} 
+                    size="xl" 
+                    className="mb-3 shadow-sm group-hover:opacity-90 transition-opacity w-20 h-20 text-2xl border-4 border-slate-50 dark:border-slate-800"
+                />
+            </div>
+            <h2 
+                className="font-bold text-lg text-slate-900 dark:text-slate-100 cursor-pointer hover:underline"
+                onClick={() => onNavigate(`#/profile/${currentUser.id}`)}
+                >
+                    {currentUser.name}
+                </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">{currentUser.department}</p>
+            </div>
 
-        {/* Navigation Links */}
-        <nav className="mt-4 space-y-1">
-            <NavLink icon={UserIcon} label="My Profile" path={`#/profile/${currentUser.id}`} onNavigate={onNavigate} />
-            <NavLink icon={UsersIcon} label="My Groups" path="#/groups" onNavigate={onNavigate} />
-            <NavLink icon={CalendarIcon} label="Events" path="#/events" onNavigate={onNavigate} />
-            <NavLink icon={BriefcaseIcon} label="Opportunities" path="#/opportunities" onNavigate={onNavigate} />
-        </nav>
+            {/* Navigation Links */}
+            <nav className="mt-4 space-y-1">
+                <NavLink icon={UserIcon} label="My Profile" path={`#/profile/${currentUser.id}`} onNavigate={onNavigate} />
+                <NavLink icon={UsersIcon} label="My Groups" path="#/groups" onNavigate={onNavigate} />
+                <NavLink icon={CalendarIcon} label="Events" path="#/events" onNavigate={onNavigate} />
+                <NavLink icon={BriefcaseIcon} label="Opportunities" path="#/opportunities" onNavigate={onNavigate} />
+            </nav>
+        </div>
       </div>
     </div>
   );

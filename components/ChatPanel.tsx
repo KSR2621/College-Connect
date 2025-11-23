@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import type { User, Conversation, Message } from '../types';
 import Avatar from './Avatar';
@@ -51,15 +52,15 @@ const DeleteMessageModal: React.FC<{
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-xs" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-xs border border-border animate-scale-in" onClick={e => e.stopPropagation()}>
                 <h3 className="font-bold text-lg text-center mb-4 text-foreground">Delete message(s)?</h3>
                 <div className="space-y-3">
                     {canDeleteForEveryone && (
-                        <button onClick={onDeleteForEveryone} className="w-full text-left p-3 rounded-lg hover:bg-muted text-destructive font-semibold">Delete for everyone</button>
+                        <button onClick={onDeleteForEveryone} className="w-full text-left p-3 rounded-xl hover:bg-destructive/10 text-destructive font-semibold transition-colors">Delete for everyone</button>
                     )}
-                    <button onClick={onDeleteForMe} className="w-full text-left p-3 rounded-lg hover:bg-muted font-semibold">Delete for me</button>
-                    <button onClick={onClose} className="w-full p-3 rounded-lg hover:bg-muted text-center font-semibold text-text-muted">Cancel</button>
+                    <button onClick={onDeleteForMe} className="w-full text-left p-3 rounded-xl hover:bg-muted text-foreground font-semibold transition-colors">Delete for me</button>
+                    <button onClick={onClose} className="w-full p-3 rounded-xl hover:bg-muted text-center font-semibold text-muted-foreground transition-colors">Cancel</button>
                 </div>
             </div>
         </div>
@@ -88,40 +89,31 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
     return conversation.messages.filter(msg => !msg.deletedFor?.includes(currentUser.id));
   }, [conversation.messages, currentUser.id]);
 
-  // Effect to scroll to bottom when a new conversation is opened
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-    // Reset message length tracking for the new conversation
     prevMessagesLength.current = conversation.messages.length;
   }, [conversation.id]);
 
-  // Effect to handle smart scrolling for new messages
   useEffect(() => {
     const currentMessagesLength = visibleMessages.length;
-
-    // Only run if new messages have been added
     if (currentMessagesLength > prevMessagesLength.current) {
       const messagesContainer = messagesContainerRef.current;
       if (messagesContainer) {
         const lastMessage = visibleMessages[currentMessagesLength - 1];
         const isFromCurrentUser = lastMessage.senderId === currentUser.id;
-        
-        const scrollThreshold = 150; // pixels
+        const scrollThreshold = 150; 
         const isScrolledNearBottom = messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + scrollThreshold;
 
-        // Auto-scroll if the message is from the current user or if they are already near the bottom
         if (isFromCurrentUser || isScrolledNearBottom) {
           messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         }
       }
     }
-    // Update the ref after the check
     prevMessagesLength.current = currentMessagesLength;
   }, [visibleMessages, currentUser.id]);
 
 
   useEffect(() => {
-    // Clear selection when conversation changes
     setSelectedMessages([]);
   }, [conversation.id]);
 
@@ -144,8 +136,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
                 ? prev.filter(id => id !== messageId)
                 : [...prev, messageId]
         );
-    } else {
-        // Regular click action (if any) could go here
     }
   };
 
@@ -174,43 +164,44 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
   }, [selectedMessages, conversation.messages, currentUser.id]);
 
   if (!isGroupChat && !otherUser) {
-      return <div className="flex-1 flex items-center justify-center text-text-muted">User not found</div>;
+      return <div className="flex-1 flex items-center justify-center text-muted-foreground">User not found</div>;
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-100">
+    <div className="flex flex-col h-full chat-background-panel relative">
       {/* Header */}
       {isSelectionMode ? (
-        <div className="p-3 border-b border-border flex items-center justify-between bg-primary/5 sticky top-0 z-10">
-             <button onClick={() => setSelectedMessages([])} className="p-2 rounded-full hover:bg-muted text-foreground">
+        <div className="p-3 border-b border-border flex items-center justify-between bg-card/95 backdrop-blur-md sticky top-0 z-20 shadow-sm">
+             <button onClick={() => setSelectedMessages([])} className="p-2 rounded-full hover:bg-muted text-foreground transition-colors">
                 <CloseIcon className="w-6 h-6" />
             </button>
             <p className="font-bold text-foreground">{selectedMessages.length} Selected</p>
-            <button onClick={handleDeleteTrigger} className="p-2 rounded-full hover:bg-muted text-destructive">
+            <button onClick={handleDeleteTrigger} className="p-2 rounded-full hover:bg-destructive/10 text-destructive transition-colors">
                 <TrashIcon className="w-6 h-6" />
             </button>
         </div>
       ) : (
-        <div className="p-3 border-b border-border flex items-center justify-between bg-card/80 backdrop-blur-lg sticky top-0 z-10">
+        <div className="p-3 border-b border-border flex items-center justify-between bg-card/95 backdrop-blur-md sticky top-0 z-20 shadow-sm">
             <div className="flex items-center space-x-3 flex-1 overflow-hidden">
-                <button onClick={onClose} className="md:hidden p-1 rounded-full hover:bg-muted">
-                    <ArrowLeftIcon className="w-6 h-6 text-foreground" />
+                <button onClick={onClose} className="md:hidden p-1 rounded-full hover:bg-muted text-foreground transition-colors">
+                    <ArrowLeftIcon className="w-6 h-6" />
                 </button>
                 {isGroupChat ? (
-                    <div className="h-10 w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center flex-shrink-0">
-                        <UsersIcon className="w-6 h-6"/>
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <UsersIcon className="w-5 h-5"/>
                     </div>
                 ) : (
-                    <div className="cursor-pointer" onClick={() => onNavigate(`#/profile/${otherUser.id}`)}>
+                    <div className="cursor-pointer relative group" onClick={() => onNavigate(`#/profile/${otherUser.id}`)}>
                         <Avatar src={otherUser.avatarUrl} name={otherUser.name} size="md" />
+                        <div className="absolute inset-0 rounded-full ring-2 ring-transparent group-hover:ring-primary/50 transition-all"></div>
                     </div>
                 )}
                 <div className={!isGroupChat && otherUser ? "cursor-pointer flex-1 overflow-hidden" : "flex-1 overflow-hidden"} onClick={!isGroupChat && otherUser ? () => onNavigate(`#/profile/${otherUser.id}`) : undefined}>
                     <p className="font-bold text-foreground truncate">{chatName}</p>
                     {isGroupChat ? (
-                         <p className="text-xs text-text-muted">{conversation.participantIds.length} members</p>
+                         <p className="text-xs text-muted-foreground">{conversation.participantIds.length} members</p>
                     ) : (
-                        <p className="text-xs text-text-muted truncate">{otherUser?.department}</p>
+                        <p className="text-xs text-muted-foreground truncate">{otherUser?.department}</p>
                     )}
                 </div>
             </div>
@@ -218,7 +209,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
       )}
 
       {/* Messages */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-2 chat-background-panel">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-1.5 relative z-10">
         {visibleMessages.map((msg, index) => {
           const sender = users[msg.senderId];
           const isCurrentUser = msg.senderId === currentUser.id;
@@ -226,18 +217,30 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
           
           const prevMessage = index > 0 ? visibleMessages[index - 1] : null;
           const showDateSeparator = !prevMessage || !isSameDay(msg.timestamp, prevMessage.timestamp);
+          const isLastInGroup = !visibleMessages[index + 1] || visibleMessages[index + 1].senderId !== msg.senderId;
+
+          // Bubble shaping logic
+          const isFirst = !prevMessage || prevMessage.senderId !== msg.senderId;
+          const roundedTopLeft = isCurrentUser || isFirst ? '2xl' : 'sm';
+          const roundedBottomLeft = isCurrentUser || isLastInGroup ? '2xl' : 'sm';
+          const roundedTopRight = !isCurrentUser || isFirst ? '2xl' : 'sm';
+          const roundedBottomRight = !isCurrentUser || isLastInGroup ? '2xl' : 'sm';
+
+          const borderRadiusClass = isCurrentUser 
+            ? `rounded-tl-${roundedTopLeft} rounded-tr-${roundedTopRight} rounded-bl-${roundedBottomLeft} rounded-br-${roundedBottomRight}`
+            : `rounded-tl-${roundedTopLeft} rounded-tr-${roundedTopRight} rounded-bl-${roundedBottomLeft} rounded-br-${roundedBottomRight}`;
 
           return (
             <React.Fragment key={msg.id}>
               {showDateSeparator && (
-                <div className="flex justify-center my-4">
-                  <span className="bg-white/60 backdrop-blur-sm text-slate-600 text-xs font-semibold px-3 py-1 rounded-full border border-slate-200">
+                <div className="flex justify-center my-6">
+                  <span className="bg-muted/80 backdrop-blur-sm text-muted-foreground text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full border border-border shadow-sm">
                     {formatDateSeparator(msg.timestamp)}
                   </span>
                 </div>
               )}
               <div 
-                  className={`flex items-end gap-2 animate-bubble-in ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
+                  className={`flex items-end gap-2 animate-bubble-in ${isCurrentUser ? 'justify-end' : 'justify-start'} ${isSelected ? 'opacity-80' : ''}`}
                   onClick={() => handleMessageTap(msg.id)}
                   onMouseDown={() => handleLongPressStart(msg.id)}
                   onMouseUp={handleLongPressEnd}
@@ -245,15 +248,26 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
                   onTouchStart={() => handleLongPressStart(msg.id)}
                   onTouchEnd={handleLongPressEnd}
               >
-                {!isCurrentUser && sender && <Avatar src={sender.avatarUrl} name={sender.name} size="sm" />}
-                <div className="flex flex-col max-w-xs md:max-w-md">
-                   {!isCurrentUser && conversation.isGroupChat && sender && (
-                      <p className="text-xs text-text-muted mb-1 px-3">{sender.name}</p>
+                {!isCurrentUser && sender && (
+                    <div className={`w-8 flex-shrink-0 ${!isLastInGroup ? 'invisible' : ''}`}>
+                        <Avatar src={sender.avatarUrl} name={sender.name} size="sm" className="shadow-sm"/>
+                    </div>
+                )}
+                <div className={`flex flex-col max-w-[85%] md:max-w-[70%] ${isCurrentUser ? 'items-end' : 'items-start'}`}>
+                   {!isCurrentUser && conversation.isGroupChat && sender && isFirst && (
+                      <p className="text-[10px] font-bold text-muted-foreground mb-1 ml-1">{sender.name}</p>
                   )}
-                  <div className={`group relative p-3 rounded-2xl transition-colors ${isSelected ? 'bg-primary/30' : (isCurrentUser ? 'bg-gradient-to-br from-primary to-secondary text-primary-foreground rounded-br-lg shadow-lg shadow-blue-500/20' : 'bg-white text-card-foreground rounded-bl-lg shadow-sm')}`}>
-                      <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                  <div className={`group relative px-4 py-2.5 shadow-sm transition-all duration-200 ${borderRadiusClass} ${
+                      isSelected 
+                        ? 'bg-primary/20 ring-2 ring-primary' 
+                        : (isCurrentUser 
+                            ? 'bg-gradient-to-br from-primary to-violet-600 text-primary-foreground shadow-primary/20' 
+                            : 'bg-card text-card-foreground border border-border shadow-sm'
+                          )
+                  }`}>
+                      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{msg.text}</p>
                   </div>
-                   <p className={`text-xs text-text-muted mt-1 px-1 ${isCurrentUser ? 'text-right' : 'text-left'}`}>{formatTimestamp(msg.timestamp)}</p>
+                   {isLastInGroup && <p className={`text-[10px] text-muted-foreground mt-1 px-1 font-medium ${isCurrentUser ? 'text-right' : 'text-left'}`}>{formatTimestamp(msg.timestamp)}</p>}
                 </div>
               </div>
             </React.Fragment>
@@ -263,20 +277,27 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversation, currentUser, users,
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-border bg-card/80 backdrop-blur-sm">
-        <form onSubmit={handleSubmit} className="flex items-center space-x-3">
-          <input
-            type="text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1 bg-white border-2 border-border rounded-full px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-foreground transition shadow-sm"
-          />
-          <button type="submit" className="p-3 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:scale-100 transition-transform transform hover:scale-110" disabled={!text.trim()}>
+      <div className="p-3 border-t border-border bg-card/95 backdrop-blur-md relative z-20">
+        <form onSubmit={handleSubmit} className="flex items-center gap-3">
+          <div className="relative flex-1">
+              <input
+                type="text"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Type a message..."
+                className="w-full bg-muted/50 border border-border rounded-full pl-5 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:bg-background transition-all shadow-inner text-foreground placeholder:text-muted-foreground"
+              />
+          </div>
+          <button 
+            type="submit" 
+            className="p-3 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:scale-100 transition-all transform hover:scale-105 shadow-lg shadow-primary/30" 
+            disabled={!text.trim()}
+          >
             <SendIcon className="w-5 h-5" />
           </button>
         </form>
       </div>
+      
       <DeleteMessageModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}

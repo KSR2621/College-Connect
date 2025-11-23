@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Story, User, Group } from '../types';
 import Avatar from './Avatar';
@@ -194,9 +195,9 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
     const postingAdmin = isGroupStory ? users[activeStory.authorId] : null;
 
     return (
-        <div className="fixed inset-0 bg-black z-50 flex justify-center items-center" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex justify-center items-center animate-fade-in" role="dialog" aria-modal="true">
             <div 
-                className="relative z-10 w-full h-full sm:w-auto sm:h-[95vh] sm:aspect-[9/16] bg-gray-900 sm:rounded-lg overflow-hidden flex flex-col"
+                className="relative z-10 w-full h-full sm:w-auto sm:h-[90vh] sm:aspect-[9/16] bg-gray-900 sm:rounded-xl overflow-hidden flex flex-col shadow-2xl"
                 onMouseDown={() => setIsPaused(true)} onMouseUp={() => setIsPaused(false)} onMouseLeave={() => setIsPaused(false)}
                 onTouchStart={() => setIsPaused(true)} onTouchEnd={() => setIsPaused(false)}
             >
@@ -231,10 +232,10 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
                                     <UsersIcon className="w-6 h-6"/>
                                 </div>
                             ) : (
-                                <Avatar src={(activeEntity as User).avatarUrl} name={activeEntity.name} size="md"/>
+                                <Avatar src={(activeEntity as User).avatarUrl} name={activeEntity.name} size="md" className="border-2 border-white/20"/>
                             )}
                             <div>
-                                <span className="text-white font-bold text-sm">{activeEntity.name}</span>
+                                <span className="text-white font-bold text-sm shadow-sm">{activeEntity.name}</span>
                                 {postingAdmin && <p className="text-xs text-white/80">Posted by {postingAdmin.name}</p>}
                             </div>
                         </div>
@@ -243,7 +244,7 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
                                 <div className="relative">
                                     <button
                                         onClick={() => setIsOptionsMenuOpen(prev => !prev)}
-                                        className="p-1 text-white"
+                                        className="p-1 text-white/80 hover:text-white"
                                     >
                                         <OptionsIcon className="w-6 h-6"/>
                                     </button>
@@ -262,7 +263,7 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
                              )}
                             <button
                                 onClick={onClose}
-                                className="p-1 text-white"
+                                className="p-1 text-white/80 hover:text-white"
                             >
                                 <CloseIcon className="w-7 h-7" />
                             </button>
@@ -278,7 +279,7 @@ const StoryViewerModal: React.FC<StoryViewerModalProps> = (props) => {
                  {/* Footer */}
                  <div className="absolute bottom-0 left-0 right-0 p-4 z-30 bg-gradient-to-t from-black/40 to-transparent">
                     {canDelete ? (
-                        <button onClick={() => { setIsViewersListOpen(true); setIsPaused(true); }} className="text-white text-sm font-semibold flex items-center bg-black/20 backdrop-blur-sm px-3 py-1.5 rounded-lg">
+                        <button onClick={() => { setIsViewersListOpen(true); setIsPaused(true); }} className="text-white text-sm font-semibold flex items-center bg-black/20 backdrop-blur-sm px-3 py-1.5 rounded-lg hover:bg-black/30 transition-colors">
                            Viewed by {activeStory.viewedBy.length}
                         </button>
                     ) : (

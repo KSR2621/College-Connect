@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef } from 'react';
 import type { User, Conversation } from '../types';
 import Header from '../components/Header';
@@ -113,7 +114,7 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
     return (
         <div className="bg-slate-50 min-h-screen">
             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
-            <main className="container mx-auto h-[calc(100vh-64px)] md:h-[calc(100vh-64px)] pb-16 md:pb-0">
+            <main className="container mx-auto h-[calc(100vh-64px)] md:h-[calc(100vh-64px)] pb-16 lg:pb-0">
                 <div className="flex h-full border-t md:border-x border-border bg-card">
                     {/* Sidebar */}
                     <div className={`w-full md:w-1/3 lg:w-1/4 border-r border-border flex-col bg-slate-100 ${(selectedConversationId && !isSelectionMode) ? 'hidden md:flex' : 'flex'}`}>

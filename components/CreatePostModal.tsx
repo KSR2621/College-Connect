@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { User } from '../types';
 import CreatePost from './CreatePost';
@@ -15,14 +16,22 @@ interface CreatePostModalProps {
     isConfession?: boolean;
   }) => void;
   defaultType?: 'post' | 'event';
+  groupId?: string;
 }
 
-const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClose, user, onAddPost, defaultType }) => {
+const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClose, user, onAddPost, defaultType, groupId }) => {
   if (!isOpen) return null;
 
-  const handlePostSubmit = (postDetails: Parameters<typeof onAddPost>[0]) => {
-    onAddPost(postDetails);
-    onClose();
+  const handlePostSubmit = async (postDetails: Parameters<typeof onAddPost>[0]) => {
+    try {
+      await onAddPost(postDetails);
+      onClose();
+    } catch (error) {
+      console.error("Error in modal submit:", error);
+      // Rethrow the error so that the CreatePost component knows the submission failed
+      // and can reset its internal 'isSubmitting' state.
+      throw error;
+    }
   };
 
   return (
@@ -32,7 +41,7 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClose, user
           <h2 className="text-xl font-bold text-center flex-1 text-foreground">Create Post</h2>
           <button onClick={onClose} className="text-text-muted hover:text-foreground text-2xl leading-none">&times;</button>
         </div>
-        <CreatePost user={user} onAddPost={handlePostSubmit} isModalMode={true} defaultType={defaultType} />
+        <CreatePost user={user} onAddPost={handlePostSubmit} isModalMode={true} defaultType={defaultType} groupId={groupId} />
       </div>
     </div>
   );

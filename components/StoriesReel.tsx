@@ -1,6 +1,7 @@
+
 import React from 'react';
 import type { Story, User, Group } from '../types';
-import { PlusCircleIcon, UsersIcon } from './Icons';
+import { PlusIcon, UsersIcon } from './Icons';
 import Avatar from './Avatar';
 
 interface StoriesReelProps {
@@ -13,7 +14,7 @@ interface StoriesReelProps {
 }
 
 type StoryEntity = {
-    id: string; // "user-userId" or "group-groupId"
+    id: string;
     type: 'user' | 'group';
     name: string;
     avatarUrl?: string;
@@ -21,46 +22,50 @@ type StoryEntity = {
     latestTimestamp: number;
 }
 
-// "Add Story" component - a permanent first item in the reel
+// "Add Story" component
 const AddStoryCircle: React.FC<{ user: User; onClick: () => void; }> = ({ user, onClick }) => (
-    <div className="text-center flex-shrink-0 w-16 cursor-pointer group" onClick={onClick}>
-        <div className="relative w-14 h-14 mx-auto add-story-ring">
-            <Avatar src={user.avatarUrl} name={user.name} size="lg" className="w-full h-full"/>
-            <div className="absolute bottom-0 right-0 transform transition-transform group-hover:scale-110">
-                <PlusCircleIcon className="w-5 h-5 text-primary bg-white rounded-full border-2 border-white" />
+    <div className="flex flex-col items-center gap-2 cursor-pointer group w-20 flex-shrink-0" onClick={onClick}>
+        <div className="relative w-16 h-16 transition-transform duration-300 ease-out group-hover:scale-105">
+            <div className="absolute inset-0 rounded-full p-[2px] bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-900">
+                 <Avatar src={user.avatarUrl} name={user.name} size="lg" className="w-full h-full rounded-full object-cover"/>
+            </div>
+            <div className="absolute bottom-0 right-0 bg-primary text-white rounded-full p-1 border-2 border-white dark:border-slate-900 shadow-sm">
+                <PlusIcon className="w-3 h-3" />
             </div>
         </div>
-        <p className="mt-1 text-xs text-foreground font-medium truncate">Add Story</p>
+        <span className="text-xs font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors truncate w-full text-center">Your Story</span>
     </div>
 );
 
-// A circle representing a user or group's story
+// Story Circle
 const StoryCircle: React.FC<{ entity: StoryEntity; onClick: () => void }> = ({ entity, onClick }) => {
+    // Gradient ring for unviewed stories
     const ringClass = entity.hasUnviewed 
-        ? 'story-ring-unviewed' 
-        : 'story-ring-viewed';
+        ? 'bg-gradient-to-tr from-yellow-400 via-orange-500 to-pink-500 p-[2.5px]' 
+        : 'bg-slate-200 dark:bg-slate-700 p-[1.5px]';
 
     return (
-        <div className="text-center flex-shrink-0 w-16 cursor-pointer group" onClick={onClick}>
-            <div className={`${ringClass} transition-transform duration-200 group-hover:scale-105`}>
-                <div className="bg-white p-0.5 rounded-full">
+        <div className="flex flex-col items-center gap-2 cursor-pointer group w-20 flex-shrink-0" onClick={onClick}>
+            <div className={`rounded-full ${ringClass} transition-all duration-300 ease-out group-hover:scale-105 shadow-sm group-hover:shadow-md`}>
+                <div className="bg-white dark:bg-slate-900 rounded-full p-[2px]">
                     {entity.type === 'user' ? (
-                         <Avatar src={entity.avatarUrl} name={entity.name} size="lg" className="w-14 h-14"/>
+                         <Avatar src={entity.avatarUrl} name={entity.name} size="lg" className="w-14 h-14 rounded-full object-cover"/>
                     ) : (
-                        <div className="w-14 h-14 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-                            <UsersIcon className="w-7 h-7" />
+                        <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                            <UsersIcon className="w-6 h-6" />
                         </div>
                     )}
                 </div>
             </div>
-             <p className="mt-1 text-xs text-foreground font-medium truncate">{entity.name}</p>
+             <span className={`text-xs truncate w-full text-center transition-colors ${entity.hasUnviewed ? 'font-semibold text-slate-900 dark:text-slate-100' : 'font-medium text-slate-500 dark:text-slate-400'}`}>
+                 {entity.name.split(' ')[0]}
+             </span>
         </div>
     );
 };
 
 const StoriesReel: React.FC<StoriesReelProps> = ({ stories, users, groups, currentUser, onAddStoryClick, onViewStoryEntity }) => {
     
-    // This logic groups stories by entity and checks for unviewed stories
     const storyEntities = React.useMemo(() => {
         const entities: { [key: string]: StoryEntity } = {};
 
@@ -69,7 +74,6 @@ const StoriesReel: React.FC<StoriesReelProps> = ({ stories, users, groups, curre
             const entityId = isGroupStory ? `group-${story.groupId}` : `user-${story.authorId}`;
             const isViewed = story.viewedBy.includes(currentUser.id);
 
-            // Basic check to see if we have the user/group data for this story
              if (isGroupStory) {
                 const group = groups.find(g => g.id === story.groupId);
                 if (!group || !(currentUser.followingGroups || []).includes(group.id)) return;
@@ -100,10 +104,9 @@ const StoriesReel: React.FC<StoriesReelProps> = ({ stories, users, groups, curre
             }
         });
 
-        // Separate current user's story to place it first (after "Add Story")
         const currentUserStoryId = `user-${currentUser.id}`;
         const currentUserStory = entities[currentUserStoryId];
-        delete entities[currentUserStoryId]; // remove from main list
+        delete entities[currentUserStoryId];
 
         const otherEntities = Object.values(entities).sort((a, b) => {
             if (a.hasUnviewed && !b.hasUnviewed) return -1;
@@ -118,9 +121,9 @@ const StoriesReel: React.FC<StoriesReelProps> = ({ stories, users, groups, curre
     const canCreateStory = !(currentUser.tag === 'Teacher' && currentUser.isApproved === false);
     
     return (
-        <div className="p-0.5 rounded-xl animated-border mb-6">
-            <div className="bg-card rounded-[10px] p-4">
-                <div className="flex items-center space-x-2 overflow-x-auto pb-2 no-scrollbar">
+        <div className="relative p-[2px] rounded-2xl bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 mb-6 shadow-md hover:shadow-lg transition-all duration-300">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 relative z-10">
+                <div className="flex items-center space-x-4 overflow-x-auto no-scrollbar pb-2 px-1">
                     {canCreateStory && <AddStoryCircle user={currentUser} onClick={onAddStoryClick} />}
                     {storyEntities.map(entity => (
                         <StoryCircle 
@@ -129,6 +132,9 @@ const StoriesReel: React.FC<StoriesReelProps> = ({ stories, users, groups, curre
                             onClick={() => onViewStoryEntity(entity.id)}
                         />
                     ))}
+                    {storyEntities.length === 0 && !canCreateStory && (
+                        <p className="text-xs text-muted-foreground pl-2">No stories yet.</p>
+                    )}
                 </div>
             </div>
         </div>

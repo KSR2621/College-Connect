@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { User, Post, Group, ReactionType, Achievement, UserTag, Comment, College } from '../types';
 import Header from '../components/Header';
@@ -85,7 +86,7 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {userGroups.length > 0 ? (
                             userGroups.map(group => (
-                                <div key={group.id} onClick={() => onNavigate(`#/groups/${group.id}`)} className="bg-card p-4 rounded-lg shadow-sm border border-border cursor-pointer hover:bg-muted transition-colors">
+                                <div key={group.id} onClick={() => onNavigate(`#/groups/${group.id}`)} className="bg-card p-4 rounded-xl shadow-sm border border-border cursor-pointer hover:shadow-md transition-all hover:scale-[1.01]">
                                     <h4 className="font-bold text-card-foreground">{group.name}</h4>
                                     <p className="text-sm text-text-muted">{group.memberIds.length} members</p>
                                 </div>
@@ -108,105 +109,173 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
     };
 
     return (
-        <div className="bg-slate-50 min-h-screen">
+        <div className="bg-background min-h-screen pb-20">
             <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
             
-            <main className="container mx-auto px-4 pt-8 pb-20 md:pb-8">
+            <main className="container mx-auto px-0 sm:px-4 lg:px-8 pt-0 sm:pt-6 lg:pb-8">
                  {isAdminView && onBackToAdmin && (
-                    <button onClick={onBackToAdmin} className="flex items-center text-sm text-primary hover:underline mb-4">
-                        <ArrowLeftIcon className="w-4 h-4 mr-2"/>
-                        Back to Admin Dashboard
-                    </button>
+                    <div className="p-4">
+                        <button onClick={onBackToAdmin} className="flex items-center text-sm text-primary hover:underline mb-4 font-medium">
+                            <ArrowLeftIcon className="w-4 h-4 mr-2"/>
+                            Back to Admin Dashboard
+                        </button>
+                    </div>
                 )}
                 
                 {/* Profile Header Card */}
-                <div className="bg-card rounded-lg shadow-sm border border-border p-6">
-                    <div className="flex flex-col sm:flex-row items-center sm:items-start sm:space-x-6">
-                        <Avatar src={profileUser.avatarUrl} name={profileUser.name} size="xl" className="mb-4 sm:mb-0 flex-shrink-0 border-4 border-white shadow-md"/>
-                        <div className="flex-1 text-center sm:text-left">
-                            <div className="flex flex-col sm:flex-row justify-between items-center">
-                                <div>
-                                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                                        {profileUser.name}
-                                        {profileUser.isFrozen && <span className="text-xs font-bold bg-destructive/20 text-destructive px-2 py-1 rounded-full">SUSPENDED</span>}
-                                    </h1>
-                                    <p className="text-sm text-text-muted">{profileUser.department} &bull; {profileUser.tag}{profileUser.tag === 'Student' && ` - ${profileUser.yearOfStudy || 1}st Year`}</p>
+                <div className="bg-card sm:rounded-3xl shadow-lg border-b sm:border border-border overflow-hidden mb-8">
+                    {/* Decorative Cover Banner with Mesh Gradient */}
+                    <div className="h-40 sm:h-56 bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 relative">
+                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 mix-blend-overlay"></div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+                    </div>
+                    
+                    <div className="px-6 pb-6 relative">
+                        <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-16 sm:-mt-20 mb-6 sm:space-x-6">
+                            <div className="relative">
+                                <div className="p-1.5 bg-card rounded-full shadow-2xl">
+                                    <Avatar src={profileUser.avatarUrl} name={profileUser.name} size="xl" className="w-32 h-32 sm:w-40 sm:h-40 border-4 border-card"/>
                                 </div>
-                                <div className="mt-4 sm:mt-0">
-                                    {isOwnProfile && !isAdminView ? (
-                                        <button onClick={() => setIsEditing(true)} className="bg-primary/10 text-primary font-semibold py-2 px-4 rounded-lg text-sm hover:bg-primary/20 transition-colors flex items-center gap-2">
-                                            <EditIcon className="w-4 h-4" />
-                                            Edit Profile
-                                        </button>
-                                    ) : !isOwnProfile && (
-                                        <button onClick={handleStartConversation} className="bg-primary text-primary-foreground font-semibold py-2 px-4 rounded-lg text-sm hover:bg-primary/90 transition-colors flex items-center gap-2">
-                                            <MessageIcon className="w-4 h-4" /> Message
-                                        </button>
+                                {isOwnProfile && (
+                                    <button 
+                                        onClick={() => setIsEditing(true)}
+                                        className="absolute bottom-2 right-2 bg-primary text-white p-2 rounded-full shadow-lg hover:bg-primary/90 transition-all sm:hidden"
+                                    >
+                                        <EditIcon className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+                            
+                            <div className="flex-1 text-center sm:text-left mt-3 sm:mt-0 sm:pb-4">
+                                <div className="flex flex-col sm:flex-row justify-between items-center">
+                                    <div>
+                                        <h1 className="text-3xl sm:text-4xl font-black text-foreground flex items-center gap-2 justify-center sm:justify-start tracking-tight">
+                                            {profileUser.name}
+                                            {profileUser.isFrozen && <span className="text-xs font-bold bg-destructive text-white px-2 py-1 rounded-full uppercase tracking-wide">Suspended</span>}
+                                        </h1>
+                                        <p className="text-base font-medium text-muted-foreground mt-1 flex items-center justify-center sm:justify-start gap-2">
+                                            <span>{profileUser.department}</span>
+                                            <span className="w-1 h-1 rounded-full bg-muted-foreground"></span>
+                                            <span>{profileUser.tag}</span>
+                                            {profileUser.tag === 'Student' && (
+                                                <>
+                                                    <span className="w-1 h-1 rounded-full bg-muted-foreground"></span>
+                                                    <span>Year {profileUser.yearOfStudy || 1}</span>
+                                                </>
+                                            )}
+                                        </p>
+                                    </div>
+                                    <div className="mt-6 sm:mt-0 hidden sm:block">
+                                        {isOwnProfile && !isAdminView ? (
+                                            <button onClick={() => setIsEditing(true)} className="bg-card border border-border text-foreground font-bold py-2.5 px-5 rounded-xl text-sm hover:bg-muted transition-all flex items-center gap-2 shadow-sm hover:shadow">
+                                                <EditIcon className="w-4 h-4" />
+                                                Edit Profile
+                                            </button>
+                                        ) : !isOwnProfile && (
+                                            <button onClick={handleStartConversation} className="bg-primary text-primary-foreground font-bold py-2.5 px-6 rounded-xl text-sm hover:bg-primary/90 transition-all flex items-center gap-2 shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-0.5">
+                                                <MessageIcon className="w-4 h-4" /> Message
+                                            </button>
+                                        )}
+                                    </div>
+                                    {/* Mobile Message Button */}
+                                    {!isOwnProfile && (
+                                        <div className="mt-4 sm:hidden w-full">
+                                             <button onClick={handleStartConversation} className="w-full bg-primary text-primary-foreground font-bold py-2.5 rounded-xl text-sm shadow-lg">
+                                                Message
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                             </div>
-                            <p className="text-base text-card-foreground mt-3">{profileUser.bio || (isOwnProfile && <button onClick={() => setIsEditing(true)} className="text-sm text-text-muted hover:text-foreground underline">Add a bio to your profile</button>)}</p>
-                            <div className="flex items-center justify-center sm:justify-start space-x-6 mt-4 pt-4 border-t border-border">
-                                <div className="text-center">
-                                    <p className="text-xl font-bold">{userPosts.length}</p>
-                                    <p className="text-sm text-text-muted">Posts</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
+                            {/* Bio & Stats */}
+                            <div className="md:col-span-2 space-y-8">
+                                <div>
+                                    <h3 className="font-bold text-lg text-foreground mb-2">About</h3>
+                                    <p className="text-base text-muted-foreground leading-relaxed">
+                                        {profileUser.bio || (
+                                            isOwnProfile 
+                                            ? <button onClick={() => setIsEditing(true)} className="text-primary hover:underline italic">Add a bio to introduce yourself...</button> 
+                                            : <span className="italic opacity-70">No bio available.</span>
+                                        )}
+                                    </p>
                                 </div>
-                                <div className="text-center">
-                                    <p className="text-xl font-bold">{userGroups.length}</p>
-                                    <p className="text-sm text-text-muted">Groups</p>
+                                
+                                <div className="flex justify-between sm:justify-start sm:space-x-16 py-6 border-y border-border bg-muted/10 -mx-6 px-6 sm:mx-0 sm:px-0 sm:bg-transparent sm:border-0">
+                                    <div className="text-center sm:text-left">
+                                        <p className="text-2xl font-black text-foreground">{userPosts.length}</p>
+                                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Posts</p>
+                                    </div>
+                                    <div className="text-center sm:text-left">
+                                        <p className="text-2xl font-black text-foreground">{userGroups.length}</p>
+                                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Groups</p>
+                                    </div>
+                                    <div className="text-center sm:text-left">
+                                        <p className="text-2xl font-black text-foreground">{profileUser.achievements?.length || 0}</p>
+                                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Awards</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Sidebar Info */}
+                            <div className="space-y-8">
+                                 {/* Interests */}
+                                <div>
+                                    <h3 className="font-bold text-sm text-muted-foreground uppercase tracking-wider mb-3">Interests</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {profileUser.interests?.map(interest => (
+                                            <span key={interest} className="bg-secondary/10 text-secondary px-3 py-1.5 rounded-full text-xs font-bold border border-secondary/20">{interest}</span>
+                                        ))}
+                                        {isOwnProfile && (
+                                            <form onSubmit={handleAddInterestSubmit} className="flex items-center">
+                                                <input 
+                                                    type="text" 
+                                                    value={newInterest} 
+                                                    onChange={e => setNewInterest(e.target.value)} 
+                                                    placeholder="+ Add" 
+                                                    className="bg-muted border-transparent rounded-full px-3 py-1.5 text-xs w-20 focus:w-32 transition-all focus:outline-none focus:ring-2 focus:ring-primary"
+                                                />
+                                            </form>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Achievements */}
+                                <div>
+                                    <div className="flex justify-between items-center mb-3">
+                                        <h3 className="font-bold text-sm text-muted-foreground uppercase tracking-wider">Achievements</h3>
+                                        {isOwnProfile && <button onClick={() => setIsAddingAchievement(true)} className="text-primary hover:bg-primary/10 p-1 rounded transition-colors"><PlusIcon className="w-4 h-4"/></button>}
+                                    </div>
+                                    <div className="space-y-3">
+                                        {profileUser.achievements?.map((ach, index) => <AchievementCard key={index} achievement={ach}/>)}
+                                        {(!profileUser.achievements || profileUser.achievements.length === 0) && <p className="text-xs text-muted-foreground italic">No achievements yet.</p>}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Main Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
-                    {/* Left Sidebar */}
-                    <aside className="lg:col-span-1 space-y-6">
-                        <div className="bg-card rounded-lg shadow-sm p-6 border border-border">
-                            <h3 className="font-bold text-lg text-foreground mb-3">Interests</h3>
-                            <div className="flex flex-wrap gap-2">
-                                {profileUser.interests?.map(interest => (
-                                    <span key={interest} className="bg-primary/10 text-primary text-sm font-medium px-3 py-1 rounded-full">{interest}</span>
-                                ))}
-                                {isOwnProfile && (
-                                    <form onSubmit={handleAddInterestSubmit} className="flex gap-2 items-center">
-                                        <input type="text" value={newInterest} onChange={e => setNewInterest(e.target.value)} placeholder="Add interest" className="bg-input border border-border rounded-full px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary w-32"/>
-                                        <button type="submit" className="bg-primary text-primary-foreground rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0 hover:bg-primary/90">+</button>
-                                    </form>
-                                )}
-                            </div>
-                        </div>
-                         <div className="bg-card rounded-lg shadow-sm p-6 border border-border">
-                            <div className="flex justify-between items-center mb-3">
-                                <h3 className="font-bold text-lg text-foreground">Achievements</h3>
-                                {isOwnProfile && <button onClick={() => setIsAddingAchievement(true)} className="bg-primary/10 text-primary text-sm font-semibold px-3 py-1 rounded-full hover:bg-primary/20">Add New</button>}
-                            </div>
-                            <div className="space-y-3">
-                                {profileUser.achievements?.map((ach, index) => <AchievementCard key={index} achievement={ach}/>)}
-                                {(!profileUser.achievements || profileUser.achievements.length === 0) && <p className="text-text-muted text-sm">No achievements listed yet.</p>}
-                            </div>
-                        </div>
-                    </aside>
-
-                    {/* Right Content */}
-                    <div className="lg:col-span-2">
-                        <div className="border-b border-border mb-6">
-                            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                                <button onClick={() => setActiveTab('posts')} className={`flex items-center space-x-2 transition-colors duration-200 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'posts' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'}`}>
-                                    <PostIcon className="w-5 h-5"/><span>Posts</span>
+                {/* Content Tabs */}
+                <div className="mt-8 px-4 sm:px-0">
+                    <div className="border-b border-border mb-6 sticky top-16 bg-background/95 backdrop-blur-sm z-10">
+                        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                            <button onClick={() => setActiveTab('posts')} className={`flex items-center space-x-2 transition-all duration-200 whitespace-nowrap py-4 px-1 border-b-2 font-bold text-sm ${activeTab === 'posts' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'}`}>
+                                <PostIcon className="w-5 h-5"/><span>Posts</span>
+                            </button>
+                            <button onClick={() => setActiveTab('groups')} className={`flex items-center space-x-2 transition-all duration-200 whitespace-nowrap py-4 px-1 border-b-2 font-bold text-sm ${activeTab === 'groups' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'}`}>
+                                <UsersIcon className="w-5 h-5"/><span>Groups</span>
+                            </button>
+                            {isOwnProfile && (
+                                <button onClick={() => setActiveTab('saved')} className={`flex items-center space-x-2 transition-all duration-200 whitespace-nowrap py-4 px-1 border-b-2 font-bold text-sm ${activeTab === 'saved' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'}`}>
+                                    <BookmarkIcon className="w-5 h-5"/><span>Saved</span>
                                 </button>
-                                <button onClick={() => setActiveTab('groups')} className={`flex items-center space-x-2 transition-colors duration-200 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'groups' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'}`}>
-                                    <UsersIcon className="w-5 h-5"/><span>Groups</span>
-                                </button>
-                                {isOwnProfile && (
-                                    <button onClick={() => setActiveTab('saved')} className={`flex items-center space-x-2 transition-colors duration-200 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'saved' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-foreground hover:border-border'}`}>
-                                        <BookmarkIcon className="w-5 h-5"/><span>Saved</span>
-                                    </button>
-                                )}
-                            </nav>
-                        </div>
+                            )}
+                        </nav>
+                    </div>
+                    <div className="animate-fade-in">
                         {renderTabContent()}
                     </div>
                 </div>
