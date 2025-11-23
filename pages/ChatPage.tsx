@@ -135,7 +135,7 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
             </div>
 
             {/* Main Content Area */}
-            <main className="flex-1 relative w-full max-w-7xl mx-auto md:px-4 md:py-4 h-full overflow-hidden md:flex md:flex-row-reverse md:gap-4">
+            <main className="flex-1 relative w-full max-w-7xl mx-auto md:px-4 md:pt-4 md:pb-28 lg:pb-4 h-full overflow-hidden md:flex md:flex-row-reverse md:gap-4">
                 
                 {/* LEFT SIDEBAR (Chat List) - Now Visually on Right via flex-row-reverse */}
                 <div 
