@@ -133,18 +133,18 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                 <Header currentUser={currentUser} onLogout={handleLogout} onNavigate={onNavigate} currentPath={currentPath} />
             </div>
 
-            <main className="flex-1 flex relative overflow-hidden h-full">
+            <main className="flex-1 flex relative overflow-hidden h-full max-w-7xl mx-auto w-full md:px-4 md:py-4 gap-4">
                 {/* Sidebar (Chat List) */}
                 <div 
                     className={`
-                        absolute inset-0 z-20 w-full h-full bg-card border-r border-border flex flex-col transition-transform duration-300 ease-out
-                        md:relative md:w-80 lg:w-96 md:translate-x-0 md:z-auto
+                        absolute inset-0 z-20 w-full h-full bg-card md:rounded-2xl md:border border-border flex flex-col transition-transform duration-300 ease-out
+                        md:relative md:w-96 md:translate-x-0 md:z-auto md:shadow-sm
                         ${selectedConversationId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}
                     `}
                 >
                     
                     {/* Sidebar Header - Static */}
-                    <div className="px-4 py-3 flex items-center justify-between shrink-0 bg-card border-b border-border flex-none h-16">
+                    <div className="px-4 py-3 flex items-center justify-between shrink-0 bg-card border-b border-border flex-none h-16 md:rounded-t-2xl">
                         <h1 className="text-xl font-black text-foreground tracking-tight">Messages</h1>
                         <div className="flex gap-2">
                             <button 
@@ -302,7 +302,7 @@ const ChatPage: React.FC<ChatPageProps> = (props) => {
                 <div 
                     className={`
                         absolute inset-0 z-30 w-full h-full bg-background flex flex-col transition-transform duration-300 ease-in-out
-                        md:relative md:flex-1 md:translate-x-0 md:z-auto md:bg-muted/10
+                        md:relative md:flex-1 md:translate-x-0 md:z-auto md:bg-muted/10 md:rounded-2xl md:overflow-hidden md:border border-border
                         ${selectedConversationId ? 'translate-x-0' : 'translate-x-full'}
                     `}
                 >
