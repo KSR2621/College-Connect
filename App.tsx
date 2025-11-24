@@ -747,7 +747,7 @@ const App: React.FC = () => {
         {currentPath === '#/login' && <LoginPage onNavigate={setCurrentPath} />}
         {currentPath === '#/signup' && <SignupPage onNavigate={setCurrentPath} />}
         {currentPath === '#/home' && currentUser && <HomePage currentUser={currentUser} users={users} posts={posts} stories={stories} groups={groups} events={posts.filter(p=>p.isEvent)} notices={notices} onNavigate={setCurrentPath} onAddPost={handleAddPost} onAddStory={handleAddStory} onMarkStoryAsViewed={handleMarkStoryAsViewed} onDeleteStory={handleDeleteStory} onReplyToStory={handleReplyToStory} currentPath={currentPath} {...postCardProps} />}
-        {currentPath.startsWith('#/profile/') && currentUser && <ProfilePage profileUserId={currentPath.split('/')[2]} currentUser={currentUser} users={users} posts={posts} groups={groups} colleges={colleges} onNavigate={setCurrentPath} currentPath={currentPath} onAddPost={handleAddPost} onAddAchievement={handleAddAchievement} onAddInterest={handleAddInterest} onUpdateProfile={handleUpdateProfile} {...postCardProps} />}
+        {currentPath.startsWith('#/profile/') && currentUser && <ProfilePage profileUserId={currentPath.split('/')[2]} currentUser={currentUser} users={users} posts={posts} groups={groups} colleges={colleges} courses={courses} onNavigate={setCurrentPath} currentPath={currentPath} onAddPost={handleAddPost} onAddAchievement={handleAddAchievement} onAddInterest={handleAddInterest} onUpdateProfile={handleUpdateProfile} {...postCardProps} />}
         
         {currentPath === '#/groups' && currentUser && (
             <GroupsPage 
