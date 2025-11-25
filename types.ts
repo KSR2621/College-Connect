@@ -27,6 +27,8 @@ export type User = {
   badges?: SkillBadge[]; // Added for Gamification
   achievements?: Achievement[];
   yearOfStudy?: number;
+  rollNo?: string; // Added for Student ID/Roll Number
+  division?: string; // Added for Class Division
   followingGroups?: string[];
   savedPosts?: string[];
   // FIX: Added personalNotes property to User type to resolve error in PersonalNotesPage.

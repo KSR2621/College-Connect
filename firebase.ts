@@ -7,7 +7,7 @@ declare const firebase: any;
 // The API key is loaded from an environment variable for security.
 // Assume that process.env.API_KEY is set in the build environment.
 const firebaseConfig = {
-     apiKey: "AIzaSyAx-inII44CzYbx1v39cwd4hcDCpjnPQYs",
+  apiKey: "AIzaSyAx-inII44CzYbx1v39cwd4hcDCpjnPQYs",
   authDomain: "open-gemini-7029y.firebaseapp.com",
   projectId: "open-gemini-7029y",
   storageBucket: "open-gemini-7029y.firebasestorage.app",
@@ -24,7 +24,16 @@ if (!firebase.apps.length) {
 // Initialize services
 const db = firebase.firestore();
 
+// FIX: Enforce long polling with merge: true.
+// This is critical for fixing "Could not reach Cloud Firestore backend" errors
+// which occur when WebSockets are blocked by firewalls or proxies.
+db.settings({ 
+    experimentalForceLongPolling: true,
+    merge: true 
+});
+
 // Enable offline persistence
+// We catch errors here because persistence might fail in private browsing modes or if multiple tabs are open.
 db.enablePersistence({ synchronizeTabs: true })
   .catch((err: any) => {
       if (err.code == 'failed-precondition') {

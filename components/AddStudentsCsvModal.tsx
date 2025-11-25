@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { User } from '../types';
 import { UploadIcon, CloseIcon, UsersIcon, CheckCircleIcon, XCircleIcon } from './Icons';
@@ -9,7 +10,7 @@ interface AddStudentsCsvModalProps {
     onCreateUsersBatch: (usersData: Omit<User, 'id'>[]) => Promise<{ successCount: number; errors: { email: string; reason: string }[] }>;
 }
 
-type ParsedStudent = { name: string; email: string; year: number; error?: string; };
+type ParsedStudent = { name: string; email: string; year: number; rollNo?: string; division?: string; error?: string; };
 type Step = 'upload' | 'preview' | 'result';
 
 const AddStudentsCsvModal: React.FC<AddStudentsCsvModalProps> = ({ isOpen, onClose, department, onCreateUsersBatch }) => {
@@ -57,12 +58,16 @@ const AddStudentsCsvModal: React.FC<AddStudentsCsvModalProps> = ({ isOpen, onClo
             }
             const headerLine = lines.shift()!.trim();
             const header = headerLine.toLowerCase().split(',').map(h => h.trim());
+            
+            // Looser check for 'Roll. no'
+            const rollIndex = header.findIndex(h => h.includes('roll') || h.includes('id'));
             const nameIndex = header.indexOf('name');
             const emailIndex = header.indexOf('email');
             const yearIndex = header.indexOf('year');
+            const divIndex = header.findIndex(h => h === 'div' || h === 'division');
 
             if (nameIndex === -1 || emailIndex === -1 || yearIndex === -1) {
-                alert("CSV header must contain 'name', 'email', and 'year' columns. Please check your file and the template.");
+                alert("CSV header must contain 'Name', 'Email', and 'Year' columns. 'Roll. no' and 'Div' are optional but recommended.");
                 return;
             }
 
@@ -71,6 +76,9 @@ const AddStudentsCsvModal: React.FC<AddStudentsCsvModalProps> = ({ isOpen, onClo
                 const name = values[nameIndex]?.trim() || '';
                 const email = values[emailIndex]?.trim() || '';
                 const yearStr = values[yearIndex]?.trim() || '';
+                const rollNo = rollIndex !== -1 ? values[rollIndex]?.trim() : undefined;
+                const division = divIndex !== -1 ? values[divIndex]?.trim() : undefined;
+                
                 const year = parseInt(yearStr, 10);
                 let error;
 
@@ -78,7 +86,7 @@ const AddStudentsCsvModal: React.FC<AddStudentsCsvModalProps> = ({ isOpen, onClo
                 else if (!validateEmail(email)) error = "Invalid email format.";
                 else if (isNaN(year) || year < 1 || year > 5) error = "Year must be a number from 1 to 5.";
 
-                return { name, email, year, error };
+                return { name, email, year, rollNo, division, error };
             });
 
             setParsedData(data);
@@ -101,6 +109,8 @@ const AddStudentsCsvModal: React.FC<AddStudentsCsvModalProps> = ({ isOpen, onClo
             department,
             tag: 'Student' as 'Student',
             yearOfStudy: u.year,
+            rollNo: u.rollNo,
+            division: u.division
         }));
         
         const res = await onCreateUsersBatch(usersData);
@@ -110,7 +120,7 @@ const AddStudentsCsvModal: React.FC<AddStudentsCsvModalProps> = ({ isOpen, onClo
     };
 
     const CsvTemplateLink = () => {
-        const csvContent = "name,email,year\nJane Doe,jane.doe@example.com,1\nJohn Smith,john.smith@example.com,2";
+        const csvContent = "Roll. no,Name,Email,Year,Div\n101,Jane Doe,jane.doe@example.com,1,A\n102,John Smith,john.smith@example.com,2,B";
         const blob = new Blob([csvContent], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
         return <a href={url} download="student_template.csv" className="text-sm text-primary hover:underline">Download template.csv</a>;
@@ -130,7 +140,7 @@ const AddStudentsCsvModal: React.FC<AddStudentsCsvModalProps> = ({ isOpen, onClo
                         </label>
                         <input id="csv-upload-student" type="file" accept=".csv" className="hidden" onChange={handleFileChange}/>
                         <div className="mt-4 text-sm text-text-muted">
-                            <p>File must have 'name', 'email', and 'year' columns.</p>
+                            <p>Expected columns: Roll. no, Name, Email, Year, Div</p>
                             <CsvTemplateLink />
                         </div>
                     </div>
@@ -144,18 +154,22 @@ const AddStudentsCsvModal: React.FC<AddStudentsCsvModalProps> = ({ isOpen, onClo
                             <table className="w-full text-sm">
                                 <thead className="sticky top-0 bg-slate-100 dark:bg-slate-700">
                                     <tr>
+                                        <th className="p-2 text-left font-semibold">Roll No</th>
                                         <th className="p-2 text-left font-semibold">Name</th>
                                         <th className="p-2 text-left font-semibold">Email</th>
                                         <th className="p-2 text-left font-semibold">Year</th>
+                                        <th className="p-2 text-left font-semibold">Div</th>
                                         <th className="p-2 text-left font-semibold">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {parsedData.map((row, index) => (
                                         <tr key={index} className="border-t border-border">
+                                            <td className="p-2">{row.rollNo || '-'}</td>
                                             <td className="p-2">{row.name}</td>
                                             <td className="p-2">{row.email}</td>
                                             <td className="p-2">{row.year || 'N/A'}</td>
+                                            <td className="p-2">{row.division || '-'}</td>
                                             <td className="p-2">
                                                 {row.error ? 
                                                     <span className="text-xs font-semibold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">{row.error}</span> : 
@@ -208,7 +222,7 @@ const AddStudentsCsvModal: React.FC<AddStudentsCsvModalProps> = ({ isOpen, onClo
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={handleClose}>
-            <div className="bg-card dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <div className="bg-card dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                 <div className="p-4 border-b border-border flex justify-between items-center">
                     <h2 className="text-xl font-bold text-foreground">{getModalTitle()}</h2>
                     <button onClick={handleClose} className="p-1 rounded-full hover:bg-muted dark:hover:bg-slate-700"><CloseIcon className="w-5 h-5"/></button>
