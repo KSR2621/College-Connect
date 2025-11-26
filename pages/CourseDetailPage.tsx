@@ -9,11 +9,11 @@ import {
     BookOpenIcon, UsersIcon, CalendarIcon, MessageIcon, SettingsIcon, 
     CheckSquareIcon, ClipboardListIcon, FileTextIcon, PlusIcon, 
     SearchIcon, ArrowLeftIcon, SendIcon, TrashIcon, CheckCircleIcon, 
-    ClockIcon, ChevronRightIcon, DownloadIcon, UploadIcon
+    ClockIcon, ChevronRightIcon, DownloadIcon, UploadIcon, AlertTriangleIcon, CloseIcon, LinkIcon
 } from '../components/Icons';
 import { auth, storage } from '../firebase';
 
-// 50MB Limit
+// 50MB Limit to be safe on free tier
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 interface CourseDetailPageProps {
@@ -43,75 +43,90 @@ const AddAssignmentModal = ({ isOpen, onClose, onAdd }: { isOpen: boolean, onClo
     const [date, setDate] = useState('');
     const [link, setLink] = useState('');
     const [file, setFile] = useState<File | null>(null);
-    const [status, setStatus] = useState<'idle' | 'uploading' | 'saving' | 'success'>('idle');
+    const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
-    const [inputType, setInputType] = useState<'file' | 'link'>('file');
-    const uploadTaskRef = useRef<any>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            setTitle('');
+            setDate('');
+            setLink('');
+            setFile(null);
+            setIsUploading(false);
+            setUploadProgress(0);
+            setErrorMessage(null);
+        }
+    }, [isOpen]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const selectedFile = e.target.files[0];
             if (selectedFile.size > MAX_FILE_SIZE) {
-                alert("File size exceeds 50MB limit. Please choose a smaller file.");
+                setErrorMessage("File is too large (Max 50MB)");
                 return;
             }
             setFile(selectedFile);
+            setLink(''); // Clear link if file selected
+            setErrorMessage(null);
         }
     };
 
-    const handleClose = () => {
-        if (status === 'uploading' && uploadTaskRef.current) {
-            uploadTaskRef.current.cancel();
-        }
-        onClose();
+    const handleLinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setLink(e.target.value);
+        if (e.target.value) setFile(null); // Clear file if link typed
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title || !date) return;
+        if (!file && !link) {
+            setErrorMessage("Please upload a PDF or enter a link.");
+            return;
+        }
 
-        if (inputType === 'file' && file) {
-            setStatus('uploading');
-            setUploadProgress(0);
-            
-            const storageRef = storage.ref();
-            const fileRef = storageRef.child(`assignments/${Date.now()}_${file.name}`);
-            const uploadTask = fileRef.put(file);
-            uploadTaskRef.current = uploadTask;
+        setIsUploading(true);
+        setErrorMessage(null);
 
-            uploadTask.on('state_changed', 
-                (snapshot: any) => {
-                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                    setUploadProgress(progress);
-                }, 
-                (error: any) => {
-                    console.error("Upload failed", error);
-                    alert("Failed to upload file. Please try again.");
-                    setStatus('idle');
-                }, 
-                async () => {
-                    setStatus('saving');
-                    const url = await uploadTask.snapshot.ref.getDownloadURL();
-                    onAdd({
-                        title,
-                        dueDate: new Date(date).getTime(),
-                        fileUrl: url,
-                        fileName: file.name
-                    });
-                    setStatus('success');
-                    onClose();
-                }
-            );
-        } else {
-            setStatus('saving');
+        try {
+            let finalUrl = link;
+            let finalFileName = link ? 'External Link' : '';
+
+            if (file) {
+                const storageRef = storage.ref();
+                const fileRef = storageRef.child(`assignments/${Date.now()}_${file.name}`);
+                const metadata = { contentType: file.type };
+                
+                const uploadTask = fileRef.put(file, metadata);
+
+                await new Promise<void>((resolve, reject) => {
+                    uploadTask.on('state_changed', 
+                        (snapshot: any) => {
+                            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                            setUploadProgress(progress);
+                        }, 
+                        (error: any) => reject(error), 
+                        () => resolve()
+                    );
+                });
+
+                finalUrl = await fileRef.getDownloadURL();
+                finalFileName = file.name;
+            }
+
             onAdd({
                 title,
                 dueDate: new Date(date).getTime(),
-                fileUrl: link,
-                fileName: link ? 'External Link' : ''
+                fileUrl: finalUrl,
+                fileName: finalFileName
             });
-            setStatus('success');
             onClose();
+        } catch (error: any) {
+            console.error("Upload failed", error);
+            setErrorMessage("Upload failed. Please try again.");
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -119,53 +134,106 @@ const AddAssignmentModal = ({ isOpen, onClose, onAdd }: { isOpen: boolean, onClo
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4 backdrop-blur-sm">
-            <div className="bg-card rounded-xl shadow-xl w-full max-w-md p-6 border border-border">
-                <h2 className="text-xl font-bold mb-4 text-foreground">Add Assignment</h2>
+            <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md p-6 border border-border animate-scale-in">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-foreground">New Assignment</h2>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-muted text-muted-foreground"><CloseIcon className="w-5 h-5"/></button>
+                </div>
+                
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="text-xs font-bold uppercase text-muted-foreground mb-1 block">Title</label>
-                        <input className="w-full p-2 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none text-foreground" placeholder="e.g., Unit 1 Homework" value={title} onChange={e => setTitle(e.target.value)} required disabled={status !== 'idle'} />
+                        <input className="w-full p-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground text-sm font-medium" placeholder="e.g., Lab Report 1" value={title} onChange={e => setTitle(e.target.value)} required disabled={isUploading} />
                     </div>
                     <div>
                         <label className="text-xs font-bold uppercase text-muted-foreground mb-1 block">Due Date</label>
-                        <input className="w-full p-2 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none text-foreground" type="date" value={date} onChange={e => setDate(e.target.value)} required disabled={status !== 'idle'} />
+                        <input className="w-full p-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground text-sm font-medium" type="date" value={date} onChange={e => setDate(e.target.value)} required disabled={isUploading} />
                     </div>
                     
-                    <div>
-                        <label className="text-xs font-bold uppercase text-muted-foreground mb-1 block">Attachment Type</label>
-                        <div className="flex gap-4 mb-2">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input type="radio" checked={inputType === 'file'} onChange={() => setInputType('file')} className="text-primary focus:ring-primary" disabled={status !== 'idle'}/>
-                                <span className="text-sm text-foreground">File Upload</span>
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input type="radio" checked={inputType === 'link'} onChange={() => setInputType('link')} className="text-primary focus:ring-primary" disabled={status !== 'idle'}/>
-                                <span className="text-sm text-foreground">Link</span>
-                            </label>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-muted-foreground block">Attachment (PDF Recommended)</label>
+                        
+                        {/* Smart File Input */}
+                        <div 
+                            className={`relative border-2 border-dashed rounded-xl p-6 transition-all duration-200 text-center cursor-pointer hover:bg-muted/50 group ${file ? 'border-primary bg-primary/5' : 'border-border'}`}
+                            onClick={() => !isUploading && fileInputRef.current?.click()}
+                        >
+                            <input 
+                                ref={fileInputRef}
+                                type="file" 
+                                onChange={handleFileChange} 
+                                className="hidden" 
+                                accept=".pdf,.doc,.docx,image/*" 
+                                disabled={isUploading} 
+                            />
+                            {file ? (
+                                <div className="flex items-center justify-center gap-3 animate-fade-in">
+                                    <div className="p-2 bg-background rounded-lg text-primary shadow-sm"><FileTextIcon className="w-6 h-6"/></div>
+                                    <div className="text-left min-w-0">
+                                        <p className="text-sm font-bold text-foreground truncate max-w-[180px]">{file.name}</p>
+                                        <p className="text-[10px] text-muted-foreground">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                                    </div>
+                                    <button 
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setFile(null); }}
+                                        className="ml-2 p-1 hover:bg-destructive/10 text-destructive rounded-full"
+                                    >
+                                        <CloseIcon className="w-4 h-4"/>
+                                    </button>
+                                </div>
+                            ) : (
+                                <>
+                                    <UploadIcon className="w-8 h-8 text-muted-foreground group-hover:text-primary mx-auto mb-2 transition-colors"/>
+                                    <p className="text-sm font-bold text-foreground">Tap to upload File</p>
+                                </>
+                            )}
                         </div>
 
-                        {inputType === 'file' ? (
-                            <div className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:bg-muted/30 transition-colors relative">
-                                <input type="file" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,image/*" disabled={status !== 'idle'} />
-                                <UploadIcon className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                                <p className="text-sm text-muted-foreground font-medium">{file ? file.name : "Click to upload PDF or File (Max 50MB)"}</p>
-                                {status === 'uploading' && (
-                                    <div className="mt-3 w-full bg-muted rounded-full h-2.5 overflow-hidden">
-                                        <div className="bg-primary h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
-                                    </div>
-                                )}
+                        {/* Link Input Fallback */}
+                        {!file && (
+                            <div className="relative animate-fade-in">
+                                <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                                    <div className="w-full border-t border-border"></div>
+                                </div>
+                                <div className="relative flex justify-center">
+                                    <span className="px-2 bg-card text-xs text-muted-foreground">OR</span>
+                                </div>
                             </div>
-                        ) : (
-                            <input className="w-full p-2 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none text-foreground" placeholder="https://..." value={link} onChange={e => setLink(e.target.value)} disabled={status !== 'idle'} />
+                        )}
+
+                        {!file && (
+                            <div className="relative">
+                                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/>
+                                <input 
+                                    className="w-full pl-10 pr-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground text-sm transition-all placeholder:text-muted-foreground/70" 
+                                    placeholder="Paste a link instead..." 
+                                    value={link} 
+                                    onChange={handleLinkChange} 
+                                    disabled={isUploading}
+                                />
+                            </div>
                         )}
                     </div>
 
-                    <div className="flex justify-end gap-2 pt-2">
-                        <button type="button" onClick={handleClose} className="px-4 py-2 text-sm font-bold text-muted-foreground hover:bg-muted rounded-lg transition-colors">Cancel</button>
-                        <button type="submit" disabled={status !== 'idle' || !title || !date} className="px-4 py-2 text-sm font-bold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-wait">
-                            {status === 'uploading' ? `Uploading ${Math.round(uploadProgress)}%` : status === 'saving' ? 'Finalizing...' : 'Add Assignment'}
-                        </button>
-                    </div>
+                    {errorMessage && (
+                        <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm font-semibold flex items-center gap-2 animate-fade-in">
+                            <AlertTriangleIcon className="w-4 h-4" />
+                            {errorMessage}
+                        </div>
+                    )}
+
+                    <button 
+                        type="submit" 
+                        disabled={isUploading || !title || !date || (!file && !link)} 
+                        className="w-full py-3.5 mt-2 text-sm font-bold bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 relative overflow-hidden"
+                    >
+                        {isUploading ? (
+                            <>
+                                <span className="z-10 relative">Uploading {Math.round(uploadProgress)}%</span>
+                                <div className="absolute inset-0 bg-black/10 z-0" style={{ width: `${uploadProgress}%`, transition: 'width 0.2s ease' }}></div>
+                            </>
+                        ) : 'Add Assignment'}
+                    </button>
                 </form>
             </div>
         </div>
@@ -176,73 +244,87 @@ const AddMaterialModal = ({ isOpen, onClose, onAdd }: { isOpen: boolean, onClose
     const [title, setTitle] = useState('');
     const [link, setLink] = useState('');
     const [file, setFile] = useState<File | null>(null);
-    const [status, setStatus] = useState<'idle' | 'uploading' | 'saving' | 'success'>('idle');
+    const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
-    const [inputType, setInputType] = useState<'file' | 'link'>('file');
-    const uploadTaskRef = useRef<any>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            setTitle('');
+            setLink('');
+            setFile(null);
+            setIsUploading(false);
+            setUploadProgress(0);
+            setErrorMessage(null);
+        }
+    }, [isOpen]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const selectedFile = e.target.files[0];
             if (selectedFile.size > MAX_FILE_SIZE) {
-                alert("File size exceeds 50MB limit.");
+                setErrorMessage("File is too large (Max 50MB)");
                 return;
             }
             setFile(selectedFile);
+            setLink('');
+            setErrorMessage(null);
         }
     };
 
-    const handleClose = () => {
-        if (status === 'uploading' && uploadTaskRef.current) {
-            uploadTaskRef.current.cancel();
-        }
-        onClose();
+    const handleLinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setLink(e.target.value);
+        if (e.target.value) setFile(null);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title) return;
+        if (!file && !link) {
+            setErrorMessage("Please provide a file or link.");
+            return;
+        }
 
-        if (inputType === 'file' && file) {
-            setStatus('uploading');
-            setUploadProgress(0);
-            
-            const storageRef = storage.ref();
-            const fileRef = storageRef.child(`materials/${Date.now()}_${file.name}`);
-            const uploadTask = fileRef.put(file);
-            uploadTaskRef.current = uploadTask;
+        setIsUploading(true);
+        setErrorMessage(null);
 
-            uploadTask.on('state_changed', 
-                (snapshot: any) => {
-                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                    setUploadProgress(progress);
-                }, 
-                (error: any) => {
-                    console.error("Upload failed", error);
-                    alert("Failed to upload file.");
-                    setStatus('idle');
-                }, 
-                async () => {
-                    setStatus('saving');
-                    const url = await uploadTask.snapshot.ref.getDownloadURL();
-                    onAdd({
-                        title,
-                        fileUrl: url,
-                        fileName: file.name
-                    });
-                    setStatus('success');
-                    onClose();
-                }
-            );
-        } else if (link) {
-            setStatus('saving');
+        try {
+            let finalUrl = link;
+            let finalFileName = link ? 'External Link' : '';
+
+            if (file) {
+                const storageRef = storage.ref();
+                const fileRef = storageRef.child(`materials/${Date.now()}_${file.name}`);
+                const metadata = { contentType: file.type };
+                const uploadTask = fileRef.put(file, metadata);
+
+                await new Promise<void>((resolve, reject) => {
+                    uploadTask.on('state_changed', 
+                        (snapshot: any) => {
+                            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                            setUploadProgress(progress);
+                        }, 
+                        (error: any) => reject(error), 
+                        () => resolve()
+                    );
+                });
+
+                finalUrl = await fileRef.getDownloadURL();
+                finalFileName = file.name;
+            }
+
             onAdd({
                 title,
-                fileUrl: link,
-                fileName: 'External Link'
+                fileUrl: finalUrl,
+                fileName: finalFileName
             });
-            setStatus('success');
             onClose();
+        } catch (error: any) {
+            console.error("Upload error:", error);
+            setErrorMessage("Upload failed. Please check your connection.");
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -250,49 +332,101 @@ const AddMaterialModal = ({ isOpen, onClose, onAdd }: { isOpen: boolean, onClose
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4 backdrop-blur-sm">
-            <div className="bg-card rounded-xl shadow-xl w-full max-w-md p-6 border border-border">
-                <h2 className="text-xl font-bold mb-4 text-foreground">Upload Material</h2>
+            <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md p-6 border border-border animate-scale-in">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-foreground">Upload Material</h2>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-muted text-muted-foreground"><CloseIcon className="w-5 h-5"/></button>
+                </div>
+                
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="text-xs font-bold uppercase text-muted-foreground mb-1 block">Title</label>
-                        <input className="w-full p-2 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none text-foreground" placeholder="e.g., Lecture 1 Notes" value={title} onChange={e => setTitle(e.target.value)} required disabled={status !== 'idle'}/>
+                        <input className="w-full p-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground text-sm font-medium" placeholder="e.g., Lecture 1 Notes" value={title} onChange={e => setTitle(e.target.value)} required disabled={isUploading}/>
                     </div>
 
-                    <div>
-                        <label className="text-xs font-bold uppercase text-muted-foreground mb-1 block">Attachment Type</label>
-                        <div className="flex gap-4 mb-2">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input type="radio" checked={inputType === 'file'} onChange={() => setInputType('file')} className="text-primary focus:ring-primary" disabled={status !== 'idle'}/>
-                                <span className="text-sm text-foreground">File Upload</span>
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input type="radio" checked={inputType === 'link'} onChange={() => setInputType('link')} className="text-primary focus:ring-primary" disabled={status !== 'idle'}/>
-                                <span className="text-sm text-foreground">Link</span>
-                            </label>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-muted-foreground block">Content</label>
+                        
+                        {/* Smart File Input */}
+                        <div 
+                            className={`relative border-2 border-dashed rounded-xl p-6 transition-all duration-200 text-center cursor-pointer hover:bg-muted/50 group ${file ? 'border-primary bg-primary/5' : 'border-border'}`}
+                            onClick={() => !isUploading && fileInputRef.current?.click()}
+                        >
+                            <input 
+                                ref={fileInputRef}
+                                type="file" 
+                                onChange={handleFileChange} 
+                                className="hidden" 
+                                accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,image/*" 
+                                disabled={isUploading} 
+                            />
+                            {file ? (
+                                <div className="flex items-center justify-center gap-3 animate-fade-in">
+                                    <div className="p-2 bg-background rounded-lg text-primary shadow-sm"><FileTextIcon className="w-6 h-6"/></div>
+                                    <div className="text-left min-w-0">
+                                        <p className="text-sm font-bold text-foreground truncate max-w-[180px]">{file.name}</p>
+                                        <p className="text-[10px] text-muted-foreground">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                                    </div>
+                                    <button 
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setFile(null); }}
+                                        className="ml-2 p-1 hover:bg-destructive/10 text-destructive rounded-full"
+                                    >
+                                        <CloseIcon className="w-4 h-4"/>
+                                    </button>
+                                </div>
+                            ) : (
+                                <>
+                                    <UploadIcon className="w-8 h-8 text-muted-foreground group-hover:text-primary mx-auto mb-2 transition-colors"/>
+                                    <p className="text-sm font-bold text-foreground">Tap to upload File</p>
+                                </>
+                            )}
                         </div>
 
-                        {inputType === 'file' ? (
-                            <div className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:bg-muted/30 transition-colors relative">
-                                <input type="file" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,image/*" disabled={status !== 'idle'} />
-                                <UploadIcon className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                                <p className="text-sm text-muted-foreground font-medium">{file ? file.name : "Click to upload PDF or File (Max 50MB)"}</p>
-                                {status === 'uploading' && (
-                                    <div className="mt-3 w-full bg-muted rounded-full h-2.5 overflow-hidden">
-                                        <div className="bg-primary h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
-                                    </div>
-                                )}
+                        {!file && (
+                            <div className="relative animate-fade-in">
+                                <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                                    <div className="w-full border-t border-border"></div>
+                                </div>
+                                <div className="relative flex justify-center">
+                                    <span className="px-2 bg-card text-xs text-muted-foreground">OR</span>
+                                </div>
                             </div>
-                        ) : (
-                            <input className="w-full p-2 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none text-foreground" placeholder="https://..." value={link} onChange={e => setLink(e.target.value)} disabled={status !== 'idle'} />
+                        )}
+
+                        {!file && (
+                            <div className="relative">
+                                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/>
+                                <input 
+                                    className="w-full pl-10 pr-4 py-3 bg-input border border-border rounded-xl focus:ring-2 focus:ring-primary outline-none text-foreground text-sm transition-all placeholder:text-muted-foreground/70" 
+                                    placeholder="Paste a URL..." 
+                                    value={link} 
+                                    onChange={handleLinkChange} 
+                                    disabled={isUploading}
+                                />
+                            </div>
                         )}
                     </div>
 
-                    <div className="flex justify-end gap-2 pt-2">
-                        <button type="button" onClick={handleClose} className="px-4 py-2 text-sm font-bold text-muted-foreground hover:bg-muted rounded-lg transition-colors">Cancel</button>
-                        <button type="submit" disabled={status !== 'idle' || !title} className="px-4 py-2 text-sm font-bold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-wait">
-                            {status === 'uploading' ? `Uploading ${Math.round(uploadProgress)}%` : status === 'saving' ? 'Finalizing...' : 'Upload'}
-                        </button>
-                    </div>
+                    {errorMessage && (
+                        <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm font-semibold flex items-center gap-2 animate-fade-in">
+                            <AlertTriangleIcon className="w-4 h-4" />
+                            {errorMessage}
+                        </div>
+                    )}
+
+                    <button 
+                        type="submit" 
+                        disabled={isUploading || !title || (!file && !link)} 
+                        className="w-full py-3.5 mt-2 text-sm font-bold bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 relative overflow-hidden"
+                    >
+                        {isUploading ? (
+                            <>
+                                <span className="z-10 relative">Uploading {Math.round(uploadProgress)}%</span>
+                                <div className="absolute inset-0 bg-black/10 z-0" style={{ width: `${uploadProgress}%`, transition: 'width 0.2s ease' }}></div>
+                            </>
+                        ) : 'Add Material'}
+                    </button>
                 </form>
             </div>
         </div>

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { auth } from '../firebase';
 import { MailIcon, LockIcon } from '../components/Icons';
 
@@ -11,25 +12,57 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const isMounted = useRef(true);
+
+    useEffect(() => {
+        isMounted.current = true;
+        return () => {
+            isMounted.current = false;
+        };
+    }, []);
+
+    // Safety net: If auth state drops to null while loading (e.g. App.tsx rejected the user due to missing profile), stop loading.
+    useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged(user => {
+            // If no user is present, but we are loading, it means login failed or was reverted by App.tsx
+            if (!user && isLoading && isMounted.current) {
+                setIsLoading(false);
+            }
+        });
+        return () => unsubscribe();
+    }, [isLoading]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isLoading) return;
+        
         setError('');
         setIsLoading(true);
         try {
             await auth.signInWithEmailAndPassword(email, password);
-            onNavigate('#/home');
+            // Success: Do nothing. App.tsx handles navigation.
+            
+            // Safety timeout: If App.tsx doesn't handle it within 15s, reset loading state to let user retry
+            // Increased to 15s to account for new user polling delay in App.tsx
+            setTimeout(() => {
+                if (isMounted.current && isLoading) {
+                    setIsLoading(false);
+                    setError('Login timed out. Please check your connection or try again.');
+                }
+            }, 15000);
+
         } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setIsLoading(false);
+            if (isMounted.current) {
+                setError(err.message);
+                setIsLoading(false);
+            }
         }
     };
 
     return (
         <div className="min-h-screen flex w-full bg-background font-sans">
             {/* Left Side - Branding / Visuals (Hidden on mobile) */}
-            <div className="hidden lg:flex lg:w-1/2 relative bg-primary overflow-hidden items-center justify-center">
+            <div className="hidden lg:flex lg:w-1/2 relative bg-primary overflow-hidden items-center justify-center z-10">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary via-blue-600 to-secondary opacity-90"></div>
                 {/* Abstract Shapes */}
                 <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
@@ -52,25 +85,25 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
             </div>
 
             {/* Right Side - Login Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-900">
-                <div className="w-full max-w-md space-y-8 bg-card p-8 rounded-2xl shadow-xl border border-border/50">
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-background dark:bg-slate-900 relative z-50">
+                <div className="w-full max-w-md space-y-8 bg-card p-8 rounded-2xl shadow-xl border border-border/50 relative z-50">
                     <div className="text-center lg:text-left">
                         <h2 className="text-3xl font-extrabold text-foreground tracking-tight">Sign in</h2>
                         <p className="mt-2 text-sm text-text-muted">
                             Don't have an account?{' '}
-                            <a onClick={() => onNavigate('#/signup')} className="font-medium text-primary hover:text-primary/80 cursor-pointer transition-colors">
+                            <a onClick={() => onNavigate('#/signup')} className="font-medium text-primary hover:text-primary/80 cursor-pointer transition-colors relative z-50">
                                 Sign up for free
                             </a>
                         </p>
                     </div>
 
-                    <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-                        <div className="space-y-5">
+                    <form className="mt-8 space-y-6 relative z-50" onSubmit={handleLogin}>
+                        <div className="space-y-5 relative z-50">
                             <div>
                                 <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1.5">
                                     Email address
                                 </label>
-                                <div className="relative group">
+                                <div className="relative group z-50">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <MailIcon className="h-5 w-5 text-text-muted group-focus-within:text-primary transition-colors" />
                                     </div>
@@ -82,7 +115,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                                         required
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        className="appearance-none block w-full pl-10 pr-3 py-3 border border-border rounded-xl bg-input text-foreground placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 sm:text-sm"
+                                        className="appearance-none block w-full pl-10 pr-3 py-3 border border-border rounded-xl bg-input text-foreground placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 sm:text-sm relative z-50"
                                         placeholder="you@university.edu"
                                     />
                                 </div>
@@ -92,7 +125,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                                 <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1.5">
                                     Password
                                 </label>
-                                <div className="relative group">
+                                <div className="relative group z-50">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <LockIcon className="h-5 w-5 text-text-muted group-focus-within:text-primary transition-colors" />
                                     </div>
@@ -104,7 +137,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                                         required
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        className="appearance-none block w-full pl-10 pr-3 py-3 border border-border rounded-xl bg-input text-foreground placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 sm:text-sm"
+                                        className="appearance-none block w-full pl-10 pr-3 py-3 border border-border rounded-xl bg-input text-foreground placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 sm:text-sm relative z-50"
                                         placeholder="••••••••"
                                     />
                                 </div>
@@ -112,7 +145,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                         </div>
 
                         {error && (
-                            <div className="rounded-xl bg-destructive/10 p-4 animate-fade-in border border-destructive/20">
+                            <div className="rounded-xl bg-destructive/10 p-4 animate-fade-in border border-destructive/20 relative z-50">
                                 <div className="flex">
                                     <div className="flex-shrink-0">
                                         <svg className="h-5 w-5 text-destructive" viewBox="0 0 20 20" fill="currentColor">
@@ -131,11 +164,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                             </div>
                         )}
 
-                        <div className="pt-2">
+                        <div className="pt-2 relative z-50">
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none shadow-lg shadow-primary/30"
+                                className="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200 transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none shadow-lg shadow-primary/30 z-50 cursor-pointer"
                             >
                                 {isLoading ? (
                                     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

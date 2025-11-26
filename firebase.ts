@@ -7,12 +7,14 @@ declare const firebase: any;
 // The API key is loaded from an environment variable for security.
 // Assume that process.env.API_KEY is set in the build environment.
 const firebaseConfig = {
-  apiKey: "AIzaSyAx-inII44CzYbx1v39cwd4hcDCpjnPQYs",
-  authDomain: "open-gemini-7029y.firebaseapp.com",
-  projectId: "open-gemini-7029y",
-  storageBucket: "open-gemini-7029y.firebasestorage.app",
-  messagingSenderId: "867736048644",
-  appId: "1:867736048644:web:bab56f7a3c691b9a8dd151"
+  apiKey: "AIzaSyBxGsCp9EalIKA5Nr5GwCiJGTbTz6hqMoY",
+  authDomain: "campus-connect-a832c.firebaseapp.com",
+  databaseURL: "https://campus-connect-a832c-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "campus-connect-a832c",
+  storageBucket: "campus-connect-a832c.firebasestorage.app",
+  messagingSenderId: "475351085570",
+  appId: "1:475351085570:web:24e751a9a93e7154cf2d1b",
+  measurementId: "G-SWKF6LS1H7"
 };
 
 // Initialize Firebase
@@ -24,16 +26,19 @@ if (!firebase.apps.length) {
 // Initialize services
 const db = firebase.firestore();
 
-// FIX: Enforce long polling with merge: true.
-// This is critical for fixing "Could not reach Cloud Firestore backend" errors
-// which occur when WebSockets are blocked by firewalls or proxies.
-db.settings({ 
-    experimentalForceLongPolling: true,
-    merge: true 
-});
+// Configure Firestore settings
+// Using experimentalForceLongPolling is recommended for environments with restrictive networks (like corporate firewalls or some web containers)
+// We wrap in try-catch because settings can only be called once per instance.
+try {
+    db.settings({ 
+        experimentalForceLongPolling: true,
+        ignoreUndefinedProperties: true
+    });
+} catch (e) {
+    console.debug("Firestore settings already applied.");
+}
 
 // Enable offline persistence
-// We catch errors here because persistence might fail in private browsing modes or if multiple tabs are open.
 db.enablePersistence({ synchronizeTabs: true })
   .catch((err: any) => {
       if (err.code == 'failed-precondition') {

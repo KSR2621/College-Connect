@@ -38,7 +38,7 @@ interface DirectorPageProps {
     onCreateUser: (userData: Omit<User, 'id'>, password?: string) => Promise<void>;
     onDeleteCourse: (courseId: string) => void;
     onUpdateCollegeDepartments: (collegeId: string, departments: string[]) => void;
-    onEditCollegeDepartment: (collegeId: string, oldName: string, newName: string) => void;
+    onEditCollegeDepartment: (collegeId: string, oldName, newName) => void;
     onDeleteCollegeDepartment: (collegeId: string, deptName: string) => void;
     onUpdateCourseFaculty: (courseId: string, newFacultyId: string) => void;
     postCardProps: {
@@ -96,7 +96,6 @@ const CreateStaffModal: React.FC<{
 }> = ({ isOpen, onClose, onCreateUser, departments, roleLabel, roleTag }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
     const [department, setDepartment] = useState(departments[0] || '');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -108,15 +107,15 @@ const CreateStaffModal: React.FC<{
         try {
             await onCreateUser({
                 name,
-                email,
+                email: email.toLowerCase(), // Normalize email
                 department,
                 tag: roleTag,
                 isApproved: true, // Direct creation by Director is auto-approved
-                isRegistered: true
-            }, password);
-            setName(''); setEmail(''); setPassword('');
+                isRegistered: false // Important: They must register themselves
+            });
+            setName(''); setEmail('');
             onClose();
-            alert(`${roleLabel} account created successfully.`);
+            alert(`${roleLabel} invite created. Ask them to Sign Up with this email.`);
         } catch (e: any) {
             alert(`Failed: ${e.message}`);
         } finally {
@@ -128,7 +127,7 @@ const CreateStaffModal: React.FC<{
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center p-4" onClick={onClose}>
             <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md border border-border" onClick={e => e.stopPropagation()}>
                 <div className="p-4 border-b border-border flex justify-between items-center">
-                    <h3 className="text-xl font-bold text-foreground">Add New {roleLabel}</h3>
+                    <h3 className="text-xl font-bold text-foreground">Invite New {roleLabel}</h3>
                     <button onClick={onClose}><CloseIcon className="w-5 h-5 text-muted-foreground"/></button>
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -146,18 +145,20 @@ const CreateStaffModal: React.FC<{
                             {departments.map(d => <option key={d} value={d}>{d}</option>)}
                         </select>
                     </div>
-                    <div>
-                        <label className="text-xs font-bold uppercase text-muted-foreground">Password</label>
-                        <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full mt-1 px-3 py-2 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="Set temporary password"/>
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg text-xs text-blue-700 dark:text-blue-300">
+                        <p><strong>Note:</strong> This will create an invite. The user must go to the "Sign Up" page and register with this email to set their password.</p>
                     </div>
                     <button type="submit" disabled={isLoading} className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50">
-                        {isLoading ? 'Creating...' : 'Create Account'}
+                        {isLoading ? 'Creating Invite...' : 'Create Invite'}
                     </button>
                 </form>
             </div>
         </div>
     );
 };
+
+// ... rest of DirectorPage.tsx (DirectorSetupView, ReportsView, Main Component) remains unchanged,
+// just ensuring CreateStaffModal above replaces the existing one.
 
 // --- Director Setup View (Initial) ---
 
@@ -388,6 +389,7 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
     const { currentUser, allUsers, onNavigate, currentPath, colleges, onUpdateCollegeDepartments, onCreateUser, onApproveHodRequest, onDeclineHodRequest, onApproveTeacherRequest, onDeclineTeacherRequest, onToggleFreezeUser, onDeleteUser, allCourses } = props;
     const [activeSection, setActiveSection] = useState<'dashboard' | 'departments' | 'hods' | 'faculty' | 'students' | 'approvals' | 'reports' | 'settings'>('dashboard');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [approvingId, setApprovingId] = useState<string | null>(null);
     
     // Staff Creation Modal State
     const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
@@ -565,7 +567,7 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
                                     onClick={() => openCreateStaffModal(activeSection === 'hods' ? 'HOD' : 'Faculty')} 
                                     className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-primary/90"
                                 >
-                                    <PlusIcon className="w-4 h-4"/> Add {activeSection === 'hods' ? 'HOD' : 'Faculty'}
+                                    <PlusIcon className="w-4 h-4"/> Invite {activeSection === 'hods' ? 'HOD' : 'Faculty'}
                                 </button>
                             </div>
                             
@@ -658,31 +660,56 @@ const DirectorPage: React.FC<DirectorPageProps> = (props) => {
                         <div className="space-y-6 animate-fade-in">
                             <h2 className="text-2xl font-bold text-foreground">Pending Registrations</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {pendingUsers.map(user => (
-                                    <div key={user.id} className="bg-card p-4 rounded-xl border border-border shadow-sm">
-                                        <div className="flex items-center gap-3 mb-3">
-                                            <Avatar src={user.avatarUrl} name={user.name} size="md"/>
-                                            <div>
-                                                <h4 className="font-bold text-foreground">{user.name}</h4>
-                                                <p className="text-xs text-muted-foreground">{user.tag} • {user.department}</p>
+                                {pendingUsers.map(user => {
+                                    const isProcessing = approvingId === user.id;
+                                    return (
+                                        <div key={user.id} className="bg-card p-4 rounded-xl border border-border shadow-sm">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <Avatar src={user.avatarUrl} name={user.name} size="md"/>
+                                                <div>
+                                                    <h4 className="font-bold text-foreground">{user.name}</h4>
+                                                    <p className="text-xs text-muted-foreground">{user.tag} • {user.department}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2 mt-4">
+                                                <button 
+                                                    onClick={async () => {
+                                                        setApprovingId(user.id);
+                                                        if (user.tag === 'HOD/Dean') {
+                                                            await onApproveHodRequest(user.id);
+                                                        } else {
+                                                            await onApproveTeacherRequest(user.id);
+                                                        }
+                                                        setApprovingId(null);
+                                                    }}
+                                                    disabled={isProcessing}
+                                                    className="flex-1 bg-emerald-500 text-white py-2 rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {isProcessing ? (
+                                                        <span className="animate-spin w-3 h-3 border-2 border-white border-t-transparent rounded-full"></span>
+                                                    ) : (
+                                                        <><CheckCircleIcon className="w-3 h-3"/> Approve</>
+                                                    )}
+                                                </button>
+                                                <button 
+                                                    onClick={async () => {
+                                                        setApprovingId(user.id);
+                                                        if (user.tag === 'HOD/Dean') {
+                                                            await onDeclineHodRequest(user.id);
+                                                        } else {
+                                                            await onDeclineTeacherRequest(user.id);
+                                                        }
+                                                        setApprovingId(null);
+                                                    }}
+                                                    disabled={isProcessing}
+                                                    className="flex-1 bg-red-500 text-white py-2 rounded-lg text-xs font-bold hover:bg-red-600 transition-colors flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    <XCircleIcon className="w-3 h-3"/> Reject
+                                                </button>
                                             </div>
                                         </div>
-                                        <div className="flex gap-2 mt-4">
-                                            <button 
-                                                onClick={() => user.tag === 'HOD/Dean' ? onApproveHodRequest(user.id) : onApproveTeacherRequest(user.id)}
-                                                className="flex-1 bg-emerald-500 text-white py-2 rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors flex items-center justify-center gap-1"
-                                            >
-                                                <CheckCircleIcon className="w-3 h-3"/> Approve
-                                            </button>
-                                            <button 
-                                                onClick={() => user.tag === 'HOD/Dean' ? onDeclineHodRequest(user.id) : onDeclineTeacherRequest(user.id)}
-                                                className="flex-1 bg-red-500 text-white py-2 rounded-lg text-xs font-bold hover:bg-red-600 transition-colors flex items-center justify-center gap-1"
-                                            >
-                                                <XCircleIcon className="w-3 h-3"/> Reject
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                                 {pendingUsers.length === 0 && (
                                     <div className="col-span-full text-center py-12 text-muted-foreground bg-card rounded-xl border border-border">
                                         <CheckCircleIcon className="w-12 h-12 mx-auto mb-2 text-emerald-500 opacity-50"/>

@@ -52,9 +52,13 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
     const [isAddingAchievement, setIsAddingAchievement] = useState(false);
     const [newInterest, setNewInterest] = useState('');
 
-    const profileUser = users[profileUserId || currentUser.id];
+    // Robust User Resolution: If viewing own profile, fallback to currentUser prop if users state isn't ready.
+    const profileUser = (profileUserId && profileUserId !== currentUser.id) 
+        ? users[profileUserId] 
+        : (users[currentUser.id] || currentUser);
+
     const isOwnProfile = !profileUserId || profileUser?.id === currentUser.id;
-    const isFacultyView = currentUser.tag === 'Teacher' || currentUser.tag === 'HOD/Dean' || currentUser.tag === 'Director';
+    const isFacultyView = ['Teacher', 'HOD/Dean', 'Director', 'Super Admin'].includes(currentUser.tag);
 
     // --- Derived Data ---
     const userPosts = useMemo(() => posts.filter(p => p.authorId === profileUser?.id && !p.isConfession && !p.isProject).sort((a, b) => b.timestamp - a.timestamp), [posts, profileUser]);
@@ -93,7 +97,9 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
     const badges = useMemo(() => {
         if (!profileUser) return [];
         const list = [];
-        if (profileUser.tag === 'Director' || profileUser.tag === 'HOD/Dean') list.push({ label: 'Admin', icon: MedalIcon, color: 'text-purple-600 bg-purple-100 border-purple-200' });
+        if (profileUser.tag === 'Director' || profileUser.tag === 'HOD/Dean' || profileUser.tag === 'Super Admin') {
+            list.push({ label: 'Admin', icon: MedalIcon, color: 'text-purple-600 bg-purple-100 border-purple-200' });
+        }
         if (userGroups.length > 3) list.push({ label: 'Club Member', icon: UsersIcon, color: 'text-blue-600 bg-blue-100 border-blue-200' });
         if (academicStats && academicStats.attendance > 90) list.push({ label: 'Perfect Attendance', icon: CheckCircleIcon, color: 'text-emerald-600 bg-emerald-100 border-emerald-200' });
         if ((profileUser.achievements?.length || 0) > 0) list.push({ label: 'High Achiever', icon: TrophyIcon, color: 'text-amber-600 bg-amber-100 border-amber-200' });
@@ -132,7 +138,14 @@ const ProfilePage: React.FC<ProfilePageProps> = (props) => {
     };
     
     if (!profileUser) {
-        return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-foreground">User not found.</p></div>;
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-foreground font-bold text-xl">User not found.</p>
+                    <button onClick={() => onNavigate('#/home')} className="mt-4 text-primary hover:underline">Go Home</button>
+                </div>
+            </div>
+        );
     }
 
     // Component: Quick Stat Card

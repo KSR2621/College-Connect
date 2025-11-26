@@ -7,9 +7,9 @@ import Avatar from '../components/Avatar';
 import { auth } from '../firebase';
 import { 
     BookOpenIcon, CloseIcon, PlusIcon, ArrowRightIcon, SearchIcon, MegaphoneIcon, 
-    TrashIcon, MessageIcon, UsersIcon, CheckSquareIcon, StarIcon, UserPlusIcon, 
-    ClockIcon, UploadIcon, ClipboardListIcon, CalendarIcon, FileTextIcon, 
-    ChartBarIcon, SettingsIcon, MenuIcon, CheckCircleIcon, XCircleIcon, AwardIcon
+    TrashIcon, MessageIcon, UsersIcon, CheckSquareIcon, ClipboardListIcon, FileTextIcon, 
+    ChartBarIcon, SettingsIcon, MenuIcon, CheckCircleIcon, XCircleIcon, AwardIcon,
+    UserPlusIcon, ClockIcon
 } from '../components/Icons';
 import { yearOptions } from '../constants';
 
@@ -127,109 +127,7 @@ const CreateNoticeModal = ({ onClose, onCreateNotice, departmentOptions, availab
     );
 };
 
-const CreateStudentAccountModal = ({ isOpen, onClose, department, onCreateUser }: any) => {
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    
-    if (!isOpen) return null;
-    
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        await onCreateUser({ name, email, department, tag: 'Student', isApproved: true, isRegistered: false });
-        onClose();
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-card p-6 rounded-xl shadow-xl w-full max-w-md">
-                <h2 className="text-xl font-bold mb-4">Add Student</h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <input className="w-full p-2 border rounded bg-input text-foreground" placeholder="Name" value={name} onChange={e => setName(e.target.value)} required />
-                    <input className="w-full p-2 border rounded bg-input text-foreground" placeholder="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
-                    <div className="flex justify-end gap-2">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-muted-foreground">Cancel</button>
-                        <button type="submit" className="px-4 py-2 bg-primary text-white rounded">Add</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-};
-
 // --- Standalone Components for Dashboard ---
-
-const StudentProgressView: React.FC<{ myCourses: Course[]; users: { [key: string]: User }; setIsCreateStudentModalOpen: (v: boolean) => void }> = ({ myCourses, users, setIsCreateStudentModalOpen }) => {
-    const [searchTerm, setSearchTerm] = useState('');
-    
-    const studentStats = useMemo(() => {
-         const stats: Record<string, any> = {};
-         myCourses.forEach(course => {
-             (course.students || []).forEach(sid => {
-                 if(!stats[sid]) stats[sid] = { name: users[sid]?.name, avatarUrl: users[sid]?.avatarUrl, totalClasses: 0, presentClasses: 0, courses: [] };
-                 stats[sid].courses.push(course.subject);
-             });
-             course.attendanceRecords?.forEach(r => {
-                 Object.entries(r.records).forEach(([sid, s]: any) => {
-                     if(stats[sid]) {
-                         stats[sid].totalClasses++;
-                         if(s.status === 'present') stats[sid].presentClasses++;
-                     }
-                 })
-             })
-         });
-         return Object.entries(stats).map(([id, s]) => ({
-             id, ...s, attendancePercentage: s.totalClasses > 0 ? Math.round((s.presentClasses/s.totalClasses)*100) : 0
-         }));
-    }, [myCourses, users]);
-
-    const filteredStats = useMemo(() => {
-        if(!searchTerm.trim()) return studentStats;
-        return studentStats.filter(s => s.name?.toLowerCase().includes(searchTerm.toLowerCase()));
-    }, [studentStats, searchTerm]);
-
-    return (
-         <div className="space-y-6 animate-fade-in">
-            <SectionHeader 
-                title="Student Progress" 
-                subtitle="Track attendance and performance." 
-                action={
-                    <button onClick={() => setIsCreateStudentModalOpen(true)} className="bg-primary/10 text-primary font-bold py-2 px-4 rounded-xl text-sm inline-flex items-center gap-2 hover:bg-primary/20 transition-colors">
-                        <UserPlusIcon className="w-4 h-4" /> Add Student
-                    </button>
-                }
-            />
-            <div className="relative mb-4">
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/>
-                <input 
-                    type="text" 
-                    value={searchTerm} 
-                    onChange={e => setSearchTerm(e.target.value)} 
-                    placeholder="Search students..." 
-                    className="w-full bg-card border border-border rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
-                />
-            </div>
-            <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead className="bg-muted/50 border-b border-border"><tr><th className="p-4">Student</th><th className="p-4">Attendance</th></tr></thead>
-                        <tbody>
-                            {filteredStats.map(s => (
-                                <tr key={s.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
-                                    <td className="p-4 font-medium flex items-center gap-3">
-                                        <Avatar src={s.avatarUrl} name={s.name} size="sm"/>
-                                        {s.name}
-                                    </td>
-                                    <td className="p-4"><span className={`font-bold ${s.attendancePercentage < 75 ? 'text-red-600' : 'text-emerald-600'}`}>{s.attendancePercentage}%</span></td>
-                                </tr>
-                            ))}
-                            {filteredStats.length === 0 && <tr><td colSpan={2} className="p-8 text-center text-muted-foreground">No students found.</td></tr>}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-         </div>
-    );
-};
 
 const DashboardHome: React.FC<{ currentUser: User; myCourses: Course[]; pendingAttendanceCount: number; totalAssignments: number; totalStudents: number }> = ({ currentUser, myCourses, pendingAttendanceCount, totalAssignments, totalStudents }) => (
     <div className="space-y-8 animate-fade-in">
@@ -361,7 +259,6 @@ const FacultyAcademicsDashboard: React.FC<AcademicsPageProps> = (props) => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [isAddCourseModalOpen, setIsAddCourseModalOpen] = useState(false);
     const [isCreateNoticeModalOpen, setIsCreateNoticeModalOpen] = useState(false);
-    const [isCreateStudentModalOpen, setIsCreateStudentModalOpen] = useState(false);
 
     const handleLogout = async () => {
         await auth.signOut();
@@ -383,21 +280,7 @@ const FacultyAcademicsDashboard: React.FC<AcademicsPageProps> = (props) => {
     const userRole = currentUser.tag;
     const college = colleges.find(c => c.id === currentUser.collegeId);
     const collegeDepartments = useMemo(() => college?.departments || [], [college]);
-    const collegeClasses = college?.classes || {};
     
-    const myDepartmentYears = useMemo(() => {
-        if (!currentUser.department || !collegeClasses[currentUser.department]) return [];
-        return Object.keys(collegeClasses[currentUser.department]).map(Number).sort((a, b) => a - b);
-    }, [collegeClasses, currentUser.department]);
-
-    const allCollegeYears = useMemo(() => {
-        const yearsSet = new Set<number>();
-        Object.values(collegeClasses).forEach(deptClasses => {
-            Object.keys(deptClasses).forEach(y => yearsSet.add(Number(y)));
-        });
-        return Array.from(yearsSet).sort((a, b) => a - b);
-    }, [collegeClasses]);
-
     const myCourses = useMemo(() => courses.filter(c => c.facultyId === currentUser.id), [courses, currentUser]);
     
     // Stats Calculation
@@ -441,15 +324,10 @@ const FacultyAcademicsDashboard: React.FC<AcademicsPageProps> = (props) => {
                             
                             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2 px-4">Teaching</p>
                             <SidebarItem id="classes" label="My Classes" icon={BookOpenIcon} onClick={() => handleSectionChange('classes')} active={activeSection === 'classes'} />
-                            <SidebarItem id="students" label="Student Progress" icon={UsersIcon} onClick={() => handleSectionChange('students')} active={activeSection === 'students'} />
                             <SidebarItem id="attendance" label="Attendance" icon={CheckSquareIcon} onClick={() => handleSectionChange('attendance')} active={activeSection === 'attendance'} />
-                            <SidebarItem id="assignments" label="Assignments" icon={ClipboardListIcon} onClick={() => handleSectionChange('assignments')} active={activeSection === 'assignments'} />
                             
                             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2 px-4">Community</p>
                             <SidebarItem id="notices" label="Notices" icon={MegaphoneIcon} onClick={() => handleSectionChange('notices')} active={activeSection === 'notices'} />
-                            
-                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-6 mb-2 px-4">Personal</p>
-                            <SidebarItem id="settings" label="Settings" icon={SettingsIcon} onClick={() => handleSectionChange('settings')} active={activeSection === 'settings'} />
                         </div>
                     </div>
                 </aside>
@@ -474,13 +352,6 @@ const FacultyAcademicsDashboard: React.FC<AcademicsPageProps> = (props) => {
                             onNavigate={onNavigate} 
                         />
                     )}
-                    {activeSection === 'students' && (
-                        <StudentProgressView 
-                            myCourses={myCourses} 
-                            users={users} 
-                            setIsCreateStudentModalOpen={setIsCreateStudentModalOpen} 
-                        />
-                    )}
                     {activeSection === 'attendance' && (
                         <AttendanceSelectionView 
                             myCourses={myCourses} 
@@ -488,14 +359,14 @@ const FacultyAcademicsDashboard: React.FC<AcademicsPageProps> = (props) => {
                         />
                     )}
                     
-                    {['assignments', 'notices', 'settings'].includes(activeSection) && (
+                    {activeSection === 'notices' && (
                          <div className="flex flex-col items-center justify-center h-[60vh] text-center animate-fade-in">
                             <div className="p-6 bg-card rounded-full shadow-sm border border-border mb-4">
-                                <SettingsIcon className="w-12 h-12 text-muted-foreground" />
+                                <MegaphoneIcon className="w-12 h-12 text-muted-foreground" />
                             </div>
-                            <h2 className="text-2xl font-bold text-foreground">{activeSection.charAt(0).toUpperCase() + activeSection.slice(1)} Module</h2>
+                            <h2 className="text-2xl font-bold text-foreground">Notices Module</h2>
                             <p className="text-muted-foreground mt-2 max-w-md">
-                                {activeSection === 'notices' ? 'Use the Notice Board page to post announcements.' : 'Please select a specific course from "My Classes" to manage this.'}
+                                Use the Notice Board page to post announcements.
                             </p>
                         </div>
                     )}
@@ -503,8 +374,7 @@ const FacultyAcademicsDashboard: React.FC<AcademicsPageProps> = (props) => {
             </div>
 
             {isAddCourseModalOpen && <CreateCourseModal onClose={() => setIsAddCourseModalOpen(false)} onAddCourse={onCreateCourse} departmentOptions={collegeDepartments} />}
-            {isCreateNoticeModalOpen && <CreateNoticeModal onClose={() => setIsCreateNoticeModalOpen(false)} onCreateNotice={onCreateNotice} departmentOptions={collegeDepartments} availableYears={allCollegeYears} />}
-            {isCreateStudentModalOpen && <CreateStudentAccountModal isOpen={isCreateStudentModalOpen} onClose={() => setIsCreateStudentModalOpen(false)} department={currentUser.department} onCreateUser={onCreateUser} availableYears={myDepartmentYears} />}
+            {isCreateNoticeModalOpen && <CreateNoticeModal onClose={() => setIsCreateNoticeModalOpen(false)} onCreateNotice={onCreateNotice} departmentOptions={collegeDepartments} availableYears={[]} />}
             
             <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
         </div>

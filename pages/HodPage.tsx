@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { User, Course, Notice, College, UserTag } from '../types';
 import Header from '../components/Header';
 import BottomNavBar from '../components/BottomNavBar';
@@ -13,7 +13,7 @@ import {
     SettingsIcon, PlusIcon, SearchIcon, FilterIcon, TrashIcon, 
     CheckCircleIcon, AlertTriangleIcon, ClockIcon, ArrowRightIcon,
     MenuIcon, CloseIcon, ChevronRightIcon, ChevronDownIcon, FileTextIcon,
-    UserPlusIcon, EditIcon
+    UserPlusIcon, EditIcon, LogOutIcon
 } from '../components/Icons';
 
 interface HodPageProps {
@@ -21,7 +21,7 @@ interface HodPageProps {
   onNavigate: (path: string) => void;
   currentPath: string;
   courses: Course[];
-  onCreateCourse: (courseData: Omit<Course, 'id' | 'facultyId'>) => void;
+  onCreateCourse: (courseData: Omit<Course, 'id'>) => void;
   onUpdateCourse: (courseId: string, data: any) => void;
   onDeleteCourse: (courseId: string) => void;
   notices: Notice[];
@@ -129,7 +129,11 @@ const AddSubjectModal = ({ onClose, onAddSubject, year, division, faculty }: any
                         <label className="text-xs font-bold uppercase text-muted-foreground">Assign Faculty (Optional)</label>
                         <select value={facultyId} onChange={e => setFacultyId(e.target.value)} className="w-full bg-input border border-border rounded-lg px-3 py-2 mt-1">
                             <option value="">Select Faculty</option>
-                            {faculty.map((f: User) => <option key={f.id} value={f.id}>{f.name}</option>)}
+                            {faculty.map((f: User) => (
+                                <option key={f.id} value={f.id}>
+                                    {f.name} {f.tag !== 'Teacher' ? `(${f.tag === 'HOD/Dean' ? 'HOD' : f.tag})` : ''}
+                                </option>
+                            ))}
                         </select>
                     </div>
                     <div className="flex justify-end gap-2 pt-2">
@@ -167,7 +171,11 @@ const EditSubjectModal = ({ onClose, onUpdate, course, faculty }: any) => {
                         <label className="text-xs font-bold uppercase text-muted-foreground">Assign Faculty</label>
                         <select value={facultyId} onChange={e => setFacultyId(e.target.value)} className="w-full bg-input border border-border rounded-lg px-3 py-2 mt-1">
                             <option value="">Unassigned</option>
-                            {faculty.map((f: User) => <option key={f.id} value={f.id}>{f.name}</option>)}
+                            {faculty.map((f: User) => (
+                                <option key={f.id} value={f.id}>
+                                    {f.name} {f.tag !== 'Teacher' ? `(${f.tag === 'HOD/Dean' ? 'HOD' : f.tag})` : ''}
+                                </option>
+                            ))}
                         </select>
                     </div>
                     <div className="flex justify-end gap-2 pt-2">
@@ -206,8 +214,6 @@ const CreateNoticeModal = ({ onClose, onCreateNotice }: any) => {
         </div>
     );
 };
-
-// --- Feature Views ---
 
 const DashboardHome = ({ stats, recentActivity, alerts }: any) => (
     <div className="space-y-8 animate-fade-in">
@@ -272,28 +278,23 @@ const UserDirectory = ({
     const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
     const [expandedFacultyId, setExpandedFacultyId] = useState<string | null>(null);
 
-    // Filter users based on search
     const filteredUsers = users.filter(u => 
         u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
         u.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Get unique years that have active courses (classes created)
     const activeYears = useMemo(() => {
         const years = new Set<number>();
         activeCourses.forEach(c => years.add(c.year));
         return Array.from(years).sort((a, b) => a - b);
     }, [activeCourses]);
 
-    // For students, group by Year (Standard) and then sort by Roll No
     const groupedStudents = useMemo(() => {
         if (type !== 'Student') return {};
         const groups: { [key: number]: User[] } = {};
         
-        // Initialize groups for active years
         activeYears.forEach(y => groups[y] = []);
-        // Also add a generic bucket for students not in active years but exist
-        groups[0] = []; // Unassigned or other
+        groups[0] = []; 
 
         filteredUsers.forEach(u => {
             const y = u.yearOfStudy || 0;
@@ -301,7 +302,6 @@ const UserDirectory = ({
             groups[y].push(u);
         });
 
-        // Sort students in each group by Roll No (numeric)
         Object.keys(groups).forEach(key => {
             groups[parseInt(key)].sort((a, b) => {
                 const rollA = parseInt(a.rollNo || '0') || 0;
@@ -396,7 +396,6 @@ const UserDirectory = ({
                                 <h3 className="font-bold text-foreground">Unassigned / Other</h3>
                             </div>
                             <table className="w-full text-sm text-left">
-                                {/* Same header/body structure as above */}
                                 <tbody className="divide-y divide-border">
                                     {groupedStudents[0].map((user: User) => (
                                         <tr key={user.id} className="hover:bg-muted/20">
@@ -492,28 +491,24 @@ const AcademicsView = ({
     deptCourses, 
     deptStudents,
     onCreateClass, 
-    onDeleteClass, // Placeholder logic for deleting "class" metadata if needed
     onAddSubject, 
     onDeleteCourse, 
     faculty,
-    onUpdateCourse // Added prop
+    onUpdateCourse
 }: any) => {
     const [isCreateClassModalOpen, setIsCreateClassModalOpen] = useState(false);
     const [selectedClass, setSelectedClass] = useState<any | null>(null);
     const [isAddSubjectModalOpen, setIsAddSubjectModalOpen] = useState(false);
     const [yearFilter, setYearFilter] = useState<number | 'All'>('All');
-    const [editingCourse, setEditingCourse] = useState<Course | null>(null); // State for editing
+    const [editingCourse, setEditingCourse] = useState<Course | null>(null);
 
-    // Filter classes by year
     const filteredClasses = yearFilter === 'All' 
         ? activeClasses 
         : activeClasses.filter((cls: any) => cls.year === yearFilter);
 
-    // When a class is selected, we show details
     if (selectedClass) {
         const classCourses = deptCourses.filter((c: Course) => c.year === selectedClass.year && c.division === selectedClass.division);
         
-        // Filter students for this specific class (Year + Div)
         const classStudents = deptStudents.filter((s: User) => s.yearOfStudy === selectedClass.year && s.division === selectedClass.division)
             .sort((a: User, b: User) => (parseInt(a.rollNo || '0') || 0) - (parseInt(b.rollNo || '0') || 0));
 
@@ -560,7 +555,7 @@ const AcademicsView = ({
                                             {assignedFaculty ? (
                                                 <>
                                                     <Avatar src={assignedFaculty.avatarUrl} name={assignedFaculty.name} size="xs"/>
-                                                    <span className="text-sm font-medium">{assignedFaculty.name}</span>
+                                                    <span className="text-sm font-medium">{assignedFaculty.name} {assignedFaculty.tag !== 'Teacher' ? `(${assignedFaculty.tag === 'HOD/Dean' ? 'HOD' : assignedFaculty.tag})` : ''}</span>
                                                 </>
                                             ) : <span className="text-sm text-muted-foreground italic">Unassigned</span>}
                                         </div>
@@ -666,15 +661,16 @@ const AcademicsView = ({
                             
                             <div className="mt-4 pt-4 border-t border-border flex justify-between items-center">
                                 <span className="text-xs font-bold text-primary group-hover:underline">Manage Subjects & Students</span>
-                                <ChevronRightIcon className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform"/>
+                                <ChevronRightIcon className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors"/>
                             </div>
                         </div>
-                    );
+                    )
                 })}
                 {filteredClasses.length === 0 && (
-                    <div className="col-span-full text-center py-16 bg-card rounded-2xl border border-border border-dashed">
-                        <BookOpenIcon className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30"/>
-                        <p className="text-muted-foreground">No classes created yet.</p>
+                    <div className="col-span-full text-center py-16 text-muted-foreground bg-card rounded-2xl border border-border border-dashed">
+                        <BookOpenIcon className="w-16 h-16 mx-auto mb-4 opacity-20"/>
+                        <p className="text-lg font-medium">No classes found.</p>
+                        <p className="text-sm">Create a class to start managing subjects.</p>
                     </div>
                 )}
             </div>
@@ -685,81 +681,160 @@ const AcademicsView = ({
 };
 
 const HodPage: React.FC<HodPageProps> = (props) => {
-    const { currentUser, onNavigate, currentPath, courses, onCreateCourse, onUpdateCourse, onDeleteCourse, notices, onCreateNotice, onDeleteNotice, colleges, onUpdateCollegeClasses, onCreateUser, onCreateUsersBatch, onToggleFreezeUser, onDeleteUser, allUsers } = props;
-    const [activeSection, setActiveSection] = useState('dashboard');
+    const { currentUser, onNavigate, currentPath, courses, onCreateCourse, notices, users, allUsers, onCreateNotice, onDeleteNotice, onCreateUser, onCreateUsersBatch, onUpdateCourseFaculty, colleges, onUpdateCollegeClasses, onDeleteCourse, onUpdateCourse } = props;
+    
+    const [activeSection, setActiveSection] = useState<'dashboard' | 'academics' | 'faculty' | 'students' | 'timetable' | 'notices' | 'approvals'>('dashboard');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [isCreateNoticeModalOpen, setIsCreateNoticeModalOpen] = useState(false);
+    const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+    // Hooks moved to top
+    const college = useMemo(() => colleges.find(c => c.id === currentUser.collegeId), [colleges, currentUser.collegeId]);
+    const myDept = currentUser.department;
+
+    const deptCourses = useMemo(() => {
+        if (!college) return [];
+        return courses.filter(c => c.department === myDept && c.collegeId === college.id);
+    }, [courses, myDept, college]);
+
+    const deptFaculty = useMemo(() => {
+        if (!college) return [];
+        return allUsers.filter(u => u.tag === 'Teacher' && u.department === myDept && u.collegeId === college.id);
+    }, [allUsers, myDept, college]);
+
+    const deptStudents = useMemo(() => {
+        if (!college) return [];
+        return allUsers.filter(u => u.tag === 'Student' && u.department === myDept && u.collegeId === college.id);
+    }, [allUsers, myDept, college]);
+
+    const teachingStaff = useMemo(() => {
+        if (!college) return [];
+        return allUsers.filter(u => 
+            u.collegeId === college.id && (
+                (u.tag === 'Teacher' && u.department === myDept) ||
+                (u.tag === 'HOD/Dean' && u.department === myDept) ||
+                (u.tag === 'Director')
+            )
+        );
+    }, [allUsers, college, myDept]);
+
+    const activeClasses = useMemo(() => {
+        if (!college) return [];
+        const deptClassesRaw = college.classes?.[myDept] || {};
+        const classes: { year: number; division: string }[] = [];
+        Object.entries(deptClassesRaw).forEach(([year, divs]) => {
+            (divs as string[]).forEach(div => classes.push({ year: parseInt(year), division: div }));
+        });
+        return classes;
+    }, [college, myDept]);
+
+    const stats = {
+        studentCount: deptStudents.length,
+        facultyCount: deptFaculty.length,
+        classCount: activeClasses.length,
+        avgAttendance: 85 // Placeholder
+    };
 
     const handleLogout = async () => {
         await auth.signOut();
         onNavigate('#/');
     };
 
-    const college = colleges.find(c => c.id === currentUser.collegeId);
-    const department = currentUser.department;
-    
-    // Derived Data
-    const deptCourses = useMemo(() => 
-        courses.filter(c => c.department === department && c.collegeId === college?.id), 
-        [courses, department, college]
-    );
-    
-    const deptStudents = useMemo(() => 
-        allUsers.filter(u => u.department === department && u.tag === 'Student' && u.collegeId === college?.id), 
-        [allUsers, department, college]
-    );
-    
-    const deptFaculty = useMemo(() => 
-        allUsers.filter(u => u.department === department && u.tag === 'Teacher' && u.collegeId === college?.id), 
-        [allUsers, department, college]
-    );
-
-    // Extract classes from college data structure
-    const activeClasses = useMemo(() => {
-        if (!college || !college.classes || !college.classes[department]) return [];
-        const classesList: any[] = [];
-        Object.entries(college.classes[department]).forEach(([year, divs]: [string, any]) => {
-            divs.forEach((div: string) => classesList.push({ year: parseInt(year), division: div }));
-        });
-        return classesList.sort((a, b) => a.year - b.year || a.division.localeCompare(b.division));
-    }, [college, department]);
-
-    // Handlers
-    const handleCreateClass = ({ year, division }: { year: number, division: string }) => {
+    const handleCreateClass = (data: { year: number; division: string }) => {
         if (!college) return;
-        const currentClasses = college.classes?.[department] || {};
-        const currentDivs = currentClasses[year] || [];
-        if (!currentDivs.includes(division)) {
-            const newClasses = { ...currentClasses, [year]: [...currentDivs, division] };
-            onUpdateCollegeClasses(college.id, department, newClasses);
+        const currentClasses = college.classes?.[myDept] || {};
+        const yearClasses = currentClasses[data.year] || [];
+        if (!yearClasses.includes(data.division)) {
+            const updatedClasses = {
+                ...currentClasses,
+                [data.year]: [...yearClasses, data.division].sort()
+            };
+            onUpdateCollegeClasses(college.id, myDept, updatedClasses);
+        } else {
+            alert("Class already exists!");
         }
     };
 
-    const handleAddSubject = (data: any) => {
-        // data: { subject, facultyId, year, division }
+    const handleAddSubject = (data: { subject: string; facultyId: string; year: number; division: string }) => {
+        if (!college) return;
         onCreateCourse({
-            ...data,
-            department: department,
-            collegeId: currentUser.collegeId
+            subject: data.subject,
+            department: myDept,
+            year: data.year,
+            division: data.division,
+            collegeId: college.id,
+            facultyId: data.facultyId || '' 
         });
     };
 
-    // Stats
-    const stats = {
-        studentCount: deptStudents.length,
-        facultyCount: deptFaculty.length,
-        classCount: activeClasses.length,
-        avgAttendance: 85 // Placeholder for real calc
-    };
+    // Timeout for loading
+    useEffect(() => {
+        if (currentUser.collegeId && !college) {
+            const timer = setTimeout(() => setLoadingTimeout(true), 8000); // 8 seconds timeout
+            return () => clearTimeout(timer);
+        } else {
+            setLoadingTimeout(false);
+        }
+    }, [college, currentUser.collegeId]);
 
-    const alerts = useMemo(() => {
-        const list = [];
-        if (activeClasses.length === 0) list.push("No classes created yet. Go to Classes tab to setup.");
-        if (deptCourses.some(c => !c.facultyId)) list.push("Some subjects have no assigned faculty.");
-        return list;
-    }, [activeClasses, deptCourses]);
+    // --- Render Logic ---
 
-    const recentActivity = notices.slice(0, 3).map(n => ({ type: 'notice', title: n.title, time: 'Recent' }));
+    if (!currentUser.collegeId) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center p-4">
+                <div className="bg-card rounded-2xl shadow-xl border border-destructive/30 p-10 max-w-md text-center">
+                    <AlertTriangleIcon className="w-16 h-16 text-destructive mx-auto mb-4" />
+                    <h1 className="text-2xl font-bold text-foreground mb-2">Account Configuration Error</h1>
+                    <p className="text-muted-foreground mb-6">
+                        Your account is not associated with any college. This usually happens if the invite was not set up correctly.
+                    </p>
+                    <button onClick={handleLogout} className="w-full py-3 font-bold text-primary-foreground bg-destructive rounded-xl hover:bg-destructive/90 transition-colors flex items-center justify-center gap-2">
+                        <LogOutIcon className="w-4 h-4"/> Sign Out
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (currentUser.isApproved === false) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center p-4">
+                <div className="bg-card rounded-2xl shadow-xl border border-border p-10 max-w-lg text-center">
+                    <ClockIcon className="w-16 h-16 text-amber-500 mx-auto mb-4 animate-pulse" />
+                    <h1 className="text-2xl font-bold text-foreground mb-4">Approval Pending</h1>
+                    <p className="text-muted-foreground mb-8">Your HOD account is currently under review by the Director. You will receive access once approved.</p>
+                    <button onClick={handleLogout} className="w-full py-3 font-bold text-primary bg-primary/10 rounded-xl hover:bg-primary/20 transition-colors">Sign Out</button>
+                </div>
+            </div>
+        );
+    }
+
+    if (!college) {
+        return (
+            <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6">
+                {loadingTimeout ? (
+                    <div className="bg-card p-8 rounded-2xl border border-border shadow-lg text-center max-w-md">
+                        <AlertTriangleIcon className="w-12 h-12 text-amber-500 mx-auto mb-4"/>
+                        <h3 className="text-xl font-bold text-foreground mb-2">College Data Not Found</h3>
+                        <p className="text-muted-foreground mb-6">
+                            We couldn't load your college data. This might be due to a network issue or if the college has been deleted.
+                        </p>
+                        <button onClick={handleLogout} className="w-full py-2 bg-primary text-primary-foreground rounded-lg font-bold hover:bg-primary/90">
+                            Sign Out
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                        <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-primary"></div>
+                        <p className="text-muted-foreground font-medium">Loading dashboard resources...</p>
+                        <button onClick={handleLogout} className="text-sm text-primary hover:underline font-bold mt-4">
+                            Taking too long? Sign Out
+                        </button>
+                    </>
+                )}
+            </div>
+        );
+    }
 
     return (
         <div className="bg-background min-h-screen flex flex-col">
@@ -780,12 +855,12 @@ const HodPage: React.FC<HodPageProps> = (props) => {
                         </div>
                         <div className="space-y-1">
                             <SidebarItem id="dashboard" label="Dashboard" icon={ChartPieIcon} onClick={() => {setActiveSection('dashboard'); setMobileMenuOpen(false);}} active={activeSection === 'dashboard'} />
-                            <SidebarItem id="classes" label="Classes & Subjects" icon={BookOpenIcon} onClick={() => {setActiveSection('classes'); setMobileMenuOpen(false);}} active={activeSection === 'classes'} />
-                            <SidebarItem id="students" label="Students" icon={UsersIcon} onClick={() => {setActiveSection('students'); setMobileMenuOpen(false);}} active={activeSection === 'students'} />
+                            <SidebarItem id="academics" label="Academics & Classes" icon={BookOpenIcon} onClick={() => {setActiveSection('academics'); setMobileMenuOpen(false);}} active={activeSection === 'academics'} />
+                            <div className="pt-4 pb-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">People</div>
                             <SidebarItem id="faculty" label="Faculty" icon={UserPlusIcon} onClick={() => {setActiveSection('faculty'); setMobileMenuOpen(false);}} active={activeSection === 'faculty'} />
-                            <SidebarItem id="notices" label="Notice Board" icon={MegaphoneIcon} onClick={() => {setActiveSection('notices'); setMobileMenuOpen(false);}} active={activeSection === 'notices'} />
-                            <SidebarItem id="reports" label="Reports" icon={ChartBarIcon} onClick={() => {setActiveSection('reports'); setMobileMenuOpen(false);}} active={activeSection === 'reports'} />
-                            <SidebarItem id="settings" label="Settings" icon={SettingsIcon} onClick={() => {setActiveSection('settings'); setMobileMenuOpen(false);}} active={activeSection === 'settings'} />
+                            <SidebarItem id="students" label="Students" icon={UsersIcon} onClick={() => {setActiveSection('students'); setMobileMenuOpen(false);}} active={activeSection === 'students'} />
+                            <div className="pt-4 pb-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">Communication</div>
+                            <SidebarItem id="notices" label="Notices" icon={MegaphoneIcon} onClick={() => {setActiveSection('notices'); setMobileMenuOpen(false);}} active={activeSection === 'notices'} />
                         </div>
                     </div>
                 </aside>
@@ -795,39 +870,53 @@ const HodPage: React.FC<HodPageProps> = (props) => {
                 {/* Main Content */}
                 <main className="flex-1 p-4 md:p-8 overflow-y-auto h-[calc(100vh-112px)] md:h-[calc(100vh-64px)] bg-muted/10 pb-32 lg:pb-8">
                     
-                    {activeSection === 'dashboard' && <DashboardHome stats={stats} alerts={alerts} recentActivity={recentActivity} />}
-                    
-                    {activeSection === 'classes' && (
+                    {activeSection === 'dashboard' && (
+                        <div className="space-y-6 animate-fade-in">
+                            <div className="flex justify-between items-end">
+                                <div>
+                                    <h1 className="text-3xl font-black text-foreground mb-1">{myDept}</h1>
+                                    <p className="text-muted-foreground font-medium">Department Overview</p>
+                                </div>
+                                <div className="text-right hidden sm:block">
+                                    <p className="text-sm font-bold text-primary">{college.name}</p>
+                                </div>
+                            </div>
+
+                            <DashboardHome stats={stats} recentActivity={[]} alerts={[]} />
+                        </div>
+                    )}
+
+                    {activeSection === 'academics' && (
                         <AcademicsView 
-                            activeClasses={activeClasses}
-                            deptCourses={deptCourses}
+                            activeClasses={activeClasses} 
+                            deptCourses={deptCourses} 
                             deptStudents={deptStudents}
-                            faculty={deptFaculty}
                             onCreateClass={handleCreateClass}
                             onAddSubject={handleAddSubject}
                             onDeleteCourse={onDeleteCourse}
+                            faculty={teachingStaff}
                             onUpdateCourse={onUpdateCourse}
-                        />
-                    )}
-
-                    {activeSection === 'students' && (
-                        <UserDirectory 
-                            users={deptStudents} 
-                            type="Student" 
-                            department={department}
-                            onCreateUser={onCreateUser}
-                            onCreateUsersBatch={onCreateUsersBatch}
-                            activeCourses={deptCourses}
                         />
                     )}
 
                     {activeSection === 'faculty' && (
                         <UserDirectory 
+                            type="Teacher" 
                             users={deptFaculty} 
-                            type="Teacher"
-                            department={department}
-                            onCreateUser={onCreateUser}
-                            onCreateUsersBatch={onCreateUsersBatch}
+                            onCreateUser={onCreateUser} 
+                            onCreateUsersBatch={onCreateUsersBatch} 
+                            department={myDept}
+                            activeCourses={deptCourses}
+                        />
+                    )}
+
+                    {activeSection === 'students' && (
+                        <UserDirectory 
+                            type="Student" 
+                            users={deptStudents} 
+                            onCreateUser={onCreateUser} 
+                            onCreateUsersBatch={onCreateUsersBatch} 
+                            department={myDept}
                             activeCourses={deptCourses}
                         />
                     )}
@@ -836,45 +925,32 @@ const HodPage: React.FC<HodPageProps> = (props) => {
                         <div className="space-y-6 animate-fade-in">
                             <div className="flex justify-between items-center">
                                 <h2 className="text-2xl font-bold text-foreground">Department Notices</h2>
-                                <button onClick={() => setIsCreateNoticeModalOpen(true)} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-primary/90">
+                                <button onClick={() => setIsCreateNoticeModalOpen(true)} className="bg-primary text-primary-foreground px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-primary/90 shadow-md">
                                     <PlusIcon className="w-4 h-4"/> New Notice
                                 </button>
                             </div>
                             <div className="grid gap-4">
-                                {notices.map(n => (
-                                    <div key={n.id} className="bg-card p-4 rounded-xl border border-border shadow-sm flex justify-between items-start">
-                                        <div>
-                                            <h3 className="font-bold text-lg">{n.title}</h3>
-                                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{n.content}</p>
-                                            <p className="text-xs text-muted-foreground mt-2">{new Date(n.timestamp).toLocaleDateString()}</p>
-                                        </div>
-                                        <button onClick={() => { if(window.confirm('Delete notice?')) onDeleteNotice(n.id) }} className="text-destructive hover:bg-destructive/10 p-2 rounded-full"><TrashIcon className="w-4 h-4"/></button>
+                                {notices.filter(n => !n.collegeId || n.collegeId === college.id).map(notice => ( // Basic filter, improve later
+                                    <div key={notice.id} className="bg-card p-5 rounded-xl border border-border shadow-sm relative group">
+                                        <button onClick={() => onDeleteNotice(notice.id)} className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full opacity-0 group-hover:opacity-100 transition-all">
+                                            <TrashIcon className="w-4 h-4"/>
+                                        </button>
+                                        <h3 className="font-bold text-lg text-foreground mb-2">{notice.title}</h3>
+                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap mb-3">{notice.content}</p>
+                                        <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                                            <ClockIcon className="w-3 h-3"/> {new Date(notice.timestamp).toLocaleDateString()}
+                                        </p>
                                     </div>
                                 ))}
-                                {notices.length === 0 && <p className="text-muted-foreground text-center py-8">No notices posted.</p>}
+                                {notices.length === 0 && <p className="text-muted-foreground text-center py-8">No notices found.</p>}
                             </div>
-                        </div>
-                    )}
-
-                    {activeSection === 'reports' && (
-                        <div className="flex flex-col items-center justify-center h-full text-center p-12 text-muted-foreground">
-                            <ChartBarIcon className="w-16 h-16 mb-4 opacity-50"/>
-                            <h3 className="text-xl font-bold text-foreground">Reports Module</h3>
-                            <p>Detailed attendance and performance reports will appear here.</p>
-                        </div>
-                    )}
-
-                    {activeSection === 'settings' && (
-                        <div className="flex flex-col items-center justify-center h-full text-center p-12 text-muted-foreground">
-                            <SettingsIcon className="w-16 h-16 mb-4 opacity-50"/>
-                            <h3 className="text-xl font-bold text-foreground">Department Settings</h3>
-                            <p>Configure department-level preferences here.</p>
                         </div>
                     )}
                 </main>
             </div>
 
             {isCreateNoticeModalOpen && <CreateNoticeModal onClose={() => setIsCreateNoticeModalOpen(false)} onCreateNotice={onCreateNotice} />}
+            
             <BottomNavBar currentUser={currentUser} onNavigate={onNavigate} currentPage={currentPath}/>
         </div>
     );

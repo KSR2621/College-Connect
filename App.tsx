@@ -26,6 +26,7 @@ import ConfessionsPage from './pages/ConfessionsPage';
 
 const App = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentPath, setCurrentPath] = useState('#/');
   
@@ -39,102 +40,245 @@ const App = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [colleges, setColleges] = useState<College[]>([]);
 
-  // --- Auth & Initial Load ---
+  // Sync browser hash with currentPath state
   useEffect(() => {
-    const unsubscribeAuth = auth.onAuthStateChanged(async (authUser: any) => {
-      if (authUser) {
-        // Fetch current user details
-        const userDoc = await db.collection('users').doc(authUser.uid).get();
-        if (userDoc.exists) {
-          setCurrentUser({ id: userDoc.id, ...userDoc.data() } as User);
-          if (window.location.hash === '#/' || window.location.hash === '#/login') {
-             setCurrentPath('#/home');
-          } else {
-             setCurrentPath(window.location.hash || '#/home');
+      const handleHashChange = () => {
+          const hash = window.location.hash;
+          if (hash && hash !== currentPath) {
+              setCurrentPath(hash);
           }
-        } else {
-          // User exists in Auth but not DB (rare edge case or deleted)
-          setCurrentPath('#/login');
-        }
+      };
+      window.addEventListener('hashchange', handleHashChange);
+      return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [currentPath]);
+
+  // Update hash when state changes
+  useEffect(() => {
+      if (window.location.hash !== currentPath) {
+          window.location.hash = currentPath;
+      }
+  }, [currentPath]);
+
+  // Role-Based Redirection Enforcer
+  useEffect(() => {
+      if (!currentUser) return;
+
+      const publicPaths = ['#/', '#/login', '#/signup'];
+      const isPublicPath = publicPaths.includes(currentPath);
+      
+      // Note: We allow HOD/Director/Admin to visit #/home if they explicitly navigate there.
+      // We only force redirect if they are on a "logged out" public path (like landing page).
+
+      if (currentUser.tag === 'Super Admin') {
+          if (isPublicPath) setCurrentPath('#/superadmin');
+      } else if (currentUser.tag === 'Director') {
+          if (isPublicPath) setCurrentPath('#/director');
+      } else if (currentUser.tag === 'HOD/Dean') {
+          if (isPublicPath) setCurrentPath('#/hod');
       } else {
+          // Regular Users (Student/Teacher)
+          if (isPublicPath) setCurrentPath('#/home');
+      }
+  }, [currentUser, currentPath]);
+
+  // 1. Auth State Listener
+  useEffect(() => {
+    const unsubscribeAuth = auth.onAuthStateChanged((authUser: any) => {
+      if (authUser) {
+        setAuthUserId(authUser.uid);
+      } else {
+        // Clear all data on logout to prevent leakage between sessions
+        setAuthUserId(null);
         setCurrentUser(null);
+        setUsers({});
+        setPosts([]);
+        setGroups([]);
+        setStories([]);
+        setCourses([]);
+        setNotices([]);
+        setConversations([]);
+        setColleges([]); // Critical for HOD/Director safety to prevent stale data
+        setLoading(false);
+        
+        // Redirect to landing if on a protected route
         const publicPaths = ['#/', '#/login', '#/signup'];
         if (!publicPaths.includes(window.location.hash)) {
             setCurrentPath('#/');
         }
       }
-      setLoading(false);
     });
     return () => unsubscribeAuth();
   }, []);
+
+  // 2. User Profile Subscription (with Polling for New Users)
+  useEffect(() => {
+    if (!authUserId) return;
+
+    setLoading(true);
+    let unsubscribeSnapshot: (() => void) | undefined;
+    let isMounted = true;
+
+    const setupUserProfile = async () => {
+        // Polling Mechanism: Wait for Firestore document to exist
+        // This handles the race condition where Auth is created but DB write is pending.
+        let attempts = 0;
+        let docExists = false;
+        
+        while (attempts < 15 && isMounted) {
+            try {
+                const doc = await db.collection('users').doc(authUserId).get();
+                if (doc.exists) {
+                    docExists = true;
+                    break;
+                }
+            } catch (e: any) {
+                // Ignore errors during polling (e.g. offline, permission) - just retry
+                console.warn("Polling check failed:", e.code);
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            attempts++;
+        }
+
+        if (!isMounted) return;
+
+        if (docExists) {
+            // Document confirmed exists, safe to subscribe
+            unsubscribeSnapshot = db.collection('users').doc(authUserId).onSnapshot(
+                (doc: any) => {
+                    if (doc.exists) {
+                        const userData = { id: doc.id, ...doc.data() } as User;
+                        setCurrentUser(userData);
+                        setLoading(false);
+                    } else {
+                        // Document deleted while session active
+                        console.warn("User profile document missing.");
+                        auth.signOut();
+                    }
+                },
+                (error: any) => {
+                    console.error("Profile subscription error:", error);
+                    // Handle specific errors
+                    if (error.code === 'permission-denied') {
+                        alert("Access denied. Please contact support.");
+                        auth.signOut();
+                    } else if (error.code === 'unavailable') {
+                        console.warn("Firestore is unavailable (offline).");
+                        // Don't sign out, just stop loading. The app might work with cached data.
+                        setLoading(false);
+                    }
+                    setLoading(false);
+                }
+            );
+        } else {
+            console.warn("User document not found after polling.");
+            alert("Account setup incomplete or delayed. Please try logging in again.");
+            await auth.signOut();
+            setLoading(false);
+        }
+    };
+
+    setupUserProfile();
+
+    return () => {
+        isMounted = false;
+        if (unsubscribeSnapshot) unsubscribeSnapshot();
+    };
+  }, [authUserId]);
 
   // --- Real-time Data Subscriptions ---
   useEffect(() => {
     if (!currentUser) return;
 
-    const unsubs: (() => void)[] = [];
+    // Don't subscribe if not approved (unless Super Admin)
+    if (currentUser.isApproved === false && currentUser.tag !== 'Super Admin') {
+        return;
+    }
 
-    // Users
-    unsubs.push(db.collection('users').onSnapshot((snapshot: any) => {
+    const unsubs: (() => void)[] = [];
+    const isSuperAdmin = currentUser.tag === 'Super Admin';
+    const collegeId = currentUser.collegeId;
+
+    // Helper to safely subscribe
+    const subscribe = (query: any, callback: (snapshot: any) => void, label: string) => {
+        if (!query) return () => {};
+        return query.onSnapshot(callback, (err: any) => {
+            if (err.code !== 'permission-denied' && err.code !== 'unavailable') console.warn(`${label} subscription error:`, err);
+        });
+    };
+
+    // Helper to build queries scoped to college
+    const getScopedQuery = (collection: string) => {
+        let ref = db.collection(collection);
+        if (!isSuperAdmin && collegeId) {
+            return ref.where('collegeId', '==', collegeId);
+        }
+        if (!isSuperAdmin && !collegeId) return null; // Cannot query without collegeId for normal users
+        return ref;
+    };
+
+    // 1. Users
+    unsubs.push(subscribe(getScopedQuery('users'), (snapshot: any) => {
         const usersMap: { [key: string]: User } = {};
         snapshot.forEach((doc: any) => { usersMap[doc.id] = { id: doc.id, ...doc.data() } as User; });
         setUsers(usersMap);
-        // Update current user if changed
-        if (usersMap[currentUser.id]) setCurrentUser(usersMap[currentUser.id]);
-    }));
+    }, 'users'));
 
-    // Posts
-    unsubs.push(db.collection('posts').onSnapshot((snapshot: any) => {
+    // 2. Posts
+    unsubs.push(subscribe(getScopedQuery('posts'), (snapshot: any) => {
         const postsData = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) as Post[];
         setPosts(postsData);
-    }));
+    }, 'posts'));
 
-    // Groups
-    unsubs.push(db.collection('groups').onSnapshot((snapshot: any) => {
+    // 3. Groups
+    unsubs.push(subscribe(getScopedQuery('groups'), (snapshot: any) => {
         const groupsData = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) as Group[];
         setGroups(groupsData);
-    }));
+    }, 'groups'));
 
-    // Stories
-    unsubs.push(db.collection('stories').onSnapshot((snapshot: any) => {
+    // 4. Stories
+    unsubs.push(subscribe(getScopedQuery('stories'), (snapshot: any) => {
         const storiesData = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) as Story[];
-        // Filter expired stories (24h)
         const now = Date.now();
         setStories(storiesData.filter(s => now - s.timestamp < 24 * 60 * 60 * 1000));
-    }));
+    }, 'stories'));
 
-    // Courses
-    unsubs.push(db.collection('courses').onSnapshot((snapshot: any) => {
+    // 5. Courses
+    unsubs.push(subscribe(getScopedQuery('courses'), (snapshot: any) => {
         const coursesData = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) as Course[];
         setCourses(coursesData);
-    }));
+    }, 'courses'));
 
-    // Notices
-    unsubs.push(db.collection('notices').onSnapshot((snapshot: any) => {
+    // 6. Notices
+    unsubs.push(subscribe(getScopedQuery('notices'), (snapshot: any) => {
         const noticesData = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) as Notice[];
         setNotices(noticesData);
-    }));
+    }, 'notices'));
 
-    // Conversations
-    unsubs.push(db.collection('conversations')
-        .where('participantIds', 'array-contains', currentUser.id)
-        .onSnapshot((snapshot: any) => {
+    // 7. Colleges (Special Case)
+    if (isSuperAdmin) {
+        unsubs.push(subscribe(db.collection('colleges'), (snapshot: any) => {
+            const collegesData = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) as College[];
+            setColleges(collegesData);
+        }, 'colleges'));
+    } else if (collegeId) {
+        unsubs.push(subscribe(db.collection('colleges').doc(collegeId), (doc: any) => {
+            if (doc.exists) setColleges([{ id: doc.id, ...doc.data() } as College]);
+        }, 'myCollege'));
+    }
+
+    // 8. Conversations (Always scoped to participant)
+    unsubs.push(subscribe(
+        db.collection('conversations').where('participantIds', 'array-contains', currentUser.id),
+        (snapshot: any) => {
             const convsData = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) as Conversation[];
             setConversations(convsData);
-        })
-    );
-
-    // Colleges
-    unsubs.push(db.collection('colleges').onSnapshot((snapshot: any) => {
-        const collegesData = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) as College[];
-        setColleges(collegesData);
-    }));
+        }, 'conversations'
+    ));
 
     return () => unsubs.forEach(u => u());
-  }, [currentUser?.id]);
+  }, [currentUser?.id, currentUser?.isApproved, currentUser?.collegeId, currentUser?.tag]);
 
-  // --- Handlers ---
-
+  // ... rest of the handlers
   // Posts
   const handleAddPost = async (postDetails: any) => {
       if (!currentUser) return;
@@ -143,9 +287,9 @@ const App = () => {
           authorId: currentUser.id,
           timestamp: Date.now(),
           comments: [],
-          reactions: {}
+          reactions: {},
+          collegeId: currentUser.collegeId // Ensure collegeId is stamped
       };
-      if (currentUser.collegeId) newPost.collegeId = currentUser.collegeId;
       await db.collection('posts').add(newPost);
   };
 
@@ -159,14 +303,11 @@ const App = () => {
       const currentReactions = post.reactions || {};
       const userReactions = currentReactions[reaction] || [];
       
-      // Toggle logic
       if (userReactions.includes(currentUser.id)) {
           await db.collection('posts').doc(postId).update({
               [`reactions.${reaction}`]: FieldValue.arrayRemove(currentUser.id)
           });
       } else {
-          // Remove from other reactions first to ensure only 1 reaction per user (optional style)
-          // For simplicity, we'll just add to this one
           await db.collection('posts').doc(postId).update({
               [`reactions.${reaction}`]: FieldValue.arrayUnion(currentUser.id)
           });
@@ -231,7 +372,8 @@ const App = () => {
           sharedPost: sharedPostInfo,
           comments: [],
           reactions: {},
-          groupId: shareTarget.type === 'group' ? shareTarget.id : undefined
+          groupId: shareTarget.type === 'group' ? shareTarget.id : undefined,
+          collegeId: currentUser.collegeId
       };
       await db.collection('posts').add(newPost);
   };
@@ -249,7 +391,8 @@ const App = () => {
           ...storyDetails,
           authorId: currentUser.id,
           timestamp: Date.now(),
-          viewedBy: []
+          viewedBy: [],
+          collegeId: currentUser.collegeId
       };
       await db.collection('stories').add(newStory);
   };
@@ -273,11 +416,9 @@ const App = () => {
   // Chat
   const handleCreateOrOpenConversation = async (otherUserId: string): Promise<string> => {
       if (!currentUser) throw new Error("Not logged in");
-      // Check if conversation exists
       const existing = conversations.find(c => !c.isGroupChat && c.participantIds.includes(currentUser.id) && c.participantIds.includes(otherUserId));
       if (existing) return existing.id;
 
-      // Create new
       const newConvoRef = await db.collection('conversations').add({
           participantIds: [currentUser.id, otherUserId],
           messages: [],
@@ -309,8 +450,6 @@ const App = () => {
   const handleDeleteMessagesForSelf = async (conversationId: string, messageIds: string[]) => {
       const convo = conversations.find(c => c.id === conversationId);
       if (!convo) return;
-      // In a real app, you'd mark messages as deleted for user. For simplified prototype, we might just ignore or implement full delete logic structure.
-      // We'll update the message object to include a `deletedFor` array.
       const updatedMessages = convo.messages.map(m => {
           if (messageIds.includes(m.id)) {
               return { ...m, deletedFor: [...(m.deletedFor || []), currentUser?.id] };
@@ -321,7 +460,6 @@ const App = () => {
   };
 
   const handleDeleteConversations = async (conversationIds: string[]) => {
-      // For now, actually delete document for prototype simplicity
       for (const id of conversationIds) {
           await db.collection('conversations').doc(id).delete();
       }
@@ -434,9 +572,9 @@ const App = () => {
   const handleCreateCourse = async (courseData: any) => {
       if (!currentUser) return;
       await db.collection('courses').add({
+          facultyId: currentUser.id, // Default to creator, but allow override
           ...courseData,
           collegeId: currentUser.collegeId,
-          facultyId: currentUser.id // Initially assigned to creator, HOD can change
       });
   };
 
@@ -476,49 +614,49 @@ const App = () => {
 
   // Admin/HOD User Management
   const handleCreateUser = async (userData: any, password?: string) => {
-      // Note: In a real app, creating auth users usually requires a backend function or secondary auth app instance.
-      // For this prototype, we'll assume we can create a user if we are admin, but Firebase Client SDK doesn't support creating secondary users easily without logging out.
-      // We will simulate by just adding to Firestore for listing purposes, real Auth creation happens on Signup/Login flows or via a Cloud Function.
-      // OR, we create a placeholder doc and they "claim" it on signup.
-      // The SignupPage logic handles "finding invite". So we just create the doc.
-      const newRef = await db.collection('users').add({
+      const newRef = db.collection('users').doc();
+      // If isRegistered is passed (e.g. true), respect it. Otherwise default to false.
+      const isRegistered = userData.isRegistered !== undefined ? userData.isRegistered : false;
+      
+      await newRef.set({
           ...userData,
-          collegeId: currentUser?.collegeId,
-          isRegistered: false
+          email: userData.email.toLowerCase(), // Normalize email for consistent login/lookup
+          collegeId: currentUser?.collegeId, // IMPORTANT: Must inherit collegeId for user to see dashboard
+          isRegistered: isRegistered, 
+          createdAt: Date.now(), 
+          createdBy: currentUser?.id
       });
-      // We'll use the doc ID as a temporary invite code logic
   };
 
   const handleCreateUsersBatch = async (usersData: any[]) => {
-      // Firestore allows max 500 writes per batch. We must chunk it.
-      const chunkSize = 450; // Use a safe margin
+      const chunkSize = 450;
       let successCount = 0;
       const errors: any[] = [];
 
-      // Process in chunks
       for (let i = 0; i < usersData.length; i += chunkSize) {
           const batch = db.batch();
           const chunk = usersData.slice(i, i + chunkSize);
           
           for (const u of chunk) {
-              // Note: Checking duplicates synchronously against local state is fast but might be stale.
-              // In a real app, use a transaction or unique index constraints.
-              const existing = (Object.values(users) as User[]).find(existingUser => existingUser.email === u.email);
+              const email = u.email.toLowerCase();
+              const existing = (Object.values(users) as User[]).find(existingUser => existingUser.email === email);
               if (existing) {
                   errors.push({ email: u.email, reason: "Email already exists" });
                   continue;
               }
               
-              const newRef = db.collection('users').doc(); // Generate ID
+              const newRef = db.collection('users').doc();
               batch.set(newRef, {
                   ...u,
+                  email: email,
                   collegeId: currentUser?.collegeId,
                   isRegistered: false,
-                  isApproved: u.tag === 'Teacher' ? false : true // Students might not need approval if invited? Let's say False for now to be safe
+                  isApproved: true, // Auto-approve when created by admin
+                  createdAt: Date.now(),
+                  createdBy: currentUser?.id
               });
               successCount++;
           }
-          // Commit this chunk
           if (chunk.length > 0) {
              await batch.commit();
           }
@@ -557,18 +695,72 @@ const App = () => {
 
   // Super Admin
   const handleCreateCollegeAdmin = async (collegeName: string, email: string, password: string) => {
-      // Create College
-      const collegeRef = await db.collection('colleges').add({ name: collegeName, adminUids: [], departments: [] });
-      // We can't create the Auth user here easily without logging out. 
-      // In a real app, call a Cloud Function. 
-      // For prototype: Create a user doc that is "pre-approved" and wait for them to sign up? 
-      // Or simply fail for now as "Backend Required". 
-      // Let's assume we just create the college and the user has to sign up via "Register College" flow.
-      alert("College created. Please ask the director to sign up via the 'Register College' page.");
+      try {
+          const normalizedEmail = email.toLowerCase();
+          // 1. Create the User Invite Document first to get an ID
+          const userInviteRef = await db.collection('users').add({
+              email: normalizedEmail,
+              name: 'Director (Pending)',
+              tag: 'Director',
+              isRegistered: false,
+              isApproved: true, // Manual add = Approved invite
+              createdAt: Date.now(),
+              createdBy: currentUser?.id
+          });
+
+          // 2. Create the College Document with the User ID
+          const collegeRef = await db.collection('colleges').add({ 
+              name: collegeName, 
+              adminUids: [userInviteRef.id], // Link immediately
+              departments: [],
+              createdAt: Date.now(),
+              createdBy: currentUser?.id
+          });
+          
+          // 3. Update User with College ID and requestedCollegeName (for consistency)
+          await userInviteRef.update({
+              collegeId: collegeRef.id,
+              requestedCollegeName: collegeName // Optional but good for tracking
+          });
+          
+          alert("College and Director Invite created successfully!");
+      } catch (error: any) {
+          alert("Failed to create college: " + error.message);
+      }
   };
 
-  const handleApproveDirector = async (directorId: string) => {
-      await db.collection('users').doc(directorId).update({ isApproved: true });
+  const handleApproveDirector = async (directorId: string, collegeName: string) => {
+      try {
+          if (!currentUser) {
+              alert("Session expired. Please refresh.");
+              return;
+          }
+          if (!collegeName) {
+              alert("Invalid request: Missing college name.");
+              return;
+          }
+
+          // 1. Create College
+          const collegeRef = await db.collection('colleges').add({
+              name: collegeName,
+              adminUids: [directorId],
+              departments: [],
+              createdAt: Date.now(),
+              createdBy: currentUser.id
+          });
+
+          // 2. Update Director User
+          await db.collection('users').doc(directorId).update({
+              isApproved: true,
+              collegeId: collegeRef.id,
+              requestedCollegeName: FieldValue.delete()
+          });
+          
+          alert("Director approved and college created successfully.");
+      } catch (error: any) {
+          console.error("Approval failed:", error);
+          alert("Approval failed: " + error.message);
+      }
   };
 
   // College Management
@@ -577,19 +769,10 @@ const App = () => {
   };
 
   const onUpdateCollegeClasses = async (collegeId: string, department: string, classes: any) => {
-      // Logic to update nested map in Firestore
       await db.collection('colleges').doc(collegeId).update({
           [`classes.${department}`]: classes
       });
   };
-
-  const onEditCollegeDepartment = async (collegeId: string, oldName: string, newName: string) => {
-        // Placeholder
-  }
-
-  const onDeleteCollegeDepartment = async (collegeId: string, deptName: string) => {
-        // Placeholder
-  }
 
   // Personal Notes
   const handleCreateNote = async (title: string, content: string) => {
@@ -620,30 +803,37 @@ const App = () => {
   };
 
   // Course management
-  const handleAddNote = async (courseId: string, noteData: { title: string, fileUrl: string, fileName: string }) => {
-      const newNote: Note = {
-          id: Date.now().toString(),
-          ...noteData,
-          uploadedAt: Date.now()
-      };
+  const handleAddNote = async (courseId: string, note: { title: string, fileUrl: string, fileName: string }) => {
       await db.collection('courses').doc(courseId).update({
-          notes: FieldValue.arrayUnion(newNote)
+          notes: FieldValue.arrayUnion({ ...note, id: Date.now().toString(), uploadedAt: Date.now() })
       });
   };
 
-  const handleAddAssignment = async (courseId: string, assignmentData: { title: string, fileUrl: string, fileName: string, dueDate: number }) => {
-      const newAssignment: Assignment = {
-          id: Date.now().toString(),
-          ...assignmentData,
-          postedAt: Date.now()
-      };
+  const handleAddAssignment = async (courseId: string, assignment: { title: string, fileUrl: string, fileName: string, dueDate: number }) => {
       await db.collection('courses').doc(courseId).update({
-          assignments: FieldValue.arrayUnion(newAssignment)
+          assignments: FieldValue.arrayUnion({ ...assignment, id: Date.now().toString(), postedAt: Date.now() })
       });
   };
 
-  const handleManageCourseRequest = () => {};
-  
+  const handleTakeAttendance = async (courseId: string, record: AttendanceRecord) => {
+      await db.collection('courses').doc(courseId).update({
+          attendanceRecords: FieldValue.arrayUnion(record)
+      });
+  };
+
+  const handleManageCourseRequest = async (courseId: string, studentId: string, action: 'approve' | 'reject') => {
+      if (action === 'approve') {
+          await db.collection('courses').doc(courseId).update({
+              pendingStudents: FieldValue.arrayRemove(studentId),
+              students: FieldValue.arrayUnion(studentId)
+          });
+      } else {
+          await db.collection('courses').doc(courseId).update({
+              pendingStudents: FieldValue.arrayRemove(studentId)
+          });
+      }
+  };
+
   const handleAddStudentsToCourse = async (courseId: string, studentIds: string[]) => {
       await db.collection('courses').doc(courseId).update({
           students: FieldValue.arrayUnion(...studentIds)
@@ -669,485 +859,442 @@ const App = () => {
       });
   };
 
-  const handleUpdateCoursePersonalNote = () => {};
-  const handleSaveFeedback = () => {};
-
-  const handleTakeAttendance = async (courseId: string, attendanceData: Omit<AttendanceRecord, 'date'>) => {
-      const course = courses.find(c => c.id === courseId);
-      if (!course) return;
-      // ... (Implemented in onTakeAttendanceReal below)
+  const handleUpdateCoursePersonalNote = async (courseId: string, note: string) => {
+      if (!currentUser) return;
+      await db.collection('courses').doc(courseId).update({
+          [`personalNotes.${currentUser.id}`]: note
+      });
   };
 
-  // Real implementation of handleTakeAttendance
-  const onTakeAttendanceReal = async (courseId: string, record: AttendanceRecord) => {
-      const courseRef = db.collection('courses').doc(courseId);
-      const course = courses.find(c => c.id === courseId);
-      if (!course) return;
+  const handleSaveFeedback = async (courseId: string, rating: number, comment: string) => {
+      if (!currentUser) return;
+      const feedback = {
+          studentId: currentUser.id,
+          rating,
+          comment,
+          timestamp: Date.now()
+      };
+      await db.collection('courses').doc(courseId).update({
+          feedback: FieldValue.arrayUnion(feedback)
+      });
+  };
 
-      const existingRecords = course.attendanceRecords || [];
-      const dateString = new Date(record.date).toDateString();
+  if (loading) {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-primary"></div>
+        </div>
+    );
+  }
+
+  if (!currentUser) {
+    return currentPath === '#/signup' ? <SignupPage onNavigate={setCurrentPath} /> : <LoginPage onNavigate={setCurrentPath} />;
+  }
+
+  if (currentPath.startsWith('#/superadmin')) {
+      return (
+          <SuperAdminPage 
+            colleges={colleges} 
+            users={users} 
+            onCreateCollegeAdmin={handleCreateCollegeAdmin} 
+            onNavigate={setCurrentPath} 
+            currentUser={currentUser} 
+            currentPath={currentPath} 
+            onApproveDirector={handleApproveDirector}
+            onDeleteUser={onDeleteUser}
+          />
+      );
+  }
+
+  if (currentPath.startsWith('#/director')) {
+      return (
+          <DirectorPage
+            currentUser={currentUser}
+            allUsers={Object.values(users)}
+            allPosts={posts}
+            allGroups={groups}
+            allCourses={courses}
+            usersMap={users}
+            notices={notices}
+            colleges={colleges}
+            onNavigate={setCurrentPath}
+            currentPath={currentPath}
+            onDeleteUser={onDeleteUser}
+            onDeletePost={handleDeletePost}
+            onDeleteGroup={handleDeleteGroup}
+            onApproveHodRequest={handleApproveHodRequest}
+            onDeclineHodRequest={handleDeclineHodRequest}
+            onApproveTeacherRequest={handleApproveTeacherRequest}
+            onDeclineTeacherRequest={handleDeclineTeacherRequest}
+            onToggleFreezeUser={onToggleFreezeUser}
+            onUpdateUserRole={onUpdateUserRole}
+            onCreateNotice={handleCreateNotice}
+            onDeleteNotice={handleDeleteNotice}
+            onCreateCourse={handleCreateCourse}
+            onCreateUser={handleCreateUser}
+            onDeleteCourse={handleDeleteCourse}
+            onUpdateCollegeDepartments={onUpdateCollegeDepartments}
+            onEditCollegeDepartment={(cid, oldName, newName) => {}}
+            onDeleteCollegeDepartment={(cid, deptName) => {}}
+            onUpdateCourseFaculty={handleUpdateCourseFaculty}
+            postCardProps={{
+                onReaction: handleReaction,
+                onAddComment: handleAddComment,
+                onDeletePost: handleDeletePost,
+                onDeleteComment: handleDeleteComment,
+                onCreateOrOpenConversation: handleCreateOrOpenConversation,
+                onSharePostAsMessage: handleSharePostAsMessage,
+                onSharePost: handleSharePost,
+                onToggleSavePost: handleToggleSavePost,
+                groups: groups
+            }}
+          />
+      );
+  }
+
+  if (currentPath === '#/hod') {
+      return (
+          <HodPage 
+            currentUser={currentUser} 
+            onNavigate={setCurrentPath} 
+            currentPath={currentPath} 
+            courses={courses} 
+            onCreateCourse={handleCreateCourse} 
+            onUpdateCourse={handleUpdateCourse}
+            onDeleteCourse={handleDeleteCourse} 
+            notices={notices} 
+            users={users} 
+            allUsers={Object.values(users)}
+            onCreateNotice={handleCreateNotice} 
+            onDeleteNotice={handleDeleteNotice} 
+            departmentChats={[]} 
+            onSendDepartmentMessage={()=>{}} 
+            onCreateUser={handleCreateUser} 
+            onCreateUsersBatch={handleCreateUsersBatch} 
+            onApproveTeacherRequest={handleApproveTeacherRequest} 
+            onDeclineTeacherRequest={handleDeclineTeacherRequest} 
+            colleges={colleges} 
+            onUpdateCourseFaculty={handleUpdateCourseFaculty} 
+            onUpdateCollegeClasses={onUpdateCollegeClasses}
+            onDeleteUser={onDeleteUser}
+            onToggleFreezeUser={onToggleFreezeUser}
+            onUpdateUserRole={onUpdateUserRole}
+          />
+      );
+  }
+
+  // Routes
+  if (currentPath.startsWith('#/profile/')) {
+      const userId = currentPath.split('/profile/')[1];
+      return (
+        <ProfilePage 
+            profileUserId={userId} 
+            currentUser={currentUser} 
+            users={users} 
+            posts={posts} 
+            groups={groups}
+            onNavigate={setCurrentPath}
+            currentPath={currentPath}
+            onAddPost={handleAddPost}
+            onAddAchievement={handleAddAchievement}
+            onAddInterest={handleAddInterest}
+            onUpdateProfile={handleUpdateProfile}
+            onReaction={handleReaction}
+            onAddComment={handleAddComment}
+            onDeletePost={handleDeletePost}
+            onDeleteComment={handleDeleteComment}
+            onCreateOrOpenConversation={handleCreateOrOpenConversation}
+            onSharePostAsMessage={handleSharePostAsMessage}
+            onSharePost={handleSharePost}
+            onToggleSavePost={handleToggleSavePost}
+            colleges={colleges}
+            courses={courses}
+        />
+      );
+  }
+
+  if (currentPath === '#/groups') {
+      return (
+        <GroupsPage 
+            currentUser={currentUser} 
+            groups={groups} 
+            onNavigate={setCurrentPath} 
+            currentPath={currentPath}
+            onCreateGroup={handleCreateGroup}
+            onJoinGroupRequest={handleJoinGroupRequest}
+            onToggleFollowGroup={handleToggleFollowGroup}
+        />
+      );
+  }
+
+  if (currentPath.startsWith('#/groups/')) {
+      const groupId = currentPath.split('/groups/')[1];
+      const group = groups.find(g => g.id === groupId);
+      return group ? (
+        <GroupDetailPage 
+            group={group} 
+            currentUser={currentUser} 
+            users={users} 
+            posts={posts} 
+            groups={groups}
+            onNavigate={setCurrentPath}
+            currentPath={currentPath}
+            onAddPost={(details) => handleAddPost({...details, groupId: group.id})}
+            onAddStory={(details) => handleAddStory({...details, groupId: group.id})}
+            onReaction={handleReaction}
+            onAddComment={handleAddComment}
+            onDeletePost={handleDeletePost}
+            onDeleteComment={handleDeleteComment}
+            onCreateOrOpenConversation={handleCreateOrOpenConversation}
+            onSharePostAsMessage={handleSharePostAsMessage}
+            onSharePost={handleSharePost}
+            onToggleSavePost={handleToggleSavePost}
+            onJoinGroupRequest={handleJoinGroupRequest}
+            onApproveJoinRequest={handleApproveJoinRequest}
+            onDeclineJoinRequest={handleDeclineJoinRequest}
+            onDeleteGroup={handleDeleteGroup}
+            onSendGroupMessage={handleSendGroupMessage}
+            onRemoveGroupMember={handleRemoveGroupMember}
+            onToggleFollowGroup={handleToggleFollowGroup}
+            onUpdateGroup={handleUpdateGroup}
+        />
+      ) : <div>Group Not Found</div>;
+  }
+
+  if (currentPath === '#/events') {
+      return (
+          <EventsPage 
+            currentUser={currentUser} 
+            users={users} 
+            events={posts.filter(p => p.isEvent)} 
+            groups={groups} 
+            onNavigate={setCurrentPath} 
+            currentPath={currentPath} 
+            onAddPost={handleAddPost}
+            onReaction={handleReaction}
+            onAddComment={handleAddComment}
+            onDeletePost={handleDeletePost}
+            onDeleteComment={handleDeleteComment}
+            onCreateOrOpenConversation={handleCreateOrOpenConversation}
+            onSharePostAsMessage={handleSharePostAsMessage}
+            onSharePost={handleSharePost}
+            onToggleSavePost={handleToggleSavePost}
+          />
+      );
+  }
+
+  if (currentPath.startsWith('#/events/')) {
+      const eventId = currentPath.split('/events/')[1];
+      return (
+          <EventDetailPage 
+            eventId={eventId}
+            posts={posts}
+            users={users}
+            currentUser={currentUser}
+            onNavigate={setCurrentPath}
+            onRegister={async (eid) => {
+                const post = posts.find(p => p.id === eid);
+                if (post) {
+                    const attendees = post.eventDetails?.attendees || [];
+                    if (!attendees.includes(currentUser.id)) {
+                        await db.collection('posts').doc(eid).update({
+                            'eventDetails.attendees': FieldValue.arrayUnion(currentUser.id)
+                        });
+                    }
+                }
+            }}
+            onUnregister={async (eid) => {
+                 await db.collection('posts').doc(eid).update({
+                    'eventDetails.attendees': FieldValue.arrayRemove(currentUser.id)
+                });
+            }}
+            onDeleteEvent={handleDeletePost}
+          />
+      );
+  }
+
+  if (currentPath === '#/opportunities') {
+      return (
+          <OpportunitiesPage 
+            currentUser={currentUser} 
+            users={users} 
+            posts={posts} 
+            onNavigate={setCurrentPath} 
+            currentPath={currentPath} 
+            onAddPost={handleAddPost}
+            postCardProps={{ onDeletePost: handleDeletePost }}
+          />
+      );
+  }
+
+  if (currentPath === '#/chat') {
+      return (
+          <ChatPage 
+            currentUser={currentUser} 
+            users={users} 
+            conversations={conversations} 
+            onSendMessage={handleSendMessage} 
+            onDeleteMessagesForEveryone={handleDeleteMessagesForEveryone} 
+            onDeleteMessagesForSelf={handleDeleteMessagesForSelf} 
+            onDeleteConversations={handleDeleteConversations}
+            onCreateOrOpenConversation={handleCreateOrOpenConversation}
+            onNavigate={setCurrentPath}
+            currentPath={currentPath}
+          />
+      );
+  }
+
+  if (currentPath === '#/academics') {
+      return (
+          <AcademicsPage 
+            currentUser={currentUser} 
+            onNavigate={setCurrentPath} 
+            currentPath={currentPath} 
+            courses={courses} 
+            onCreateCourse={handleCreateCourse} 
+            notices={notices} 
+            users={users} 
+            onCreateNotice={handleCreateNotice} 
+            onDeleteNotice={handleDeleteNotice} 
+            onRequestToJoinCourse={handleRequestToJoinCourse} 
+            departmentChats={[]} 
+            onSendDepartmentMessage={()=>{}}
+            onCreateUser={handleCreateUser}
+            onApproveTeacherRequest={handleApproveTeacherRequest}
+            onDeclineTeacherRequest={handleDeclineTeacherRequest}
+            colleges={colleges}
+          />
+      );
+  }
+
+  if (currentPath.startsWith('#/academics/')) {
+      const parts = currentPath.split('/');
+      const courseId = parts[2];
+      const tab = parts[3]; // e.g. 'attendance'
+      const course = courses.find(c => c.id === courseId);
       
-      const existingIndex = existingRecords.findIndex(r => new Date(r.date).toDateString() === dateString);
-      
-      let newRecords = [...existingRecords];
-      if (existingIndex >= 0) {
-          newRecords[existingIndex] = record;
-      } else {
-          newRecords.push(record);
+      if (course) {
+          return (
+              <CourseDetailPage 
+                course={course} 
+                currentUser={currentUser} 
+                allUsers={Object.values(users)}
+                students={Object.values(users).filter((u: User) => {
+                    if (u.tag !== 'Student') return false;
+                    
+                    // 1. Explicitly enrolled
+                    const isExplicitlyEnrolled = course.students?.includes(u.id);
+                    
+                    // 2. Check implicit class matching (Department + Year + Division)
+                    // This ensures all students of the class show up for attendance
+                    const isClassMatch = 
+                        u.department === course.department && 
+                        u.yearOfStudy === course.year && 
+                        (!course.division || u.division === course.division);
+
+                    return isExplicitlyEnrolled || isClassMatch;
+                })}
+                onNavigate={setCurrentPath} 
+                currentPath={currentPath} 
+                onAddNote={handleAddNote} 
+                onAddAssignment={handleAddAssignment} 
+                onTakeAttendance={handleTakeAttendance} 
+                onRequestToJoinCourse={handleRequestToJoinCourse} 
+                onManageCourseRequest={handleManageCourseRequest} 
+                onAddStudentsToCourse={handleAddStudentsToCourse} 
+                onRemoveStudentFromCourse={handleRemoveStudentFromCourse} 
+                onSendCourseMessage={handleSendCourseMessage} 
+                onUpdateCoursePersonalNote={handleUpdateCoursePersonalNote} 
+                onSaveFeedback={handleSaveFeedback}
+                onDeleteCourse={handleDeleteCourse}
+                onUpdateCourseFaculty={handleUpdateCourseFaculty}
+                initialTab={tab}
+              />
+          );
       }
+  }
 
-      await courseRef.update({ attendanceRecords: newRecords });
-  };
+  if (currentPath === '#/notes') {
+      return (
+          <PersonalNotesPage 
+            currentUser={currentUser} 
+            onNavigate={setCurrentPath} 
+            currentPath={currentPath} 
+            onCreateNote={handleCreateNote} 
+            onUpdateNote={handleUpdateNote} 
+            onDeleteNote={handleDeleteNote}
+          />
+      );
+  }
 
+  if (currentPath === '#/notices') {
+      return (
+          <NoticeBoardPage 
+            currentUser={currentUser} 
+            onNavigate={setCurrentPath} 
+            currentPath={currentPath} 
+            notices={notices} 
+            users={users} 
+            onCreateNotice={handleCreateNotice} 
+            onDeleteNotice={handleDeleteNotice}
+          />
+      );
+  }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  if (currentPath === '#/search') {
+      return (
+          <SearchPage 
+            currentUser={currentUser} 
+            users={Object.values(users)} 
+            posts={posts} 
+            groups={groups} 
+            onNavigate={setCurrentPath} 
+            currentPath={currentPath} 
+            onReaction={handleReaction}
+            onAddComment={handleAddComment}
+            onDeletePost={handleDeletePost}
+            onDeleteComment={handleDeleteComment}
+            onCreateOrOpenConversation={handleCreateOrOpenConversation}
+            onSharePostAsMessage={handleSharePostAsMessage}
+            onSharePost={handleSharePost}
+            onToggleSavePost={handleToggleSavePost}
+          />
+      );
+  }
 
-  // Simple router
-  const renderPage = () => {
-    if (currentPath === '#/' || currentPath === '') return <WelcomePage onNavigate={setCurrentPath} />;
-    if (currentPath === '#/login') return <LoginPage onNavigate={setCurrentPath} />;
-    if (currentPath === '#/signup') return <SignupPage onNavigate={setCurrentPath} />;
+  if (currentPath === '#/confessions') {
+      return (
+          <ConfessionsPage 
+            currentUser={currentUser} 
+            users={users} 
+            posts={posts} 
+            groups={groups} 
+            onNavigate={setCurrentPath} 
+            currentPath={currentPath} 
+            onAddPost={handleAddPost}
+            onReaction={handleReaction}
+            onAddComment={handleAddComment}
+            onDeletePost={handleDeletePost}
+            onDeleteComment={handleDeleteComment}
+            onCreateOrOpenConversation={handleCreateOrOpenConversation}
+            onSharePostAsMessage={handleSharePostAsMessage}
+            onSharePost={handleSharePost}
+            onToggleSavePost={handleToggleSavePost}
+          />
+      );
+  }
 
-    if (!currentUser) return <LoginPage onNavigate={setCurrentPath} />;
-
-    if (currentPath === '#/home') {
-        return (
-            <HomePage
-                currentUser={currentUser}
-                users={users}
-                posts={posts}
-                stories={stories}
-                groups={groups}
-                events={posts.filter(p => p.isEvent)}
-                notices={notices}
-                onNavigate={setCurrentPath}
-                onAddPost={handleAddPost}
-                onAddStory={handleAddStory}
-                onMarkStoryAsViewed={handleMarkStoryAsViewed}
-                onDeleteStory={handleDeleteStory}
-                onReplyToStory={handleReplyToStory}
-                currentPath={currentPath}
-                onReaction={handleReaction}
-                onAddComment={handleAddComment}
-                onDeletePost={handleDeletePost}
-                onDeleteComment={handleDeleteComment}
-                onCreateOrOpenConversation={handleCreateOrOpenConversation}
-                onSharePostAsMessage={handleSharePostAsMessage}
-                onSharePost={handleSharePost}
-                onToggleSavePost={handleToggleSavePost}
-            />
-        );
-    }
-
-    if (currentPath === '#/groups') {
-        return (
-            <GroupsPage
-                currentUser={currentUser}
-                groups={groups}
-                onNavigate={setCurrentPath}
-                currentPath={currentPath}
-                onCreateGroup={handleCreateGroup}
-                onJoinGroupRequest={handleJoinGroupRequest}
-                onToggleFollowGroup={handleToggleFollowGroup}
-            />
-        );
-    }
-
-    if (currentPath.startsWith('#/groups/')) {
-        const groupId = currentPath.split('/')[2];
-        const group = groups.find(g => g.id === groupId);
-        if (group) {
-            return (
-                <GroupDetailPage
-                    group={group}
-                    currentUser={currentUser}
-                    users={users}
-                    posts={posts.filter(p => p.groupId === groupId)}
-                    groups={groups}
-                    onNavigate={setCurrentPath}
-                    currentPath={currentPath}
-                    onAddPost={(p) => handleAddPost({ ...p, groupId })}
-                    onAddStory={(s) => handleAddStory({ ...s, groupId })}
-                    onReaction={handleReaction}
-                    onAddComment={handleAddComment}
-                    onDeletePost={handleDeletePost}
-                    onDeleteComment={handleDeleteComment}
-                    onCreateOrOpenConversation={handleCreateOrOpenConversation}
-                    onSharePostAsMessage={handleSharePostAsMessage}
-                    onSharePost={handleSharePost}
-                    onToggleSavePost={handleToggleSavePost}
-                    onJoinGroupRequest={handleJoinGroupRequest}
-                    onApproveJoinRequest={handleApproveJoinRequest}
-                    onDeclineJoinRequest={handleDeclineJoinRequest}
-                    onDeleteGroup={handleDeleteGroup}
-                    onSendGroupMessage={handleSendGroupMessage}
-                    onRemoveGroupMember={handleRemoveGroupMember}
-                    onToggleFollowGroup={handleToggleFollowGroup}
-                    onUpdateGroup={handleUpdateGroup}
-                />
-            );
-        }
-    }
-
-    if (currentPath === '#/events') {
-        return (
-            <EventsPage
-                currentUser={currentUser}
-                users={users}
-                events={posts.filter(p => p.isEvent)}
-                groups={groups}
-                onNavigate={setCurrentPath}
-                currentPath={currentPath}
-                onAddPost={handleAddPost}
-                onReaction={handleReaction}
-                onAddComment={handleAddComment}
-                onDeletePost={handleDeletePost}
-                onDeleteComment={handleDeleteComment}
-                onCreateOrOpenConversation={handleCreateOrOpenConversation}
-                onSharePostAsMessage={handleSharePostAsMessage}
-                onSharePost={handleSharePost}
-                onToggleSavePost={handleToggleSavePost}
-            />
-        );
-    }
-
-    if (currentPath.startsWith('#/events/')) {
-        const eventId = currentPath.split('/')[2];
-        return (
-            <EventDetailPage
-                eventId={eventId}
-                posts={posts}
-                users={users}
-                currentUser={currentUser}
-                onNavigate={setCurrentPath}
-                onRegister={() => {/* Implement register logic */}}
-                onUnregister={() => {/* Implement unregister logic */}}
-                onDeleteEvent={handleDeletePost}
-            />
-        );
-    }
-
-    if (currentPath === '#/opportunities') {
-        return (
-            <OpportunitiesPage
-                currentUser={currentUser}
-                users={users}
-                posts={posts}
-                onNavigate={setCurrentPath}
-                currentPath={currentPath}
-                onAddPost={handleAddPost}
-                postCardProps={{
-                    onDeletePost: handleDeletePost
-                }}
-            />
-        );
-    }
-
-    if (currentPath === '#/chat') {
-        return (
-            <ChatPage
-                currentUser={currentUser}
-                users={users}
-                conversations={conversations}
-                onSendMessage={handleSendMessage}
-                onDeleteMessagesForEveryone={handleDeleteMessagesForEveryone}
-                onDeleteMessagesForSelf={handleDeleteMessagesForSelf}
-                onDeleteConversations={handleDeleteConversations}
-                onCreateOrOpenConversation={handleCreateOrOpenConversation}
-                onNavigate={setCurrentPath}
-                currentPath={currentPath}
-            />
-        );
-    }
-
-    if (currentPath.startsWith('#/profile/')) {
-        const profileId = currentPath.split('/')[2];
-        return (
-            <ProfilePage
-                profileUserId={profileId}
-                currentUser={currentUser}
-                users={users}
-                posts={posts}
-                groups={groups}
-                colleges={colleges}
-                courses={courses}
-                onNavigate={setCurrentPath}
-                currentPath={currentPath}
-                onAddPost={handleAddPost}
-                onAddAchievement={handleAddAchievement}
-                onAddInterest={handleAddInterest}
-                onUpdateProfile={handleUpdateProfile}
-                onReaction={handleReaction}
-                onAddComment={handleAddComment}
-                onDeletePost={handleDeletePost}
-                onDeleteComment={handleDeleteComment}
-                onCreateOrOpenConversation={handleCreateOrOpenConversation}
-                onSharePostAsMessage={handleSharePostAsMessage}
-                onSharePost={handleSharePost}
-                onToggleSavePost={handleToggleSavePost}
-            />
-        );
-    }
-
-    if (currentPath === '#/academics') {
-        return (
-            <AcademicsPage
-                currentUser={currentUser}
-                onNavigate={setCurrentPath}
-                currentPath={currentPath}
-                courses={courses}
-                onCreateCourse={handleCreateCourse}
-                notices={notices}
-                users={users}
-                onCreateNotice={handleCreateNotice}
-                onDeleteNotice={handleDeleteNotice}
-                onRequestToJoinCourse={handleRequestToJoinCourse}
-                departmentChats={[]}
-                onSendDepartmentMessage={() => {}}
-                onCreateUser={handleCreateUser}
-                onApproveTeacherRequest={handleApproveTeacherRequest}
-                onDeclineTeacherRequest={handleDeclineTeacherRequest}
-                colleges={colleges}
-            />
-        );
-    }
-
-    if (currentPath.startsWith('#/academics/')) {
-        const parts = currentPath.split('/');
-        const courseId = parts[2];
-        const course = courses.find(c => c.id === courseId);
-        // For nested routes like /academics/:id/attendance, passing via prop
-        const initialTab = parts[3] === 'attendance' ? 'attendance' : parts[3] === 'assignments' ? 'assignments' : parts[3] === 'roster' ? 'roster' : undefined;
-
-        if (course) {
-            // Filter enrolled students for this course: Combine Automatic Class-based students AND Manually enrolled students
-            let classStudents: User[] = [];
-            if (course.year) {
-                 // Ensure comparison is robust (e.g., case-insensitive for division)
-                 classStudents = (Object.values(users) as User[]).filter((u: User) => 
-                    u.collegeId === course.collegeId &&
-                    u.department === course.department &&
-                    u.yearOfStudy === course.year &&
-                    u.tag === 'Student' &&
-                    (!course.division || (u.division && u.division.toLowerCase() === course.division.toLowerCase()))
-                 );
-            }
-
-            const manualStudentIds = course.students || [];
-            const manualStudents = manualStudentIds.map(id => users[id]).filter(Boolean);
-
-            // Merge and Dedupe by ID
-            const studentMap = new Map<string, User>();
-            classStudents.forEach(s => studentMap.set(s.id, s));
-            manualStudents.forEach(s => studentMap.set(s.id, s));
-
-            // Cast to ensure type safety when filtering
-            const finalStudents = Array.from(studentMap.values()).map(u => ({
-                id: u.id, 
-                name: u.name, 
-                avatarUrl: u.avatarUrl,
-                rollNo: u.rollNo
-            }));
-
-            return (
-                <CourseDetailPage
-                    course={course}
-                    currentUser={currentUser}
-                    allUsers={Object.values(users)}
-                    students={finalStudents}
-                    onNavigate={setCurrentPath}
-                    currentPath={currentPath}
-                    onAddNote={handleAddNote}
-                    onAddAssignment={handleAddAssignment}
-                    onTakeAttendance={onTakeAttendanceReal}
-                    onRequestToJoinCourse={handleRequestToJoinCourse}
-                    onManageCourseRequest={handleManageCourseRequest}
-                    onAddStudentsToCourse={handleAddStudentsToCourse}
-                    onRemoveStudentFromCourse={handleRemoveStudentFromCourse}
-                    onSendCourseMessage={handleSendCourseMessage}
-                    onUpdateCoursePersonalNote={handleUpdateCoursePersonalNote}
-                    onSaveFeedback={handleSaveFeedback}
-                    onDeleteCourse={handleDeleteCourse}
-                    onUpdateCourseFaculty={handleUpdateCourseFaculty}
-                    initialTab={initialTab}
-                />
-            );
-        }
-    }
-
-    if (currentPath === '#/notes') {
-        return (
-            <PersonalNotesPage
-                currentUser={currentUser}
-                onNavigate={setCurrentPath}
-                currentPath={currentPath}
-                onCreateNote={handleCreateNote}
-                onUpdateNote={handleUpdateNote}
-                onDeleteNote={handleDeleteNote}
-            />
-        );
-    }
-
-    if (currentPath === '#/notices') {
-        return (
-            <NoticeBoardPage
-                currentUser={currentUser}
-                onNavigate={setCurrentPath}
-                currentPath={currentPath}
-                notices={notices}
-                users={users}
-                onCreateNotice={handleCreateNotice}
-                onDeleteNotice={handleDeleteNotice}
-            />
-        );
-    }
-
-    if (currentPath === '#/hod') {
-        if (currentUser.tag !== 'HOD/Dean') return <HomePage {...{} as any} />; // Redirect or show error
-        return (
-            <HodPage
-                currentUser={currentUser}
-                onNavigate={setCurrentPath}
-                currentPath={currentPath}
-                courses={courses}
-                onCreateCourse={handleCreateCourse}
-                onUpdateCourse={handleUpdateCourse}
-                onDeleteCourse={handleDeleteCourse}
-                notices={notices}
-                users={users}
-                allUsers={Object.values(users)}
-                onCreateNotice={handleCreateNotice}
-                onDeleteNotice={handleDeleteNotice}
-                departmentChats={[]}
-                onSendDepartmentMessage={() => {}}
-                onCreateUser={handleCreateUser}
-                onCreateUsersBatch={handleCreateUsersBatch}
-                onApproveTeacherRequest={handleApproveTeacherRequest}
-                onDeclineTeacherRequest={handleDeclineTeacherRequest}
-                colleges={colleges}
-                onUpdateCourseFaculty={handleUpdateCourseFaculty}
-                onUpdateCollegeClasses={onUpdateCollegeClasses}
-                onDeleteUser={onDeleteUser}
-                onToggleFreezeUser={onToggleFreezeUser}
-                onUpdateUserRole={onUpdateUserRole}
-            />
-        );
-    }
-
-    if (currentPath.startsWith('#/director')) {
-        if (currentUser.tag !== 'Director') return <HomePage {...{} as any} />;
-        return (
-            <DirectorPage
-                currentUser={currentUser}
-                allUsers={Object.values(users)}
-                allPosts={posts}
-                allGroups={groups}
-                allCourses={courses}
-                usersMap={users}
-                notices={notices}
-                colleges={colleges}
-                onNavigate={setCurrentPath}
-                currentPath={currentPath}
-                onDeleteUser={onDeleteUser}
-                onDeletePost={handleDeletePost}
-                onDeleteGroup={handleDeleteGroup}
-                onApproveHodRequest={handleApproveHodRequest}
-                onDeclineHodRequest={handleDeclineHodRequest}
-                onApproveTeacherRequest={handleApproveTeacherRequest}
-                onDeclineTeacherRequest={handleDeclineTeacherRequest}
-                onToggleFreezeUser={onToggleFreezeUser}
-                onUpdateUserRole={() => {}}
-                onCreateNotice={handleCreateNotice}
-                onDeleteNotice={handleDeleteNotice}
-                onCreateCourse={handleCreateCourse}
-                onCreateUser={handleCreateUser}
-                onDeleteCourse={handleDeleteCourse}
-                onUpdateCollegeDepartments={onUpdateCollegeDepartments}
-                onEditCollegeDepartment={() => {}}
-                onDeleteCollegeDepartment={() => {}}
-                onUpdateCourseFaculty={handleUpdateCourseFaculty}
-                postCardProps={{
-                    onReaction: handleReaction,
-                    onAddComment: handleAddComment,
-                    onDeletePost: handleDeletePost,
-                    onDeleteComment: handleDeleteComment,
-                    onCreateOrOpenConversation: handleCreateOrOpenConversation,
-                    onSharePostAsMessage: handleSharePostAsMessage,
-                    onSharePost: handleSharePost,
-                    onToggleSavePost: handleToggleSavePost,
-                    groups: groups
-                }}
-            />
-        );
-    }
-
-    if (currentPath === '#/superadmin') {
-        return (
-            <SuperAdminPage
-                colleges={colleges}
-                users={users}
-                onCreateCollegeAdmin={handleCreateCollegeAdmin}
-                onNavigate={setCurrentPath}
-                currentUser={currentUser}
-                currentPath={currentPath}
-                onApproveDirector={handleApproveDirector}
-                onDeleteUser={onDeleteUser}
-            />
-        );
-    }
-
-    if (currentPath === '#/search') {
-        return (
-            <SearchPage
-                currentUser={currentUser}
-                users={Object.values(users)}
-                posts={posts}
-                groups={groups}
-                onNavigate={setCurrentPath}
-                currentPath={currentPath}
-                onReaction={handleReaction}
-                onAddComment={handleAddComment}
-                onDeletePost={handleDeletePost}
-                onDeleteComment={handleDeleteComment}
-                onCreateOrOpenConversation={handleCreateOrOpenConversation}
-                onSharePostAsMessage={handleSharePostAsMessage}
-                onSharePost={handleSharePost}
-                onToggleSavePost={handleToggleSavePost}
-            />
-        );
-    }
-
-    if (currentPath === '#/confessions') {
-        return (
-            <ConfessionsPage
-                currentUser={currentUser}
-                users={users}
-                posts={posts}
-                groups={groups}
-                onNavigate={setCurrentPath}
-                currentPath={currentPath}
-                onAddPost={handleAddPost}
-                onReaction={handleReaction}
-                onAddComment={handleAddComment}
-                onDeletePost={handleDeletePost}
-                onDeleteComment={handleDeleteComment}
-                onCreateOrOpenConversation={handleCreateOrOpenConversation}
-                onSharePostAsMessage={handleSharePostAsMessage}
-                onSharePost={handleSharePost}
-                onToggleSavePost={handleToggleSavePost}
-            />
-        );
-    }
-
-    return <HomePage 
-        currentUser={currentUser}
-        users={users}
-        posts={posts}
-        stories={stories}
-        groups={groups}
+  // Default Fallback
+  return (
+      <HomePage 
+        currentUser={currentUser} 
+        users={users} 
+        posts={posts} 
+        stories={stories} 
+        groups={groups} 
         events={posts.filter(p => p.isEvent)}
         notices={notices}
-        onNavigate={setCurrentPath}
+        onNavigate={setCurrentPath} 
         onAddPost={handleAddPost}
         onAddStory={handleAddStory}
         onMarkStoryAsViewed={handleMarkStoryAsViewed}
@@ -1162,13 +1309,7 @@ const App = () => {
         onSharePostAsMessage={handleSharePostAsMessage}
         onSharePost={handleSharePost}
         onToggleSavePost={handleToggleSavePost}
-    />;
-  };
-
-  return (
-    <div className="min-h-screen bg-background text-foreground font-sans">
-      {renderPage()}
-    </div>
+      />
   );
 };
 

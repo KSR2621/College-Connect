@@ -36,6 +36,7 @@ export type User = {
   isApproved?: boolean;
   isRegistered?: boolean; // Tracks if the user has set a password/completed signup
   isFrozen?: boolean;
+  requestedCollegeName?: string; // For pending directors who haven't had their college created yet
 }
 
 export type College = {
